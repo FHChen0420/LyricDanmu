@@ -12,6 +12,7 @@ B站直播歌词/同传弹幕发送工具
 + GeneralConfigFrame.py 应用通用设置界面
 + ShieldConfigFrame.py 屏蔽词管理界面
 + CustomTextFrame.py 预设文本界面
++ RecordFrame.py 弹幕发送记录界面
 + ColorFrame.py 弹幕颜色选择框
 + BiliLiveShieldWords.py 屏蔽字处理逻辑（不含数据）
 + util.py 零碎的工具函数
