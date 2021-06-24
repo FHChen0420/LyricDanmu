@@ -450,7 +450,7 @@ class SearchResult(wx.Frame):
         self.txtMsg.SetLabel("获取歌词中...")
         file=event.GetEventObject().GetName()
         try:
-            with open("songs\\"+file,"r",encoding="utf-8") as f:
+            with open("songs/"+file,"r",encoding="utf-8") as f:
                 content=f.read()
                 mo1=re.search(r"<type>\s*?(单语|双语)\s*?</type>",content)
                 mo2=re.search(r"<lyric>([\S\s]*?)</lyric>",content)

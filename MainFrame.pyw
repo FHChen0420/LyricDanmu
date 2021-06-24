@@ -1036,24 +1036,24 @@ class LyricDanmu(wx.Frame):
         self.csrf = ""
 
     def CheckFile(self):
-        if not os.path.exists(r"config.txt"):
+        if not os.path.exists("config.txt"):
             self.SaveConfig()
-        if not os.path.exists(r"rooms.txt"):
+        if not os.path.exists("rooms.txt"):
             with open("rooms.txt", "w", encoding="utf-8") as f:     f.write("")
-        if not os.path.exists(r"marks_wy.txt"):
+        if not os.path.exists("marks_wy.txt"):
             with open("marks_wy.txt", "w", encoding="utf-8") as f:  f.write("")
-        if not os.path.exists(r"marks_qq.txt"):
+        if not os.path.exists("marks_qq.txt"):
             with open("marks_qq.txt", "w", encoding="utf-8") as f:  f.write("")
-        if not os.path.exists(r"shields.txt"):
+        if not os.path.exists("shields.txt"):
             with open("shields.txt", "w", encoding="utf-8") as f:   f.write("")
-        if not os.path.exists(r"shields_global.dat"):
+        if not os.path.exists("shields_global.dat"):
             with open("shields_global.dat", "w", encoding="utf-8") as f:    f.write("")
-        if not os.path.exists(r"custom_texts.txt"):
+        if not os.path.exists("custom_texts.txt"):
             with open("custom_texts.txt", "w", encoding="utf-8") as f:
                 f.write(default_custom_text)
-        if not os.path.exists(r"songs"):
+        if not os.path.exists("songs"):
             os.mkdir("songs")
-        if not os.path.exists(r"logs"):
+        if not os.path.exists("logs"):
             os.mkdir("logs")
 
     def ReadFile(self):
@@ -1204,9 +1204,9 @@ class LyricDanmu(wx.Frame):
         return True
 
     def ReadLocalSongs(self):
-        fileList = os.listdir(r"songs")
+        fileList = os.listdir("songs")
         for file in fileList:
-            filepath = "songs\\" + file
+            filepath = "song/" + file
             if not os.path.isfile(filepath):
                 continue
             try:
@@ -1371,14 +1371,14 @@ class LyricDanmu(wx.Frame):
             filename=filename.replace(k,v)
         tags = re.sub(r"\r?\n|；", ";", tags)
         tags = re.sub(r";+", ";", tags)
-        if os.path.exists(r"songs\%s.txt"%filename):
+        if os.path.exists("songs/%s.txt"%filename):
             dlg = wx.MessageDialog(None, "歌词文件已存在，是否覆盖已有文件?", "提示", wx.YES_NO)
             if dlg.ShowModal()!=wx.ID_YES:
                 dlg.Destroy()
                 return False
             dlg.Destroy()
         try:
-            with open(r"songs\%s.txt"%filename,"w",encoding="utf-8") as f:
+            with open("songs/%s.txt"%filename,"w",encoding="utf-8") as f:
                 f.write("<name>" + name + "</name>\n")
                 f.write("<artists>" + artists + "</artists>\n")
                 f.write("<tags>" + tags + "</tags>\n")
@@ -1396,7 +1396,7 @@ class LyricDanmu(wx.Frame):
             return False
 
     def ShowLocalInfo(self,file):
-        filepath = "songs\\" + file
+        filepath = "song/" + file
         if not os.path.isfile(filepath):
             return False
         try:
