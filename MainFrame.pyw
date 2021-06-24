@@ -1026,7 +1026,7 @@ class LyricDanmu(wx.Frame):
         self.suffixs = ["","】"]
         self.enable_new_send_type=True
         self.send_interval = 750
-        self.timeout_s = 5000
+        self.timeout_s = 5
         self.default_src = "wy"
         self.search_num = 18
         self.page_limit = 6
