@@ -387,7 +387,7 @@ class LyricDanmu(wx.Frame):
         self.params_GetUserInfo["room_id"]=self.roomid
         try:
             res=session.get(url=self.url_GetUserInfo,headers=self.headers,params=self.params_GetUserInfo,
-                            timeout=(self.timeout_ms,self.timeout_ms))
+                            timeout=(self.timeout_s,self.timeout_s))
         except requests.exceptions.ConnectionError:
             dlg = wx.MessageDialog(None, "网络异常，请重试", "获取弹幕配置出错", wx.OK)
             dlg.ShowModal()
@@ -422,7 +422,7 @@ class LyricDanmu(wx.Frame):
         self.params_GetDanmuCfg["room_id"]=self.roomid
         try:
             res=session.get(url=self.url_GetDanmuCfg,headers=self.headers,params=self.params_GetDanmuCfg,
-                            timeout=(self.timeout_ms,self.timeout_ms))
+                            timeout=(self.timeout_s,self.timeout_s))
         except requests.exceptions.ConnectionError:
             dlg = wx.MessageDialog(None, "网络异常，请重试", "获取弹幕配置出错", wx.OK)
             dlg.ShowModal()
@@ -495,7 +495,7 @@ class LyricDanmu(wx.Frame):
             self.data_SetDanmuCfg["mode"]=mode
         try:
             res=session.post(url=self.url_SetDanmuCfg,headers=self.headers,data=self.data_SetDanmuCfg,
-                            timeout=(self.timeout_ms,self.timeout_ms))
+                            timeout=(self.timeout_s,self.timeout_s))
         except requests.exceptions.ConnectionError:
             dlg = wx.MessageDialog(None, "网络异常，请重试", "保存弹幕配置出错", wx.OK)
             dlg.ShowModal()
@@ -530,7 +530,7 @@ class LyricDanmu(wx.Frame):
         self.data_SendDanmu["roomid"] = roomid
         try:
             res = session.post(url=self.url_SendDanmu, headers=self.headers, data=self.data_SendDanmu,
-                                timeout=(self.timeout_ms,self.timeout_ms))
+                                timeout=(self.timeout_s,self.timeout_s))
             data=json.loads(res.text)
             errmsg=data["msg"]
             code=data["code"]
@@ -1026,7 +1026,7 @@ class LyricDanmu(wx.Frame):
         self.suffixs = ["","】"]
         self.enable_new_send_type=True
         self.send_interval = 750
-        self.timeout_ms = 5000
+        self.timeout_s = 5000
         self.default_src = "wy"
         self.search_num = 18
         self.page_limit = 6
@@ -1083,7 +1083,7 @@ class LyricDanmu(wx.Frame):
                     elif k == "请求超时阈值":
                         tm_out = int(v)
                         if 2000 <= tm_out <= 10000:
-                            self.timeout_ms=tm_out
+                            self.timeout_s=tm_out/1000
                     elif k == "默认搜索来源":
                         self.default_src = "wy" if "qq" not in v.lower() else "qq"
                     elif k == "歌曲搜索条数":
@@ -1457,7 +1457,7 @@ class LyricDanmu(wx.Frame):
                 f.write("歌词后缀备选=%s\n" % ",".join(self.suffixs))
                 f.write("新版发送机制=%s\n" % self.enable_new_send_type)
                 f.write("最低发送间隔=%d\n" % self.send_interval)
-                f.write("请求超时阈值=%d\n" % self.timeout_ms)
+                f.write("请求超时阈值=%d\n" % int(1000*self.timeout_s))
                 f.write("----------\n#搜索配置#\n----------\n")
                 f.write("默认搜索来源=%s\n" % ("网易云音乐" if self.default_src=="wy" else "QQ音乐"))
                 f.write("歌曲搜索条数=%d\n" % self.search_num)
