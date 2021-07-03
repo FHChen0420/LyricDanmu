@@ -47,7 +47,8 @@ class SearchResult(wx.Frame):
             "id": 0,  # 歌曲id
             "ids": "[]",  # [歌曲id]
         }
-        self.url_GetSongsQQ = "https://c.y.qq.com/soso/fcgi-bin/music_search_new_platform"
+        #self.url_GetSongsQQ = "https://c.y.qq.com/soso/fcgi-bin/music_search_new_platform" #旧接口，已不稳定，弃用
+        self.url_GetSongsQQ = "https://c.y.qq.com/soso/fcgi-bin/client_search_cp"
         self.url_GetLyricQQ = "https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg"
         self.url_GetSongInfoQQ = "https://c.y.qq.com/v8/fcg-bin/fcg_play_single_song.fcg"
         self.headersQQ = {
@@ -221,14 +222,12 @@ class SearchResult(wx.Frame):
                 qq_songs=songs_result["data"]["song"]["list"]
                 for qq_song in qq_songs:
                     song={}
-                    f=qq_song["f"].split("|")
-                    if len(f)<25:   continue
-                    if "Q"+f[0] in mark_ids:  continue
-                    song["id"]=f[0]+";"+f[-5] #id;mid
-                    song["name"]=qq_song["fsong"]
-                    song["artists"]=[{"name":f[3]}]
+                    if "Q%d"%qq_song["songid"] in mark_ids:  continue
+                    song["id"]="%d;%s"%(qq_song["songid"],qq_song["songmid"]) #id;mid
+                    song["name"]=qq_song["songname"]
+                    song["artists"]=[{"name": x["name"]} for x in qq_song["singer"]]
                     song["alias"] = []
-                    song["album"]={"name":f[5]}
+                    song["album"]={"name": qq_song["albumname"]}
                     self.all_songs.append(song)
                 self.ShowFrame(self.parent)
             else:
