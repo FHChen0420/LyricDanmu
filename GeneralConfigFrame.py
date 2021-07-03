@@ -54,8 +54,8 @@ class GeneralConfigFrame(wx.Frame):
         self.sldItv.Bind(wx.EVT_SLIDER, self.OnIntervalChange)
         # 超时阈值
         wx.StaticText(panel,-1,"超时阈值",pos=(15,184))
-        self.lblTmt = wx.StaticText(panel, -1, "%4.1f s" %(0.001*parent.timeout_ms), pos=(240, 184))
-        self.sldTmt = wx.Slider(panel, -1, int(0.01 * parent.timeout_ms), 20, 100, pos=(70, 180), size=(170, 30),style=wx.SL_HORIZONTAL)
+        self.lblTmt = wx.StaticText(panel, -1, "%4.1f s" %(parent.timeout_s), pos=(240, 184))
+        self.sldTmt = wx.Slider(panel, -1, int(10 * parent.timeout_s), 20, 100, pos=(70, 180), size=(170, 30),style=wx.SL_HORIZONTAL)
         self.sldTmt.Bind(wx.EVT_SLIDER, self.OnTimeoutChange)
         # 其它设置
         wx.StaticText(panel,-1,"其它设置",pos=(15,210))
@@ -90,7 +90,7 @@ class GeneralConfigFrame(wx.Frame):
     def OnTimeoutChange(self, event):
         tmt = self.sldTmt.GetValue()
         self.lblTmt.SetLabel("%4.1f s" % (tmt * 0.1))
-        self.parent.timeout_ms = 100 * self.sldTmt.GetValue()
+        self.parent.timeout_s = 0.1 * self.sldTmt.GetValue()
     
     def ShowCookieEdit(self,event):
         self.btnEditCookie.Show(False)
