@@ -103,14 +103,7 @@ class CustomTextFrame(wx.Frame):
         suf = "】"
         msg = pre + self.lblLyrics[1].GetLabel()
         msg = parent.DealWithCustomShields(msg)
-        if len(msg) <= parent.max_len:
-            if len(msg+suf) <= parent.max_len:
-                parent.danmuQueue.append([parent.roomid,msg+suf])
-            else:
-                parent.danmuQueue.append([parent.roomid,msg])
-            parent.btnClearQueue.SetLabel("清空 [%d]"%len(parent.danmuQueue))#
-        else:
-            parent.SendSplitLyric(msg,pre,suf)
+        parent.SendSplitDanmu(msg,pre,suf)
     
     def ShowEditPanel(self,event):
         index=int(event.GetEventObject().GetName())

@@ -903,18 +903,12 @@ class LyricDanmu(wx.Frame):
         msg = pre + self.lblLyrics[line].GetLabel()
         if self.shield_changed:
             msg = self.DealWithCustomShields(msg)
-        if len(msg) <= self.max_len:
-            if len(msg+suf) <= self.max_len:
-                self.danmuQueue.append([self.roomid,msg+suf])
-            else:
-                self.danmuQueue.append([self.roomid,msg])
-            self.btnClearQueue.SetLabel("清空 [%d]"%len(self.danmuQueue))#
-        else:
-            self.SendSplitLyric(msg,pre,suf)
+        self.SendSplitDanmu(msg,pre,suf)
 
-    def SendSplitLyric(self, msg, pre, suf):
-        for k, v in compress_rules.items():
-            msg = re.sub(k, v, msg)
+    def SendSplitDanmu(self, msg, pre, suf):
+        if len(msg) > self.max_len:
+            for k, v in compress_rules.items():
+                msg = re.sub(k, v, msg)
         if len(msg) <= self.max_len:
             if len(msg+suf) <= self.max_len:
                 self.danmuQueue.append([self.roomid,msg+suf])
@@ -939,7 +933,8 @@ class LyricDanmu(wx.Frame):
             cutIdx = self.max_len
         self.danmuQueue.append([self.roomid,msg[:cutIdx]])
         self.btnClearQueue.SetLabel("清空 [%d]" % len(self.danmuQueue))#
-        self.SendSplitLyric(pre + "…" + msg[cutIdx:],pre,suf)
+        if msg[cutIdx:] in [")","）","」","】","\"","”"]:  return
+        self.SendSplitDanmu(pre + "…" + msg[cutIdx:],pre,suf)
 
     def ImportLyric(self, event):
         lyric = self.tcImport.GetValue().strip()
@@ -981,6 +976,7 @@ class LyricDanmu(wx.Frame):
         self.searchFrame = SearchResult(self, src, words, mark_ids, local_names)
 
     def SendComment(self, event):
+        pre = self.cbbComPre.GetValue()
         msg = self.tcComment.GetValue().strip()
         self.tcComment.SetFocus()
         if msg == "":
@@ -990,28 +986,17 @@ class LyricDanmu(wx.Frame):
             dlg.ShowModal()
             dlg.Destroy()
             return
-        comment = self.cbbComPre.GetValue() + msg
+        comment = pre + msg
         if len(comment) > 50:
             dlg = wx.MessageDialog(None, "弹幕内容过长", "弹幕发送失败", wx.OK)
             dlg.ShowModal()
             dlg.Destroy()
             return
-        comment=deal(comment,self.global_shields)
+        comment = deal(comment,self.global_shields)
         comment = self.DealWithCustomShields(comment)
-        if comment.count("【") > comment.count("】"):
-            comment += "】"
-        self.danmuQueue.append([self.roomid,comment[:self.max_len]])
-        self.btnClearQueue.SetLabel("清空 [%d]" % len(self.danmuQueue))  #
-        self.CutComment(comment[self.max_len:])
+        suf = "】" if comment.count("【") > comment.count("】") else ""
+        self.SendSplitDanmu(comment,pre,suf)
         self.tcComment.Clear()
-
-    def CutComment(self, comment):
-        if comment in ["","】",")】","）】","」】"]:
-            return
-        comment = self.cbbComPre.GetValue() + "…" + comment
-        self.danmuQueue.append([self.roomid,comment[:self.max_len]])
-        self.btnClearQueue.SetLabel("清空 [%d]" % len(self.danmuQueue))  #
-        self.CutComment(comment[self.max_len:])
 
     def SynImpLycMod(self,event):
         mode=event.GetEventObject().GetSelection()
