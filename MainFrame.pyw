@@ -25,11 +25,6 @@ session = requests.session()
 
 
 # DONE
-# 1. 支持定期同步屏蔽词库至最新版本
-# 2. 对于部分发送失败的弹幕（发送间隔过短/被系统吞掉），将尝试自动重新发送
-# 3. 新增日志文件夹，用于存储被屏蔽的弹幕发送记录（欢迎定期反馈屏蔽词，便于词库的更新工作）
-# 4. 允许设置B站API的请求超时时间
-# 5. 优化对无用歌词行的识别与隐藏处理（例如间奏标记、结束标记）
 
 # TODO
 # 1. custom_shield整合 
@@ -47,7 +42,7 @@ session = requests.session()
 class LyricDanmu(wx.Frame):
     # -------------------------配置区开始--------------------------#
 
-    title_version = "LyricDanmu v1.3.3"
+    title_version = "LyricDanmu v1.3.4"
 
     # 发送队列检测间隔（毫秒）
     fetch_interval = 30
