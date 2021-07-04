@@ -121,10 +121,14 @@ class LyricDanmu(wx.Frame):
         self.auto_sending = False
         self.auto_pausing = False
         self.shield_changed = False
+        self.history_state = False
         self.colabor_mode = 0
         self.lyc_mod = 1
         self.pre_idx = 0
+        self.history_idx = 0
         self.recent_lyrics = [None,None]
+        self.recent_history = []
+        self.tmp_history = []
         self.pool.submit(self.ThreadOfSend)
         self.ShowFrame(parent)
 
@@ -899,10 +903,12 @@ class LyricDanmu(wx.Frame):
     def SendLyric(self, line):
         pre = self.cbbLycPre.GetValue()
         suf = self.cbbLycSuf.GetValue()
-        msg = pre + self.lblLyrics[line].GetLabel()
+        msg = self.lblLyrics[line].GetLabel()
+        message = pre + msg
         if self.shield_changed:
-            msg = self.DealWithCustomShields(msg)
-        self.SendSplitDanmu(msg,pre,suf)
+            message = self.DealWithCustomShields(message)
+        self.SendSplitDanmu(message,pre,suf)
+        self.AddHistory(msg)
 
     def SendSplitDanmu(self, msg, pre, suf):
         if len(msg) > self.max_len:
@@ -996,6 +1002,8 @@ class LyricDanmu(wx.Frame):
         suf = "】" if comment.count("【") > comment.count("】") else ""
         self.SendSplitDanmu(comment,pre,suf)
         self.tcComment.Clear()
+        self.AddHistory(msg)
+        self.history_state=False
 
     def SynImpLycMod(self,event):
         mode=event.GetEventObject().GetSelection()
@@ -1260,6 +1268,30 @@ class LyricDanmu(wx.Frame):
 
     def OnKeyDown(self, event):
         keycode = event.GetKeyCode()
+        if keycode == 315: # ↑键
+            if len(self.recent_history)==0: return
+            if self.history_state:
+                if self.history_idx+1<len(self.tmp_history):
+                    self.history_idx+=1
+                self.tcComment.SetValue(self.tmp_history[self.history_idx])
+                self.tcComment.SetInsertionPointEnd()
+            else:
+                self.tmp_history=self.recent_history[:]
+                self.history_idx=0
+                self.tcComment.SetValue(self.tmp_history[0])
+                self.tcComment.SetInsertionPointEnd()
+                self.history_state=True
+            return
+        if keycode == 317: # ↓键
+            if not self.history_state:  return
+            self.history_idx-=1
+            if self.history_idx>=0:
+                self.tcComment.SetValue(self.tmp_history[self.history_idx])
+                self.tcComment.SetInsertionPointEnd()
+            else:
+                self.tcComment.Clear()
+                self.history_state=False
+            return
         if keycode == 9:  # Tab键
             if self.colabor_mode == 0 or not self.ckbTabMod.GetValue():
                 return
@@ -1570,6 +1602,11 @@ class LyricDanmu(wx.Frame):
             pattern = pattern.replace(k, v)
         pattern = "(?i)" + pattern.replace("∷", ".*?")
         return pattern
+
+    def AddHistory(self,message):
+        self.recent_history.insert(0,message)
+        if len(self.recent_history)>10:
+            self.recent_history.pop()
 
     def Record(self,message):
         try:

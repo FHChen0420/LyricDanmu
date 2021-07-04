@@ -101,9 +101,11 @@ class CustomTextFrame(wx.Frame):
             return
         pre = "【"
         suf = "】"
-        msg = pre + self.lblLyrics[1].GetLabel()
-        msg = parent.DealWithCustomShields(msg)
-        parent.SendSplitDanmu(msg,pre,suf)
+        msg = self.lblLyrics[1].GetLabel()
+        message = pre + msg
+        message = parent.DealWithCustomShields(message)
+        parent.SendSplitDanmu(message,pre,suf)
+        parent.AddHistory(msg)
     
     def ShowEditPanel(self,event):
         index=int(event.GetEventObject().GetName())
