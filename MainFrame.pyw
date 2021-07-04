@@ -1186,7 +1186,7 @@ class LyricDanmu(wx.Frame):
     def ReadLocalSongs(self):
         fileList = os.listdir("songs")
         for file in fileList:
-            filepath = "song/" + file
+            filepath = "songs/" + file
             if not os.path.isfile(filepath):
                 continue
             try:
@@ -1376,7 +1376,7 @@ class LyricDanmu(wx.Frame):
             return False
 
     def ShowLocalInfo(self,file):
-        filepath = "song/" + file
+        filepath = "songs/" + file
         if not os.path.isfile(filepath):
             return False
         try:
