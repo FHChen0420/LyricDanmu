@@ -530,9 +530,13 @@ class LyricDanmu(wx.Frame):
             errmsg=data["msg"]
             code=data["code"]
             if code!=0:
+                if code==10030 and allowResend:
+                    self.Record("⇩ [频率过高,尝试重发]")
+                    wx.MilliSleep(self.send_interval)
+                    return self.SendDanmu(roomid,msg,False)
                 if code==11000 and allowResend:
                     self.Record("⇩ [弹幕被吞,尝试重发]")
-                    wx.MilliSleep(500)
+                    wx.MilliSleep(self.send_interval)
                     return self.SendDanmu(roomid,msg,False)
                 self.Record("▲发送失败⋙ "+msg)
                 self.Record("(具体信息：[%d]%s)"%(code,data))
@@ -543,7 +547,7 @@ class LyricDanmu(wx.Frame):
             elif errmsg=="msg in 1s":
                 if allowResend:
                     self.Record("⇩ [间隔过短,尝试重发]")
-                    wx.MilliSleep(500)
+                    wx.MilliSleep(self.send_interval)
                     return self.SendDanmu(roomid,msg,False)
                 else:
                     self.Record("▲间隔过短⋙ "+msg)
