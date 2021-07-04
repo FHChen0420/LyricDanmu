@@ -13,7 +13,7 @@ def measure(string,length):
 def fill(string,length):
     # 填补字符串string，使其中的非空格字符数等于length
     dots="\u0592"*(length-get_len(string)+string.count(" "))
-    return string.rstrip()+dots
+    return string+dots
 
 def r_pos(string,targets):
     # 查找字符串targets中的字符在字符串string中最后一次出现的位置
