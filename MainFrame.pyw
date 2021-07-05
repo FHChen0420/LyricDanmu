@@ -27,7 +27,9 @@ session = requests.session()
 # DONE
 
 # TODO
-# 1. custom_shield整合 
+# 1. 短歌词合并发送
+# 2. 无用歌词行屏蔽
+# 3. 新版弹幕发送返回码处理10030（过快）与10031（重复）
 
 # THEN
 # 1. 使用线程读取本地/收藏
@@ -35,6 +37,7 @@ session = requests.session()
 # 8. 网络情况检查
 # 2. 同传弹幕捕获
 # 1. 代理节点
+# 1. custom_shield整合 
 
 # CANT
 # 1. 听歌识曲
@@ -126,7 +129,7 @@ class LyricDanmu(wx.Frame):
         self.lyc_mod = 1
         self.pre_idx = 0
         self.history_idx = 0
-        self.recent_lyrics = [None,None]
+        self.recent_danmu = [None,None]
         self.recent_history = []
         self.tmp_history = []
         self.pool.submit(self.ThreadOfSend)
@@ -521,10 +524,10 @@ class LyricDanmu(wx.Frame):
             dlg.Destroy()
 
     def SendDanmu(self, roomid, msg, allowResend=True):
-        if msg in self.recent_lyrics and len(msg) < self.max_len:
-            msg+=("\u0592" if msg+"\u0594" in self.recent_lyrics else "\u0594")
-        self.recent_lyrics.append(msg)
-        self.recent_lyrics.pop(0)
+        if msg in self.recent_danmu and len(msg) < self.max_len:
+            msg+=("\u0592" if msg+"\u0594" in self.recent_danmu else "\u0594")
+        self.recent_danmu.append(msg)
+        self.recent_danmu.pop(0)
         self.data_SendDanmu["msg"] = msg
         self.data_SendDanmu["roomid"] = roomid
         try:
@@ -533,30 +536,29 @@ class LyricDanmu(wx.Frame):
             data=json.loads(res.text)
             errmsg=data["msg"]
             code=data["code"]
-            if code!=0:
-                if code in [10030,10031] and allowResend:
+            if code==10030:
+                if allowResend:
                     self.Record("⇩ [频率过快,尝试重发]")
                     wx.MilliSleep(self.send_interval)
                     return self.SendDanmu(roomid,msg,False)
-                if code==11000 and allowResend:
+                self.Record("▲频率过快⋙ "+msg)
+                return False
+            if code==10031:
+                self.Record("▲重复发送⋙ "+msg)
+                return False
+            if code==11000:
+                if allowResend:
                     self.Record("⇩ [弹幕被吞,尝试重发]")
                     wx.MilliSleep(self.send_interval)
                     return self.SendDanmu(roomid,msg,False)
-                self.Record("▲发送失败⋙ "+msg)
-                self.Record("(具体信息：[%d]%s)"%(code,data))
+                self.Record("▲弹幕被吞⋙ "+msg)
+                return False
+            if code!=0:
+                self.Record("▲发送失败⋙ %s\n(具体信息：%s)"%(msg,data))
                 return False
             if errmsg=="":
                 self.Record(getTime()+"｜"+msg)
                 return True
-            elif errmsg=="msg in 1s":
-                if allowResend:
-                    self.Record("⇩ [间隔过短,尝试重发]")
-                    wx.MilliSleep(self.send_interval)
-                    return self.SendDanmu(roomid,msg,False)
-                else:
-                    self.Record("▲间隔过短⋙ "+msg)
-            elif errmsg=="msg repeat":
-                self.Record("▲重复发送⋙ "+msg)
             elif errmsg in ["f","fire"]:
                 self.Record("▲全局屏蔽⋙ "+msg)
                 self.ShieldLog(msg)
@@ -571,8 +573,7 @@ class LyricDanmu(wx.Frame):
                     #self.Record("⇩ [远程连接异常关闭,尝试重发]")
                     wx.MilliSleep(200)
                     return self.SendDanmu(roomid,msg,False)
-                else:
-                    self.Record("▲远程连接异常关闭⋙ "+msg)
+                self.Record("▲远程连接异常关闭⋙ "+msg)
             self.Record("▲网络异常⋙ "+msg)
             dlg = wx.MessageDialog(None, "网络连接出错", "弹幕发送失败", wx.OK)
             print(e)
