@@ -12,3 +12,5 @@ custom_texts.txt
 shields.txt
 shields_global.dat
 icon.ico
+tmp.tmp
+_pyinstaller.cmd
