@@ -1,0 +1,14 @@
+__pycache__
+build
+dist
+songs
+logs
+MainFrame.spec
+config.txt
+rooms.txt
+marks_qq.txt
+marks_wy.txt
+custom_texts.txt
+shields.txt
+shields_global.dat
+icon.ico
