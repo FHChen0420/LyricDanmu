@@ -13,4 +13,6 @@ shields.txt
 shields_global.dat
 icon.ico
 tmp.tmp
-_pyinstaller.cmd
+导出EXE.cmd
+_*.py
+_*.pyw
