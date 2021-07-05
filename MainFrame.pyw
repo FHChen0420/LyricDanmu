@@ -25,11 +25,12 @@ session = requests.session()
 
 
 # DONE
+# 1. 新版弹幕发送返回码处理10030（过快）与10031（重复）
 
 # TODO
 # 1. 短歌词合并发送
 # 2. 无用歌词行屏蔽
-# 3. 新版弹幕发送返回码处理10030（过快）与10031（重复）
+
 
 # THEN
 # 1. 使用线程读取本地/收藏
@@ -1226,7 +1227,6 @@ class LyricDanmu(wx.Frame):
         self.show_lyric = not self.show_lyric
         self.btnExtLrc.SetLabel("收起歌词" if self.show_lyric else "歌词面板")
         if self.show_lyric:
-            self.btnExt.SetLabel("▼")
             self.tcSearch.SetFocus()
         else:
             self.tcComment.SetFocus()
