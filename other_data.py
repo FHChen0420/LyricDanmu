@@ -50,7 +50,7 @@ preprocess_cn_rules = {
 }
 
 # 可忽略的歌词规则
-ignore_lyric_pattern=r"(?i)^[^0-9A-Za-z\u4e00-\u9fa5\u3040-\u31ff]{0,3}(终|完|undefined|[终終お]わ(る|り|った)|end|fin|music|[伴间]奏)[^0-9A-Za-z\u4e00-\u9fa5\u3040-\u31ff]{0,3}$"
+ignore_lyric_pattern=r"(?i)^[^0-9A-Za-z\u4e00-\u9fa5\u3040-\u31ff]{0,3}(终|完|undefined|[终終お]わ(る|り|った)|end|fin|music|[伴间]奏)[^0-9A-Za-z\u4e00-\u9fa5\u3040-\u31ff]{0,3}$|.(:|：|︰| - |不得翻唱)."
 
 # 恋口上默认预设
 default_custom_text="<texts>\n<text title=\"古守恋口上\">\n我有些话想要对你说\n古守实在是太可爱了\n喜欢喜欢超喜欢 果然喜欢\n好不容易找到的吸血鬼\n"+ \
