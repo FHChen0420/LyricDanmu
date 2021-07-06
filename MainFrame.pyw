@@ -16,7 +16,7 @@ from GeneralConfigFrame import GeneralConfigFrame
 from RecordFrame import RecordFrame
 from ShieldConfigFrame import ShieldConfigFrame
 from CustomTextFrame import CustomTextFrame
-from BiliLiveShieldWords import substitute,deal,generate_rule
+from BiliLiveShieldWords import *
 
 from other_data import *
 from util import *
@@ -1202,11 +1202,11 @@ class LyricDanmu(wx.Frame):
         try:
             with open("shields.txt", "r", encoding="utf-8") as f:
                 for line in f:
-                    mo = re.match(r"\s*(0|1)\s+(\S+)\s+(\S+)", line)
+                    mo = re.match(r"\s*(0|1)\s+(\S+)\s+(\S+)\s*(\S*)", line)
                     if mo is not None:
-                        so=re.search(r"\\(?![1-9])|[\(\)\[\]\{\}\.\+\*\^\$\?\|]",mo.group(1))
+                        so=re.search(r"\\(?![1-9])|[\(\)\[\]\{\}\.\+\*\^\$\?\|]",mo.group(2))
                         if so is None:
-                            self.custom_shields[mo.group(2)]=[int(mo.group(1)),mo.group(3)]
+                            self.custom_shields[mo.group(2)]=[int(mo.group(1)),mo.group(3),mo.group(4)]
         except Exception:
             dlg = wx.MessageDialog(None, "读取shields.txt失败", "提示", wx.OK)
             dlg.ShowModal()
@@ -1586,7 +1586,7 @@ class LyricDanmu(wx.Frame):
         try:
             with open("shields.txt", "w", encoding="utf-8") as f:
                 for k,v in self.custom_shields.items():
-                    f.write("%d %s %s\n" % (v[0],k,v[1]))
+                    f.write("%d %s %s %s\n" % (v[0],k,v[1],v[2]))
                 f.flush()
         except Exception as e:
             print(e)
@@ -1636,6 +1636,7 @@ class LyricDanmu(wx.Frame):
     
     def DealWithCustomShields(self,msg):
         for k,v in self.custom_shields.items():
+            if v[2]!="" and self.roomid not in v[2].split(","): continue
             if v[0]==0 and re.search(r"\\[1-9]",k) is not None:
                 msg=self.MultiDotBlock(k,msg)
             else:
@@ -1700,10 +1701,10 @@ class LyricDanmu(wx.Frame):
     
     def ThreadOfUpdateGlobalShields(self,delay=0):    # 弄这个tmp主要还是避免同时打开多个工具时可能出现的资源共用问题
         if os.path.exists("tmp.tmp"):   return
-        with open("tmp.tmp","w") as f:  f.write("本文件可删除")
+        with open("tmp.tmp","w",encoding="utf-8") as f:  f.write("本文件可删除")
         print("准备更新屏蔽词库")
         wx.MilliSleep(delay)
-        self.shieldConfigFrame.btnUpdate.SetLabel("获取更新中…")
+        self.shieldConfigFrame.btnUpdateGlobal.SetLabel("获取更新中…")
         #url_purge="https://purge.jsdelivr.net/gh/FHChen0420/bili_live_shield_words@main/BiliLiveShieldWords.py"
         url_fetch="https://cdn.jsdelivr.net/gh/FHChen0420/bili_live_shield_words@main/BiliLiveShieldWords.py"
         headers = {
@@ -1726,10 +1727,10 @@ class LyricDanmu(wx.Frame):
                 f.write(bytes("modified_time=%d"%int(time.time()),encoding="utf-8"))
                 f.write(bytes("  # 最近一次更新时间：%s"%getTime(fmt="%m-%d %H:%M"),encoding="utf-8"))
             print("更新屏蔽词库成功")
-            self.shieldConfigFrame.btnUpdate.SetLabel("更新完毕")
+            self.shieldConfigFrame.btnUpdateGlobal.SetLabel("屏蔽词库更新完毕")
         except Exception as e:
             print("更新屏蔽词库失败\n",str(e))
-            self.shieldConfigFrame.btnUpdate.SetLabel("失败 请重试")
+            self.shieldConfigFrame.btnUpdateGlobal.SetLabel("屏蔽词库更新失败")
         finally:
             try:    os.remove("tmp.tmp")
             except: pass
