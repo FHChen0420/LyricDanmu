@@ -11,11 +11,11 @@ class GeneralConfigFrame(wx.Frame):
         pos=parent.GetPosition()
         x=pos[0]+70
         y=pos[1]+60
-        wx.Frame.__init__(self, parent, title="应用设置", pos=(x,y), size=(310,325), style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.MINIMIZE_BOX) |wx.FRAME_FLOAT_ON_PARENT)
+        wx.Frame.__init__(self, parent, title="应用设置", pos=(x,y), size=(310,379), style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.MINIMIZE_BOX) |wx.FRAME_FLOAT_ON_PARENT)
         if parent.show_pin:
             self.ToggleWindowStyle(wx.STAY_ON_TOP)
         self.Bind(wx.EVT_CLOSE,self.OnClose)
-        panel=wx.Panel(self,-1,size=(310,380))
+        panel=wx.Panel(self,-1,size=(310,434))
         # 歌词前后缀
         wx.StaticText(panel,-1,"歌词前缀",pos=(15,10))
         wx.StaticText(panel,-1,"歌词后缀",pos=(15,40))
@@ -41,36 +41,47 @@ class GeneralConfigFrame(wx.Frame):
             "歌词前后缀更改将在工具重启后生效")
         self.tcSearchNum=wx.TextCtrl(panel,-1,str(parent.search_num),pos=(135,98),size=(40,22))
         self.tcPgSize=wx.TextCtrl(panel,-1,str(parent.page_limit),pos=(250,98),size=(40,22))
-        # 发送间隔
-        wx.StaticText(panel,-1,"发送间隔",pos=(15,130))
-        self.ckbNewItv = wx.CheckBox(panel,-1,"启用新版发送间隔机制", pos=(80,130))
-        self.ckbNewItv.SetValue(parent.enable_new_send_type)
+        # 歌词合并
+        wx.StaticText(panel,-1,"歌词合并",pos=(15,130))
+        self.ckbLrcMrg = wx.CheckBox(panel,-1,"启用歌词合并", pos=(80,130))
+        self.ckbLrcMrg.SetValue(parent.enable_lyric_merge)
         wx.StaticText(panel,-1,"❔",pos=(275,130)).SetToolTip(
+            "将零碎的短歌词拼接显示并发送，减少歌词弹幕发送数量\n"+
+            "仅对有时轴的歌词生效，合并双语歌词时以中文长度为基准\n"+
+            "合并阈值：合并歌词时，最多允许拼接多少秒以内的歌词")
+        self.lblLrcMrg = wx.StaticText(panel, -1, "%4.1f s" %(parent.lyric_merge_threshold_s), pos=(240, 154))
+        self.sldLrcMrg = wx.Slider(panel, -1, int(10 * parent.lyric_merge_threshold_s), 30, 80, pos=(70, 154), size=(170, 30),style=wx.SL_HORIZONTAL)
+        self.sldLrcMrg.Bind(wx.EVT_SLIDER, self.OnLrcMergeThChange)
+        # 发送间隔
+        wx.StaticText(panel,-1,"发送间隔",pos=(15,184))
+        self.ckbNewItv = wx.CheckBox(panel,-1,"启用新版发送间隔机制", pos=(80,184))
+        self.ckbNewItv.SetValue(parent.enable_new_send_type)
+        wx.StaticText(panel,-1,"❔",pos=(275,184)).SetToolTip(
             "新版：上一条弹幕的响应时刻 → 本条弹幕的发送时刻\n"+
             "旧版：上一条弹幕的发送时刻 → 本条弹幕的发送时刻\n"+
             "推荐间隔：新版700~850，旧版1000~1100")
-        self.lblItv = wx.StaticText(panel, -1, "%4d ms" % parent.send_interval, pos=(240, 154))
-        self.sldItv = wx.Slider(panel, -1, int(0.1 * parent.send_interval), 50, 150, pos=(70, 150), size=(170, 30),style=wx.SL_HORIZONTAL)
+        self.lblItv = wx.StaticText(panel, -1, "%4d ms" % parent.send_interval_ms, pos=(240, 208))
+        self.sldItv = wx.Slider(panel, -1, int(0.1 * parent.send_interval_ms), 50, 150, pos=(70, 208), size=(170, 30),style=wx.SL_HORIZONTAL)
         self.sldItv.Bind(wx.EVT_SLIDER, self.OnIntervalChange)
         # 超时阈值
-        wx.StaticText(panel,-1,"超时阈值",pos=(15,184))
-        self.lblTmt = wx.StaticText(panel, -1, "%4.1f s" %(parent.timeout_s), pos=(240, 184))
-        self.sldTmt = wx.Slider(panel, -1, int(10 * parent.timeout_s), 20, 100, pos=(70, 180), size=(170, 30),style=wx.SL_HORIZONTAL)
+        wx.StaticText(panel,-1,"超时阈值",pos=(15,238))
+        self.lblTmt = wx.StaticText(panel, -1, "%4.1f s" %(parent.timeout_s), pos=(240, 238))
+        self.sldTmt = wx.Slider(panel, -1, int(10 * parent.timeout_s), 20, 100, pos=(70, 234), size=(170, 30),style=wx.SL_HORIZONTAL)
         self.sldTmt.Bind(wx.EVT_SLIDER, self.OnTimeoutChange)
         # 其它设置
-        wx.StaticText(panel,-1,"其它设置",pos=(15,210))
-        self.ckbInitLrc = wx.CheckBox(panel,-1,"启动时展开歌词面板", pos=(80,210))
+        wx.StaticText(panel,-1,"其它设置",pos=(15,264))
+        self.ckbInitLrc = wx.CheckBox(panel,-1,"启动时展开歌词面板", pos=(80,264))
         self.ckbInitLrc.SetValue(parent.init_show_lyric)
-        self.ckbNoProxy = wx.CheckBox(panel,-1,"不使用系统代理", pos=(80,235))
+        self.ckbNoProxy = wx.CheckBox(panel,-1,"不使用系统代理", pos=(80,289))
         self.ckbNoProxy.SetValue(parent.no_proxy)
-        wx.StaticText(panel,-1,"❔",pos=(275,235)).SetToolTip(
+        wx.StaticText(panel,-1,"❔",pos=(275,289)).SetToolTip(
             "科学上网时使用本工具可能会报网络异常错误\n"+
             "如果遇到此情况请尝试修改该选项")
         # 账号配置
-        wx.StaticText(panel,-1,"账号配置",pos=(15,260))
-        self.tcCookie=wx.TextCtrl(panel,-1,parent.cookie,pos=(78,260),size=(190,75),style=wx.TE_MULTILINE|wx.TE_PROCESS_ENTER)
-        self.btnEditCookie=wx.Button(panel,-1,"修改Cookie",pos=(80,260),size=(80,22))
-        wx.StaticText(panel,-1,"❔",pos=(275,260)).SetToolTip(
+        wx.StaticText(panel,-1,"账号配置",pos=(15,314))
+        self.tcCookie=wx.TextCtrl(panel,-1,parent.cookie,pos=(78,314),size=(190,75),style=wx.TE_MULTILINE|wx.TE_PROCESS_ENTER)
+        self.btnEditCookie=wx.Button(panel,-1,"修改Cookie",pos=(80,314),size=(80,22))
+        wx.StaticText(panel,-1,"❔",pos=(275,314)).SetToolTip(
             "Cookie获取方法：\n"+
             "电脑浏览器进入直播间 → 按F12打开开发者工具，选择Network栏\n"+
             " → 发送一条弹幕 → Network栏会捕获到名为send的记录\n"+
@@ -85,16 +96,21 @@ class GeneralConfigFrame(wx.Frame):
     def OnIntervalChange(self, event):
         itv = self.sldItv.GetValue()
         self.lblItv.SetLabel("%4d ms" % (itv * 10))
-        self.parent.send_interval = 10 * self.sldItv.GetValue()
+        self.parent.send_interval_ms = 10 * self.sldItv.GetValue()
     
     def OnTimeoutChange(self, event):
         tmt = self.sldTmt.GetValue()
         self.lblTmt.SetLabel("%4.1f s" % (tmt * 0.1))
         self.parent.timeout_s = 0.1 * self.sldTmt.GetValue()
     
+    def OnLrcMergeThChange(self, event):
+        mrg = self.sldLrcMrg.GetValue()
+        self.lblLrcMrg.SetLabel("%4.1f s" % (mrg * 0.1))
+        self.parent.lyric_merge_threshold_s = 0.1 * self.sldLrcMrg.GetValue()
+
     def ShowCookieEdit(self,event):
         self.btnEditCookie.Show(False)
-        self.SetSize((310,372))
+        self.SetSize((310,426))
         self.tcCookie.Show(True)
         self.tcCookie.SetFocus()
         self.tcCookie.SelectAll()
@@ -137,6 +153,7 @@ class GeneralConfigFrame(wx.Frame):
         except:
             pass
         parent.enable_new_send_type=self.ckbNewItv.GetValue()
+        parent.enabel_lyric_merge=self.ckbLrcMrg.GetValue()
         parent.init_show_lyric=self.ckbInitLrc.GetValue()
         parent.no_proxy=self.ckbNoProxy.GetValue()
         os.environ["NO_PROXY"]="*" if parent.no_proxy else ""
