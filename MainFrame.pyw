@@ -25,12 +25,11 @@ session = requests.session()
 
 
 # DONE
-# 1. 新版弹幕发送返回码处理10030（过快）与10031（重复）
-
-# TODO
 # 1. 短歌词合并发送
 # 2. 无用歌词行屏蔽
 
+# TODO
+# 1. 指定房间的自定义屏蔽词
 
 # THEN
 # 1. 使用线程读取本地/收藏
@@ -50,6 +49,9 @@ class LyricDanmu(wx.Frame):
 
     # 发送队列检测间隔（毫秒）
     fetch_interval = 30
+
+    # 双语歌词对轴误差（秒）
+    timeline_error = 0.07
 
     # 屏蔽词库更新间隔（秒）
     global_shield_update_interval_s = 3600
@@ -540,7 +542,7 @@ class LyricDanmu(wx.Frame):
             if code==10030:
                 if allowResend:
                     self.Record("⇩ [频率过快,尝试重发]")
-                    wx.MilliSleep(self.send_interval)
+                    wx.MilliSleep(self.send_interval_ms)
                     return self.SendDanmu(roomid,msg,False)
                 self.Record("▲频率过快⋙ "+msg)
                 return False
@@ -550,7 +552,7 @@ class LyricDanmu(wx.Frame):
             if code==11000:
                 if allowResend:
                     self.Record("⇩ [弹幕被吞,尝试重发]")
-                    wx.MilliSleep(self.send_interval)
+                    wx.MilliSleep(self.send_interval_ms)
                     return self.SendDanmu(roomid,msg,False)
                 self.Record("▲弹幕被吞⋙ "+msg)
                 return False
@@ -696,8 +698,8 @@ class LyricDanmu(wx.Frame):
             res.append(f)
             for i in range(curTIdx,maxTidx):
                 tf=dataT[i]
-                if abs(tf[1]-f[1])<=0.07:  #对轴误差
-                    if f[2] != "":
+                if abs(tf[1]-f[1])<=self.timeline_error:  #双语歌词对轴误差
+                    if f[2] != "" and "不得翻唱" not in f[2]:
                         res.append([f[0],f[1],tf[2],f[3]]) #将轴对到与原版歌词一致
                         #res.append(tf) #直接使用翻译版歌词时轴
                         curTIdx+=1
@@ -723,8 +725,74 @@ class LyricDanmu(wx.Frame):
             secnum = 60*t_min+t_sec+t_ms
             secfmt = "%2d:%02d"%(t_min,t_sec)
             secOrigin = "["+mo.group(1)+":"+mo.group(2)+t_ms_str+"]"
-            fs.append([secfmt, secnum, content, secOrigin])
+            fs.append([secfmt, secnum, content, secOrigin]) #e.g. ["01:30", 90.233, "歌词内容", "[01:30.233]"]
         return fs
+
+    def FilterLyric(self,fs):
+        res=[]
+        i=0
+        fslen=len(fs)
+        prev_empty = False
+        while i<fslen:
+            if re.search(ignore_lyric_pattern,fs[i][2]):
+                i += 2 if self.has_trans else 1
+                continue
+            if fs[i][2] != "":
+                res.append(fs[i])
+                prev_empty = False
+            else:
+                if not prev_empty:
+                    res.append(["",-2,"",""])
+                    if self.has_trans:
+                        res.append(["",-2,"",""])
+                    prev_empty = True
+                i+=1
+                continue
+            i+=1
+            if self.has_trans and i<fslen:
+                res.append(fs[i])
+                i+=1
+        return res
+
+    def MergeSingleLyric(self,fs):
+        res=[]
+        i=0
+        fslen=len(fs)
+        prelen=len(self.cbbLycPre.GetValue().lstrip())
+        while i<fslen:
+            base_tl=fs[i][1]
+            content=fs[i][2]
+            j=1
+            while i+j<fslen and fs[i+j][1]-base_tl<=self.lyric_merge_threshold_s \
+            and len(content+fs[i+j][2])+1+prelen<=self.max_len:
+                content+="　"+fs[i+j][2]
+                j+=1
+            content=re.sub("　+","　",content.strip("　"))
+            res.append([fs[i][0],base_tl,content,fs[i][3]])
+            i+=j
+        return res
+
+    def MergeMixLyric(self,fs): # 长度度量以中文翻译为准
+        res=[]
+        i=1
+        fslen=len(fs)
+        prelen=len(self.cbbLycPre.GetValue().lstrip())
+        while i<fslen:
+            base_tl=fs[i][1]
+            content_o=fs[i-1][2]
+            content_t=fs[i][2]
+            j=2
+            while i+j<fslen and fs[i+j][1]-base_tl<=self.lyric_merge_threshold_s \
+            and len(content_t+fs[i+j][2])+1+prelen<=self.max_len:
+                content_o+="　"+fs[i+j-1][2]
+                content_t+="　"+fs[i+j][2]
+                j+=2
+            content_o=re.sub("　+","　",content_o.strip("　"))
+            content_t=re.sub("　+","　",content_t.strip("　"))
+            res.append([fs[i][0],base_tl,content_o,fs[i][3]])
+            res.append([fs[i][0],base_tl,content_t,fs[i][3]])
+            i+=j
+        return res
 
     def RecvLyric(self,data):
         self.init_lock = False
@@ -744,6 +812,9 @@ class LyricDanmu(wx.Frame):
             tmpData=self.DealMixLyric(data["lyric"],data["tlyric"])
         else:
             tmpData=self.DealSingleLyric(data["lyric"])
+        tmpData=self.FilterLyric(tmpData)
+        if self.has_timeline and self.enable_lyric_merge:
+            tmpData=self.MergeMixLyric(tmpData) if self.has_trans else self.MergeSingleLyric(tmpData)
         all_lyrics="\r\n".join([i[2] for i in tmpData])
         all_lyrics_tl="\r\n".join([i[3]+i[2] for i in tmpData])
         all_lyrics=re.sub(r" +"," ",all_lyrics)
@@ -763,19 +834,7 @@ class LyricDanmu(wx.Frame):
         if self.has_trans:
             tmpData.insert(0,["",-1,"<BEGIN>"])
             tmpData.append(["",-1,"<END>"])
-        self.llist=[]
-        prev_empty = False
-        for d in tmpData:  # 空行统一行数，单语一行，双语两行
-            if d[2]!="<END>" and re.match(ignore_lyric_pattern,d[2].strip()):
-                continue
-            if d[2] != "":
-                self.llist.append(d)
-                prev_empty = False
-            elif not prev_empty:
-                self.llist.append(["",-2,""])
-                if self.has_trans:
-                    self.llist.append(["",-2,""])
-                prev_empty = True
+        self.llist=tmpData
         self.lmax = len(self.llist)
         self.olist = []
         i = 0
@@ -790,8 +849,6 @@ class LyricDanmu(wx.Frame):
         for i in self.olist:
             self.timelines.append(self.llist[i][1])
         self.oid = 0
-        while self.oid + 2 < self.omax and re.search(r":|：|︰| - |翻唱", self.llist[self.olist[self.oid + 1]][2]):
-            self.oid += 1
         self.lid = self.olist[self.oid]
         if self.has_trans and self.lyc_mod > 0:
             self.lid += 1
@@ -1013,17 +1070,19 @@ class LyricDanmu(wx.Frame):
         self.cbbImport2.SetSelection(mode)
 
     def DefaultConfig(self):
-        self.max_len = 20
+        self.max_len = 30
         self.prefix = "【♪"
         self.suffix = "】"
         self.prefixs = ["【♪","【♬","【❀","【❄️","【★"]
         self.suffixs = ["","】"]
         self.enable_new_send_type=True
-        self.send_interval = 750
+        self.send_interval_ms = 750
         self.timeout_s = 5
         self.default_src = "wy"
         self.search_num = 18
         self.page_limit = 6
+        self.enable_lyric_merge = True
+        self.lyric_merge_threshold_s = 5.6
         self.init_show_lyric = True
         self.no_proxy = True
         self.cookie = ""
@@ -1065,19 +1124,25 @@ class LyricDanmu(wx.Frame):
                         self.prefixs = v.split(",")
                     elif k == "歌词后缀备选":
                         self.suffixs = v.split(",")
+                    elif k == "启用歌词合并":
+                        self.enable_lyric_merge = True if v.lower()=="true" else False
+                    elif k == "歌词合并阈值":
+                        merge_th = int(v)
+                        if 3000 <= merge_th <= 8000:
+                            self.lyric_merge_threshold_s=0.001*merge_th
                     elif k == "新版发送机制":
                         self.enable_new_send_type = True if v.lower()=="true" else False
                     elif k == "最低发送间隔":
                         interval = int(v)
                         if 500 <= interval <= 1500:
-                            self.send_interval = interval
-                            send_interval_check=True
+                            self.send_interval_ms = interval
+                            send_interval_ms_check=True
                         else:
-                            send_interval_check=False
+                            send_interval_ms_check=False
                     elif k == "请求超时阈值":
                         tm_out = int(v)
                         if 2000 <= tm_out <= 10000:
-                            self.timeout_s=tm_out/1000
+                            self.timeout_s=0.001*tm_out
                     elif k == "默认搜索来源":
                         self.default_src = "wy" if "qq" not in v.lower() else "qq"
                     elif k == "歌曲搜索条数":
@@ -1094,8 +1159,8 @@ class LyricDanmu(wx.Frame):
                         self.no_proxy = True if v.lower()=="true" else False
                     elif k == "cookie":
                         self.cookie = v
-                if not send_interval_check:
-                    self.send_interval = 750 if self.enable_new_send_type else 1050
+                if not send_interval_ms_check:
+                    self.send_interval_ms = 750 if self.enable_new_send_type else 1050
                 so = re.search(r"bili_jct=([0-9a-f]+);?", self.cookie)
                 if so is not None:
                     self.csrf = so.group(1)
@@ -1323,7 +1388,7 @@ class LyricDanmu(wx.Frame):
                 if len(self.danmuQueue) == 0:
                     continue
                 danmu = self.danmuQueue.pop(0)
-                interval_s = 0.001 * self.send_interval + last_time - time.time()
+                interval_s = 0.001 * self.send_interval_ms + last_time - time.time()
                 if interval_s > 0:
                     wx.MilliSleep(int(1000 * interval_s))
                 if self.enable_new_send_type: #新版机制
@@ -1472,8 +1537,10 @@ class LyricDanmu(wx.Frame):
                 f.write("默认歌词后缀=%s\n" % self.suffix)
                 f.write("歌词前缀备选=%s\n" % ",".join(self.prefixs))
                 f.write("歌词后缀备选=%s\n" % ",".join(self.suffixs))
+                f.write("启用歌词合并=%s\n" % self.enable_lyric_merge)
+                f.write("歌词合并阈值=%d\n" % int(1000*self.lyric_merge_threshold_s))
                 f.write("新版发送机制=%s\n" % self.enable_new_send_type)
-                f.write("最低发送间隔=%d\n" % self.send_interval)
+                f.write("最低发送间隔=%d\n" % self.send_interval_ms)
                 f.write("请求超时阈值=%d\n" % int(1000*self.timeout_s))
                 f.write("----------\n#搜索配置#\n----------\n")
                 f.write("默认搜索来源=%s\n" % ("网易云音乐" if self.default_src=="wy" else "QQ音乐"))
