@@ -45,7 +45,7 @@ def generate_rule(word,rules):
         n=len(groups)-1
         if n==0:
             pat = "(?i)" + " ?".join(word)
-            rep = word[0] + "\u0592" + word[1:]
+            rep = lambda x: x.group()[0] + "\u0592" + x.group()[1:]
             rules[pat] = rep
             return
         fills=[int(i) for i in re.findall(r"#([1-9])",word)]
