@@ -1136,9 +1136,9 @@ class LyricDanmu(wx.Frame):
                         interval = int(v)
                         if 500 <= interval <= 1500:
                             self.send_interval_ms = interval
-                            send_interval_ms_check=True
+                            send_interval_check=True
                         else:
-                            send_interval_ms_check=False
+                            send_interval_check=False
                     elif k == "请求超时阈值":
                         tm_out = int(v)
                         if 2000 <= tm_out <= 10000:
@@ -1159,7 +1159,7 @@ class LyricDanmu(wx.Frame):
                         self.no_proxy = True if v.lower()=="true" else False
                     elif k == "cookie":
                         self.cookie = v
-                if not send_interval_ms_check:
+                if not send_interval_check:
                     self.send_interval_ms = 750 if self.enable_new_send_type else 1050
                 so = re.search(r"bili_jct=([0-9a-f]+);?", self.cookie)
                 if so is not None:
