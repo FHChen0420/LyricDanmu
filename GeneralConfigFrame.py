@@ -153,7 +153,7 @@ class GeneralConfigFrame(wx.Frame):
         except:
             pass
         parent.enable_new_send_type=self.ckbNewItv.GetValue()
-        parent.enabel_lyric_merge=self.ckbLrcMrg.GetValue()
+        parent.enable_lyric_merge=self.ckbLrcMrg.GetValue()
         parent.init_show_lyric=self.ckbInitLrc.GetValue()
         parent.no_proxy=self.ckbNoProxy.GetValue()
         os.environ["NO_PROXY"]="*" if parent.no_proxy else ""
