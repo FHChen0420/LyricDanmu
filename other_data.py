@@ -37,15 +37,9 @@ regex_transform_rules = {
 
 # 中文歌词补充处理规则
 preprocess_cn_rules = {
-    r"妳":"你",
-    r"(.?)著(.?)": lambda x: x.group()
-        if x.group(1)!="" and x.group(1) in "名巨显昭卓译编土原执"
-        or x.group(2)!="" and x.group(2) in "称有名作述于书籍"
-        else (x.group(1)+"着"+x.group(2)),
-    #r"(.?)裹(.?)": lambda x: x.group() # 偶尔会遇到"裏"(li,里)错写成"裹"(guo,包裹)的情况
-    #    if x.group(1)!="" and x.group(1) in "包缠妆"
-    #    or x.group(2)!="" and x.group(2) in "着在住足尸"
-    #    else (x.group(1)+"里"+x.group(2)),
+    "妳":"你",
+    "(?<![名巨显昭卓译编土原执])著(?![称有名作述于书籍])": "着",
+    #"(?<![包缠妆])著(?![着在住足尸])": "里", # 偶尔会遇到"裏"(li)错写成"裹"(guo)的情况
     r"[\(（].*?翻译\s*?[:：].*?[\)）]": "",
 }
 
