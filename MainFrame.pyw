@@ -227,7 +227,7 @@ class LyricDanmu(wx.Frame):
         self.btnExitClbCfg.Bind(wx.EVT_BUTTON, self.ExitColaborPart)
 
         # 歌词面板展开按钮
-        self.btnExtLrc = wx.Button(self.p3, -1, "收起歌词", pos=(345, 3), size=(87, 32))
+        self.btnExtLrc = wx.Button(self.p3, -1, "收起歌词" if self.init_show_lyric else "歌词面板", pos=(345, 3), size=(87, 32))
         self.btnExtLrc.Bind(wx.EVT_BUTTON, self.ToggleLyricUI)
         # 置顶按钮
         self.btnTop = wx.Button(self.p3, -1, "取消置顶", pos=(345, 40), size=(87, 32))
