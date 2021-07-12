@@ -496,7 +496,9 @@ class LyricDanmu(wx.Frame):
         self.data_SetDanmuCfg["room_id"]=self.roomid
         if color is not None:
             self.data_SetDanmuCfg["color"]=hex(int(color))
+            self.data_SetDanmuCfg["mode"]=None
         else:
+            self.data_SetDanmuCfg["color"]=None
             self.data_SetDanmuCfg["mode"]=mode
         try:
             res=session.post(url=self.url_SetDanmuCfg,headers=self.headers,data=self.data_SetDanmuCfg,
@@ -512,7 +514,6 @@ class LyricDanmu(wx.Frame):
             dlg.Destroy()
             return
         data = json.loads(res.text)
-        print(data)
         if data["code"]==0 and "data" in data.keys() and data["data"]["msg"]=="设置成功~":
             if color is not None:
                 self.cur_color=color
