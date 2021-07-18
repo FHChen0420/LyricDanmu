@@ -568,6 +568,12 @@ class LyricDanmu(wx.Frame):
                 self.ShieldLog(msg)
             elif errmsg=="k":
                 self.Record("▲房间屏蔽⋙ "+msg)
+            elif errmsg=="max limit":
+                if allowResend:
+                    self.Record("⇩ [房间弹幕过密,尝试重发]")
+                    wx.MilliSleep(self.send_interval_ms)
+                    return self.SendDanmu(roomid,msg,False)
+                self.Record("▲房间弹幕过密⋙ "+msg)
             else:
                 self.Record("▲"+errmsg+"⋙ "+msg)
             return False
