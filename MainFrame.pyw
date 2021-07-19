@@ -7,6 +7,7 @@ import os
 import json
 import pyperclip
 from concurrent.futures import ThreadPoolExecutor,as_completed
+from pubsub import pub
 import xml.dom.minidom
 
 from SearchResult import SearchResult
@@ -22,25 +23,6 @@ from other_data import *
 from util import *
 
 session = requests.session()
-
-
-# DONE
-# 1. 短歌词合并发送
-# 2. 无用歌词行屏蔽
-
-# TODO
-# 1. 指定房间的自定义屏蔽词
-
-# THEN
-# 1. 使用线程读取本地/收藏
-# 7. 菜单栏
-# 8. 网络情况检查
-# 2. 同传弹幕捕获
-# 1. 代理节点
-# 1. custom_shield整合 
-
-# CANT
-# 1. 听歌识曲
 
 class LyricDanmu(wx.Frame):
     # -------------------------配置区开始--------------------------#
@@ -75,6 +57,9 @@ class LyricDanmu(wx.Frame):
             return
         if self.no_proxy:
             os.environ["NO_PROXY"]="*"
+        # 消息订阅
+        pub.subscribe(self.UpdateRecord,"record")
+        pub.subscribe(self.RefreshLyric,"lyric")
         # 请求参数
         self.url_SendDanmu = "https://api.live.bilibili.com/msg/send"
         self.url_GetDanmuCfg = "https://api.live.bilibili.com/xlive/web-room/v1/dM/GetDMConfigByGroup"
@@ -522,7 +507,7 @@ class LyricDanmu(wx.Frame):
                 self.cur_mode=mode
                 self.btnDmCfg2.SetLabel(bili_modes[mode])
         else:
-            self.Record("◆弹幕配置失败⋙ "+str(data))
+            self.CallRecord("◆弹幕配置失败⋙ "+str(data))
             dlg = wx.MessageDialog(None, "设置失败，请重试", "保存弹幕配置出错", wx.OK)
             dlg.ShowModal()
             dlg.Destroy()
@@ -542,61 +527,61 @@ class LyricDanmu(wx.Frame):
             code=data["code"]
             if code==10030:
                 if allowResend:
-                    self.Record("⇩ [频率过快,尝试重发]")
+                    self.CallRecord("⇩ [频率过快,尝试重发]")
                     wx.MilliSleep(self.send_interval_ms)
                     return self.SendDanmu(roomid,msg,False)
-                self.Record("▲频率过快⋙ "+msg)
+                self.CallRecord("▲频率过快⋙ "+msg)
                 return False
             if code==10031:
-                self.Record("▲重复发送⋙ "+msg)
+                self.CallRecord("▲重复发送⋙ "+msg)
                 return False
             if code==11000:
                 if allowResend:
-                    self.Record("⇩ [弹幕被吞,尝试重发]")
+                    self.CallRecord("⇩ [弹幕被吞,尝试重发]")
                     wx.MilliSleep(self.send_interval_ms)
                     return self.SendDanmu(roomid,msg,False)
-                self.Record("▲弹幕被吞⋙ "+msg)
+                self.CallRecord("▲弹幕被吞⋙ "+msg)
                 return False
             if code!=0:
-                self.Record("▲发送失败⋙ %s\n(具体信息：%s)"%(msg,data))
+                self.CallRecord("▲发送失败⋙ %s\n(具体信息：%s)"%(msg,data))
                 return False
             if errmsg=="":
-                self.Record(getTime()+"｜"+msg)
+                self.CallRecord(getTime()+"｜"+msg)
                 return True
             elif errmsg in ["f","fire"]:
-                self.Record("▲全局屏蔽⋙ "+msg)
+                self.CallRecord("▲全局屏蔽⋙ "+msg)
                 self.ShieldLog(msg)
             elif errmsg=="k":
-                self.Record("▲房间屏蔽⋙ "+msg)
+                self.CallRecord("▲房间屏蔽⋙ "+msg)
             elif errmsg=="max limit":
                 if allowResend:
-                    self.Record("⇩ [房间弹幕过密,尝试重发]")
+                    self.CallRecord("⇩ [房间弹幕过密,尝试重发]")
                     wx.MilliSleep(self.send_interval_ms)
                     return self.SendDanmu(roomid,msg,False)
-                self.Record("▲房间弹幕过密⋙ "+msg)
+                self.CallRecord("▲房间弹幕过密⋙ "+msg)
             else:
-                self.Record("▲"+errmsg+"⋙ "+msg)
+                self.CallRecord("▲"+errmsg+"⋙ "+msg)
             return False
         except requests.exceptions.ConnectionError as e:
             if "Remote end closed connection without response" in str(e):
                 if allowResend:
-                    #self.Record("⇩ [远程连接异常关闭,尝试重发]")
+                    #self.CallRecord("⇩ [远程连接异常关闭,尝试重发]")
                     wx.MilliSleep(200)
                     return self.SendDanmu(roomid,msg,False)
-                self.Record("▲远程连接异常关闭⋙ "+msg)
-            self.Record("▲网络异常⋙ "+msg)
+                self.CallRecord("▲远程连接异常关闭⋙ "+msg)
+            self.CallRecord("▲网络异常⋙ "+msg)
             dlg = wx.MessageDialog(None, "网络连接出错", "弹幕发送失败", wx.OK)
             print(e)
             dlg.ShowModal()
             dlg.Destroy()
             return False
         except requests.exceptions.ReadTimeout:
-            self.Record("▲请求超时⋙ "+msg)
+            self.CallRecord("▲请求超时⋙ "+msg)
             print("[发送超时] %s"%msg)
             return False
         except Exception as e:
-            self.Record("▲发送失败⋙ "+msg)
-            self.Record("(具体信息：%s)"%str(e))
+            self.CallRecord("▲发送失败⋙ "+msg)
+            self.CallRecord("(具体信息：%s)"%str(e))
             print("[其它发送错误 %d] %s\n%s"%(json.loads(res.text)["code"],msg,e))
             return False
 
@@ -863,7 +848,7 @@ class LyricDanmu(wx.Frame):
         self.sldLrc.SetValue(self.oid)
         self.lblCurLine.SetLabel(str(self.oid))
         self.lblMaxLine.SetLabel(str(self.omax - 2))
-        self.FlashLyric()
+        self.RefreshLyric()
         self.show_lyric=True
         self.show_import=False
         self.ResizeUI()
@@ -880,10 +865,10 @@ class LyricDanmu(wx.Frame):
         cur_lyc_mod = self.cbbLycMod.GetSelection()
         if not self.init_lock and self.has_trans and self.lyc_mod * cur_lyc_mod == 0 and self.lyc_mod + cur_lyc_mod > 0:
             self.lid = self.lid + (1 if cur_lyc_mod > 0 else -1)
-            self.FlashLyric()
+            self.RefreshLyric()
         self.lyc_mod = cur_lyc_mod
 
-    def FlashLyric(self):
+    def RefreshLyric(self):
         for i in range(11):
             lid = self.lid + i - 4
             if lid >= 0 and lid < self.lmax:
@@ -950,7 +935,7 @@ class LyricDanmu(wx.Frame):
         self.lid = self.olist[self.oid]
         if self.has_trans and self.lyc_mod > 0:
             self.lid += 1
-        self.FlashLyric()
+        wx.CallAfter(pub.sendMessage,"lyric")
 
     def OnSendLrcBtn(self, event):
         if self.init_lock or self.auto_sending:
@@ -969,7 +954,7 @@ class LyricDanmu(wx.Frame):
     def SendLyric(self, line):
         pre = self.cbbLycPre.GetValue()
         suf = self.cbbLycSuf.GetValue()
-        msg = self.lblLyrics[line].GetLabel()
+        msg = self.llist[self.lid+line-4][2]
         message = pre + msg
         if self.shield_changed:
             message = self.DealWithCustomShields(message)
@@ -1684,11 +1669,8 @@ class LyricDanmu(wx.Frame):
         if len(self.recent_history)>10:
             self.recent_history.pop()
 
-    def Record(self,message):
-        try:
-            self.recordFrame.tcRecord.AppendText(message+"\n")
-        except Exception as e:
-            print("[RecordFrame: Append Error]",e)
+    def UpdateRecord(self,msg):
+        self.recordFrame.tcRecord.AppendText(msg+"\n")
     
     def ShieldLog(self,string):
         try:
@@ -1741,6 +1723,9 @@ class LyricDanmu(wx.Frame):
         finally:
             try:    os.remove("tmp.tmp")
             except: pass
+    
+    def CallRecord(self,msg):
+        wx.CallAfter(pub.sendMessage,"record",msg=msg)
 
 
 if __name__ == '__main__':
