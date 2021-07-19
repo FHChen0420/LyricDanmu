@@ -5,6 +5,7 @@ import json
 import pyperclip
 from math import ceil
 from random import randint
+from pubsub import pub
 from langconv import Converter
 from MarkSettingFrame import MarkSettingFrame
 from other_data import preprocess_cn_rules,ignore_lyric_pattern
@@ -24,6 +25,8 @@ class SearchResult(wx.Frame):
             "106.230", #江西
             "223.150", #湖南
         ]
+        # 消息订阅
+        pub.subscribe(self.SetTypeTxt,"lyricType")
         # 请求参数
         self.url_GetSongsWY = "https://music.163.com/api/search/get/web"
         self.url_GetLyricWY = "https://music.163.com/api/song/lyric"
@@ -361,21 +364,17 @@ class SearchResult(wx.Frame):
             res = requests.get(url=self.url_GetLyricWY, headers=self.headersWY, params=self.params_GetLyricWY, timeout=(5, 5))
             lyrics = json.loads(res.text)
             if lyrics["code"] != 200:
-                txt.SetForegroundColour("gray")
-                txt.SetLabel("错误")
+                self.CallType(txt,"gray","错误")
                 return
             if "lrc" not in lyrics.keys():
-                txt.SetForegroundColour("red")
-                txt.SetLabel("无词")
+                self.CallType(txt,"red","无词")
                 return
             lrcO = lyrics["lrc"]["lyric"]
             if lrcO is None or lrcO.strip() == "":
-                txt.SetForegroundColour("red")
-                txt.SetLabel("无词")
+                self.CallType(txt,"red","无词")
                 return
             if re.search(r"\[\d+:\d+(\.\d*)?\]", lrcO) is None:
-                txt.SetForegroundColour("SEA GREEN")
-                txt.SetLabel("无轴")
+                self.CallType(txt,"SEA GREEN","无轴")
                 return
             line_num = 0
             listO = lrcO.strip().split("\n")
@@ -385,17 +384,14 @@ class SearchResult(wx.Frame):
                 if content not in ["","<END>"] and not re.match(ignore_lyric_pattern,content):
                     line_num += len(parts)-1
             if lyrics["tlyric"]["lyric"].strip() == "":
-                txt.SetForegroundColour("purple")
-                txt.SetLabel("单%d" % line_num)
+                self.CallType(txt,"purple","单%d"%line_num)
                 return
-            txt.SetForegroundColour("blue")
-            txt.SetLabel("双%d" % line_num)
+            self.CallType(txt,"blue","双%d"%line_num)
         except RuntimeError:
             pass
         except:
             try:
-                txt.SetForegroundColour("gray")
-                txt.SetLabel("重试")
+                self.CallType(txt,"gray","重试")
             except RuntimeError:
                 pass
 
@@ -406,21 +402,17 @@ class SearchResult(wx.Frame):
             res = requests.get(url=self.url_GetLyricQQ, headers=self.headersQQ, params=self.params_GetLyricQQ, timeout=(5, 5))
             lyrics = json.loads(res.text)
             if lyrics["code"] == -1901:
-                txt.SetForegroundColour("red")
-                txt.SetLabel("无词")
+                self.CallType(txt,"red","无词")
                 return
             if lyrics["code"] != 0:
-                txt.SetForegroundColour("gray")
-                txt.SetLabel("错误")
+                self.CallType(txt,"gray","错误")
                 return
             lrcO = lyrics["lyric"].strip()
             if lrcO == "[00:00:00]此歌曲为没有填词的纯音乐，请您欣赏":
-                txt.SetForegroundColour("red")
-                txt.SetLabel("无词")
+                self.CallType(txt,"red","无词")
                 return
             if re.search(r"\[\d+:\d+(\.\d*)?\]", lrcO) is None:
-                txt.SetForegroundColour("SEA GREEN")
-                txt.SetLabel("无轴")
+                self.CallType(txt,"SEA GREEN","无轴")
                 return
             line_num = 0
             listO = lrcO.strip().split("\n")
@@ -430,17 +422,14 @@ class SearchResult(wx.Frame):
                 if content not in ["","<END>"] and not re.match(ignore_lyric_pattern,content):
                     line_num += len(parts)-1
             if lyrics["trans"].strip() == "":
-                txt.SetForegroundColour("purple")
-                txt.SetLabel("单%d" % line_num)
+                self.CallType(txt,"purple","单%d"%line_num)
                 return
-            txt.SetForegroundColour("blue")
-            txt.SetLabel("双%d" % line_num)
+            self.CallType(txt,"blue","双%d"%line_num)
         except RuntimeError:
             pass
-        except Exception as e:
+        except:
             try:
-                txt.SetForegroundColour("gray")
-                txt.SetLabel("重试")
+                self.CallType(txt,"gray","重试")
             except RuntimeError:
                 pass
 
@@ -721,3 +710,13 @@ class SearchResult(wx.Frame):
         for k,v in preprocess_cn_rules.items(): #其他预处理
             string=re.sub(k,v,string)
         return string
+    
+    def SetTypeTxt(self,txt,color,label):
+        try:
+            txt.SetForegroundColour(color)
+            txt.SetLabel(label)
+        except RuntimeError:
+            pass
+    
+    def CallType(self,txt,color,label):
+        wx.CallAfter(pub.sendMessage,"lyricType",txt=txt,color=color,label=label)
