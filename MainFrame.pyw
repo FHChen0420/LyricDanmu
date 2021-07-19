@@ -148,7 +148,7 @@ class LyricDanmu(wx.Frame):
         self.cbbComPre.Bind(wx.EVT_TEXT, self.CountText)
         self.cbbComPre.Bind(wx.EVT_COMBOBOX, self.CountText)
         # 弹幕输入框
-        self.tcComment = wx.TextCtrl(self.p0, -1, "", pos=(82, 10), size=(255, 30), style=wx.TE_PROCESS_ENTER)
+        self.tcComment = wx.TextCtrl(self.p0, -1, "", pos=(82, 10), size=(255, 30), style=wx.TE_PROCESS_ENTER|wx.TE_PROCESS_TAB)
         self.tcComment.Bind(wx.EVT_TEXT_ENTER, self.SendComment)
         self.tcComment.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)
         self.tcComment.Bind(wx.EVT_TEXT, self.CountText)
@@ -203,8 +203,7 @@ class LyricDanmu(wx.Frame):
         self.ckbTabMod.SetValue(True)
         wx.StaticText(self.p4,-1,"❔",pos=(230,40)).SetToolTip(
             "联动模式下使用Tab键切换前缀，切换范围取决于联动人数\n" +
-            "Shift+Tab键反向切换前缀，Alt+Tab键则会直接切换窗口\n" +
-            "在任意模式下也可以直接使用Alt+数字键切换到指定的前缀\n")
+            "也可以直接使用Alt+数字键1~5来切换到指定的前缀\n")
         self.cbbClbMod = wx.ComboBox(self.p4, pos=(250, 6), size=(72, -1), choices=["单人模式", "双人联动", "三人联动", "四人联动", "五人联动"],style=wx.CB_READONLY)
         self.cbbClbMod.SetSelection(self.colabor_mode)
         self.cbbClbMod.Bind(wx.EVT_COMBOBOX, self.SetColaborMode)
