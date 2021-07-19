@@ -66,9 +66,9 @@ class CustomTextFrame(wx.Frame):
         self.llist.append("<END>")
         self.lmax=len(self.llist)
         self.lid=0
-        self.FlashLyric()
+        self.RefreshLyric()
 
-    def FlashLyric(self):
+    def RefreshLyric(self):
         for i in range(5):
             lid = self.lid + i - 1
             if lid >= 0 and lid < self.lmax:
@@ -80,14 +80,14 @@ class CustomTextFrame(wx.Frame):
         if self.lid <= 0:
             return False
         self.lid-=1
-        self.FlashLyric()
+        self.RefreshLyric()
         return True
 
     def NextLyric(self, event):
         if self.lid >= self.lmax-2:
             return False
         self.lid+=1
-        self.FlashLyric()
+        self.RefreshLyric()
         return True
     
     def OnSendLrcBtn(self,event):
