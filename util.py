@@ -32,4 +32,11 @@ def setWxUIAttr(obj,label=None,color=None,enabled=None):
 
 def UIChange(obj,label=None,color=None,enabled=None):
     wx.CallAfter(pub.sendMessage,"attr",obj=obj,label=label,color=color,enabled=enabled)
+
+def SetFont(obj,size,bold=False,name=None):
+    weight=wx.FONTWEIGHT_BOLD if bold else wx.FONTWEIGHT_NORMAL
+    if name is None:
+        obj.SetFont(wx.Font(size,wx.FONTFAMILY_DEFAULT,wx.FONTSTYLE_NORMAL,weight))
+    else:
+        obj.SetFont(wx.Font(size,wx.FONTFAMILY_DEFAULT,wx.FONTSTYLE_NORMAL,weight,faceName=name))
     
