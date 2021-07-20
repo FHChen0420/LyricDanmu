@@ -260,12 +260,12 @@ class SearchResult(wx.Frame):
         # 内容
         if self.recommond:
             txtRecommond = wx.StaticText(self.p0, -1, "建议：" + self.recommond, pos=(15, 10))
-            SetFont(txtRecommond,10 if wins else 15,bold=True)
+            SetFont(txtRecommond,11 if wins else 15,bold=True)
             btnCopyRecommond = wx.Button(self.p0, -1, "复制\n建议", pos=(330, 10), size=(40, 40))
             btnCopyRecommond.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)  #
             btnCopyRecommond.Bind(wx.EVT_BUTTON, self.CopyRecommond)
         self.txtMsg = wx.StaticText(self.p0, -1, "", pos=(50, 40), size=(280, -1), style=wx.ALIGN_CENTER)
-        SetFont(self.txtMsg,12 if wins else 17,bold=True)
+        SetFont(self.txtMsg,13 if wins else 17,bold=True,name="微软雅黑" if wins else None)
         txtGetLyric = wx.StaticText(self.p0, -1, "歌词", pos=(387, 60))
         txtCopyName = wx.StaticText(self.p0, -1, "歌名", pos=(426, 60))
         txtMark = wx.StaticText(self.p0, -1, "收藏", pos=(465, 60))
