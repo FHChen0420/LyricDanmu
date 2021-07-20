@@ -35,7 +35,7 @@ class GeneralConfigFrame(wx.Frame):
         self.rdSrcWY=wx.RadioButton(panel,-1,"网易云",pos=(135,70),style=0)
         self.rdSrcQQ=wx.RadioButton(panel,-1,"QQ音乐",pos=(195,70),style=0)
         self.rdSrcWY.SetValue(True) if parent.default_src=="wy" else self.rdSrcQQ.SetValue(True)
-        wx.StaticText(panel,-1,"❔",pos=(275,70)).SetToolTip(
+        wx.StaticText(panel,-1,"⍰",pos=(275,70)).SetToolTip(
             "歌词前后缀备选：使用\",\"分隔各项\n" +
             "歌词搜索条数：范围5~30\n每页显示条数：范围5~8\n\n"+
             "歌词前后缀更改将在工具重启后生效")
@@ -45,7 +45,7 @@ class GeneralConfigFrame(wx.Frame):
         wx.StaticText(panel,-1,"歌词合并",pos=(15,130))
         self.ckbLrcMrg = wx.CheckBox(panel,-1,"启用歌词合并", pos=(80,130))
         self.ckbLrcMrg.SetValue(parent.enable_lyric_merge)
-        wx.StaticText(panel,-1,"❔",pos=(275,130)).SetToolTip(
+        wx.StaticText(panel,-1,"⍰",pos=(275,130)).SetToolTip(
             "将零碎的短歌词拼接显示并发送，减少歌词弹幕发送数量\n"+
             "仅对有时轴的歌词生效，合并双语歌词时以中文长度为基准\n"+
             "合并阈值：合并歌词时，最多允许拼接多少秒以内的歌词")
@@ -56,7 +56,7 @@ class GeneralConfigFrame(wx.Frame):
         wx.StaticText(panel,-1,"发送间隔",pos=(15,184))
         self.ckbNewItv = wx.CheckBox(panel,-1,"启用新版发送间隔机制", pos=(80,184))
         self.ckbNewItv.SetValue(parent.enable_new_send_type)
-        wx.StaticText(panel,-1,"❔",pos=(275,184)).SetToolTip(
+        wx.StaticText(panel,-1,"⍰",pos=(275,184)).SetToolTip(
             "新版：上一条弹幕的响应时刻 → 本条弹幕的发送时刻\n"+
             "旧版：上一条弹幕的发送时刻 → 本条弹幕的发送时刻\n"+
             "推荐间隔：新版700~850，旧版1000~1100")
@@ -74,14 +74,14 @@ class GeneralConfigFrame(wx.Frame):
         self.ckbInitLrc.SetValue(parent.init_show_lyric)
         self.ckbNoProxy = wx.CheckBox(panel,-1,"不使用系统代理", pos=(80,289))
         self.ckbNoProxy.SetValue(parent.no_proxy)
-        wx.StaticText(panel,-1,"❔",pos=(275,289)).SetToolTip(
+        wx.StaticText(panel,-1,"⍰",pos=(275,289)).SetToolTip(
             "科学上网时使用本工具可能会报网络异常错误\n"+
             "如果遇到此情况请尝试修改该选项")
         # 账号配置
         wx.StaticText(panel,-1,"账号配置",pos=(15,314))
         self.tcCookie=wx.TextCtrl(panel,-1,parent.cookie,pos=(78,314),size=(190,75),style=wx.TE_MULTILINE|wx.TE_PROCESS_ENTER)
         self.btnEditCookie=wx.Button(panel,-1,"修改Cookie",pos=(80,314),size=(80,22))
-        wx.StaticText(panel,-1,"❔",pos=(275,314)).SetToolTip(
+        wx.StaticText(panel,-1,"⍰",pos=(275,314)).SetToolTip(
             "Cookie获取方法：\n"+
             "电脑浏览器进入直播间 → 按F12打开开发者工具，选择Network栏\n"+
             " → 发送一条弹幕 → Network栏会捕获到名为send的记录\n"+

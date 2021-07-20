@@ -36,7 +36,7 @@ class ShieldConfigFrame(wx.Frame):
         wx.StaticText(panel,-1,"房间号",pos=(10,267))
         self.tcRoom=wx.TextCtrl(panel,-1,"",pos=(55,265),size=(130,24))
         self.btnInsert=wx.Button(panel,-1,"添  加",pos=(190,265),size=(80,24))
-        wx.StaticText(panel,-1,"❔",pos=(250,207)).SetToolTip(
+        wx.StaticText(panel,-1,"⍰",pos=(250,207)).SetToolTip(
             "自定义屏蔽字规则详见说明文件\n"+
             "屏蔽字对应的房间号为空时视为对所有房间生效\n"+
             "有多个房间号时请使用逗号或分号隔开\n"+
