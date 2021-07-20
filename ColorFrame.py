@@ -6,9 +6,15 @@ class ColorFrame(wx.Frame):
         colors=parent.colors
         x=parent.Position[0]+10
         y=parent.Position[1]+parent.Size[1]-10
-        H=8+25*len(colors)
-        wx.Frame.__init__(self, parent, title="",pos=(x,y),size=(H,30),style=wx.FRAME_TOOL_WINDOW|wx.FRAME_FLOAT_ON_PARENT)
-        self.panel=wx.Panel(self,-1,pos=(0,0),size=(H,30))
+        W,H=8+25*len(colors),30
+        if parent.platform=="win":
+            style=wx.FRAME_FLOAT_ON_PARENT|wx.FRAME_TOOL_WINDOW
+        else:
+            style=wx.FRAME_FLOAT_ON_PARENT|wx.CAPTION
+            y-=10
+            H+=18
+        wx.Frame.__init__(self, parent, title="",pos=(x,y),size=(W,H),style=style)
+        self.panel=wx.Panel(self,-1,pos=(0,0),size=(W,H))
         self.panel.SetBackgroundColour("white")
         i=0
         for k,v in colors.items():
@@ -18,6 +24,7 @@ class ColorFrame(wx.Frame):
             btn.Bind(wx.EVT_BUTTON,self.ChangeColor)
             i+=1
         self.Show()
+        self.Raise()
     
     def ChangeColor(self,event):
         color=event.GetEventObject().GetName()

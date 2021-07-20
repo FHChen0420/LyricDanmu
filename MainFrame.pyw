@@ -169,9 +169,10 @@ class LyricDanmu(wx.Frame):
         self.btnRoom1.Bind(wx.EVT_BUTTON, self.ShowRoomSelectFrame)
         # 弹幕颜色/位置选择
         self.btnDmCfg1 = wx.Button(self.p3, -1, "██", pos=(15, 40), size=(43, 32))
-        self.btnDmCfg1.SetBackgroundColour(wx.Colour(250,250,250))
         self.btnDmCfg2 = wx.Button(self.p3, -1, "⋘", pos=(59, 40), size=(43, 32))
-        self.btnDmCfg2.SetFont(wx.Font(13, wx.DECORATIVE, wx.NORMAL, wx.NORMAL, faceName="微软雅黑"))
+        if self.platform=="win":
+            self.btnDmCfg1.SetBackgroundColour(wx.Colour(250,250,250))
+            SetFont(self.btnDmCfg2,13,name="微软雅黑")
         self.btnDmCfg1.Disable()
         self.btnDmCfg2.Disable()
         self.btnDmCfg1.Bind(wx.EVT_BUTTON, self.ShowColorFrame)
@@ -307,6 +308,17 @@ class LyricDanmu(wx.Frame):
         self.btnSaveToLocal = wx.Button(self.p2, -1, "保存至本地", pos=(345, 326), size=(87, 32))
         self.cbbImport2.Bind(wx.EVT_COMBOBOX, self.SynImpLycMod)
         self.btnSaveToLocal.Bind(wx.EVT_BUTTON,self.SaveToLocal)
+        #
+        if self.platform=="mac":
+            SetFont(self,13)
+            for obj in self.p1.Children:
+                SetFont(obj,10)
+            for obj in [txtLycMod,txtLycPre,txtLycSuf,self.cbbLycMod,
+                        self.cbbLycPre,self.cbbLycSuf,self.btnRoom2,self.tcSearch]:
+                SetFont(obj,13)
+            for i in range(11):
+                SetFont(self.lblTimelines[i],12)
+                SetFont(self.lblLyrics[i],13)
         #
         self.tcSearch.SetFocus() if self.init_show_lyric else self.tcComment.SetFocus()
         self.p0.Show(True)
@@ -859,7 +871,7 @@ class LyricDanmu(wx.Frame):
             self.btnAutoSend.Enable()
             self.btnStopAuto.Enable()
         else:
-            self.btnAutoSend.SetLabel("不支持\n自动播放")
+            self.btnAutoSend.SetLabel("无时间轴")
             self.btnAutoSend.Disable()
             self.btnStopAuto.Disable()
 
@@ -1713,10 +1725,10 @@ class LyricDanmu(wx.Frame):
                 f.write(bytes(code,encoding="utf-8"))
                 f.write(bytes("modified_time=%d"%int(time.time()),encoding="utf-8"))
                 f.write(bytes("  # 最近一次更新时间：%s"%getTime(fmt="%m-%d %H:%M"),encoding="utf-8"))
-            UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="屏蔽词库更新完毕")
+            UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="词库更新完毕")
         except Exception as e:
             print("更新屏蔽词库失败\n",str(e))
-            UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="屏蔽词库更新失败")
+            UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="词库更新失败")
         finally:
             try:    os.remove("tmp.tmp")
             except: pass

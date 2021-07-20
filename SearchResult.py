@@ -8,7 +8,7 @@ from random import randint
 from pubsub import pub
 from langconv import Converter
 from MarkSettingFrame import MarkSettingFrame
-from util import UIChange
+from util import UIChange,SetFont
 from other_data import preprocess_cn_rules,ignore_lyric_pattern
 
 class SearchResult(wx.Frame):
@@ -256,23 +256,24 @@ class SearchResult(wx.Frame):
             self.ToggleWindowStyle(wx.STAY_ON_TOP)
         self.markSettingFrame=None
         self.p0 = wx.Panel(self, -1, pos=(0, 0), size=(520, 80))
+        wins=parent.platform=="win"
         # 内容
         if self.recommond:
             txtRecommond = wx.StaticText(self.p0, -1, "建议：" + self.recommond, pos=(15, 10))
-            txtRecommond.SetFont(wx.Font(10, wx.DECORATIVE, wx.SLANT, wx.BOLD, faceName="微软雅黑"))
+            SetFont(txtRecommond,10 if wins else 15,bold=True)
             btnCopyRecommond = wx.Button(self.p0, -1, "复制\n建议", pos=(330, 10), size=(40, 40))
             btnCopyRecommond.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)  #
             btnCopyRecommond.Bind(wx.EVT_BUTTON, self.CopyRecommond)
         self.txtMsg = wx.StaticText(self.p0, -1, "", pos=(50, 40), size=(280, -1), style=wx.ALIGN_CENTER)
-        self.txtMsg.SetFont(wx.Font(12, wx.DECORATIVE, wx.NORMAL, wx.BOLD, faceName="微软雅黑"))
+        SetFont(self.txtMsg,12 if wins else 17,bold=True)
         txtGetLyric = wx.StaticText(self.p0, -1, "歌词", pos=(387, 60))
         txtCopyName = wx.StaticText(self.p0, -1, "歌名", pos=(426, 60))
         txtMark = wx.StaticText(self.p0, -1, "收藏", pos=(465, 60))
         self.btnPrevPage = wx.Button(self.p0, -1, "◁", pos=(380, 10), size=(40, 40))
         self.btnPageNum = wx.Button(self.p0, -1, "", pos=(419, 10), size=(40, 40))
         self.btnNextPage = wx.Button(self.p0, -1, "▷", pos=(458, 10), size=(40, 40))
-        self.btnPrevPage.SetFont(wx.Font(14, wx.DECORATIVE, wx.NORMAL, wx.NORMAL))
-        self.btnNextPage.SetFont(wx.Font(14, wx.DECORATIVE, wx.NORMAL, wx.NORMAL))
+        SetFont(self.btnPrevPage,14)
+        SetFont(self.btnNextPage,14)
         self.btnPrevPage.Bind(wx.EVT_BUTTON, self.PrevPage)
         self.btnNextPage.Bind(wx.EVT_BUTTON, self.NextPage)
         self.btnPrevPage.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)  #
@@ -288,21 +289,17 @@ class SearchResult(wx.Frame):
             self.txtTypes.append([])
             j = 0
             for song in self.all_songs[i * self.page_limit:(i + 1) * self.page_limit]:
-                txtName = wx.StaticText(p, -1, song["name"].strip(), pos=(15, 50 * j), size=(360, 30),
-                                        style=wx.ST_NO_AUTORESIZE)
-                txtType = wx.StaticText(self.panels[i], -1, "", pos=(15, 50 * j + 25), size=(35, -1),
-                                        style=wx.ST_NO_AUTORESIZE)
-                txtArtist = wx.StaticText(p, -1, song["artists"][0]["name"].strip(), pos=(50, 50 * j + 25),
-                                          size=(100, -1), style=wx.ST_NO_AUTORESIZE)
-                txtAlbum = wx.StaticText(p, -1, song["album"]["name"].strip(), pos=(155, 50 * j + 25), size=(220, -1),
-                                         style=wx.ST_NO_AUTORESIZE)
-                txtName.SetFont(wx.Font(12, wx.DECORATIVE, wx.NORMAL, wx.BOLD, faceName="微软雅黑"))
+                txtName = wx.StaticText(p, -1, song["name"].strip(), pos=(15, 50 * j), size=(360, 30),style=wx.ST_NO_AUTORESIZE)
+                txtType = wx.StaticText(self.panels[i], -1, "", pos=(15, 50 * j + 25), size=(35, -1),style=wx.ST_NO_AUTORESIZE)
+                txtArtist = wx.StaticText(p, -1, song["artists"][0]["name"].strip(), pos=(50, 50 * j + 25),size=(100, -1), style=wx.ST_NO_AUTORESIZE)
+                txtAlbum = wx.StaticText(p, -1, song["album"]["name"].strip(), pos=(155, 50 * j + 25), size=(220, -1),style=wx.ST_NO_AUTORESIZE)
+                SetFont(txtName,12 if wins else 16,bold=True,name="微软雅黑" if wins else None)
                 btn1 = wx.Button(p, -1, "▶", pos=(380, 50 * j), size=(40, 40), name=str(song["id"]))
                 btn2 = wx.Button(p, -1, "✎", pos=(419, 50 * j), size=(40, 40), name=str(song["name"]))
                 btn3 = wx.Button(p, -1, "☆", pos=(458, 50 * j), size=(40, 40), name=str(song["id"]))
-                btn1.SetFont(wx.Font(14, wx.DECORATIVE, wx.NORMAL, wx.NORMAL))
-                btn2.SetFont(wx.Font(14, wx.DECORATIVE, wx.NORMAL, wx.NORMAL))
-                btn3.SetFont(wx.Font(14, wx.DECORATIVE, wx.NORMAL, wx.NORMAL))
+                SetFont(btn1,14)
+                SetFont(btn2,14)
+                SetFont(btn3,14)
                 btn2.Bind(wx.EVT_BUTTON, self.CopyName)
                 btn1.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)  #
                 btn2.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)  #
