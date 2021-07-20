@@ -28,7 +28,7 @@ session = requests.session()
 class LyricDanmu(wx.Frame):
     # -------------------------配置区开始--------------------------#
 
-    title_version = "LyricDanmu v1.3.4"
+    title_version = "LyricDanmu v1.4.0"
 
     # 发送队列检测间隔（毫秒）
     fetch_interval = 30
