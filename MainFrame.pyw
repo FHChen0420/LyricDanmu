@@ -9,6 +9,7 @@ import pyperclip
 from concurrent.futures import ThreadPoolExecutor,as_completed
 from pubsub import pub
 import xml.dom.minidom
+import platform
 
 from SearchResult import SearchResult
 from RoomSelectFrame import RoomSelectFrame
@@ -41,6 +42,8 @@ class LyricDanmu(wx.Frame):
     # -------------------------配置区结束--------------------------#
 
     def __init__(self, parent):
+        # 获取操作系统信息
+        self.platform="win" if "Windows" in platform.platform() else "mac"
         # 读取文件配置
         self.rooms={}
         self.wy_marks = {}
@@ -60,6 +63,7 @@ class LyricDanmu(wx.Frame):
         # 消息订阅
         pub.subscribe(self.UpdateRecord,"record")
         pub.subscribe(self.RefreshLyric,"lyric")
+        pub.subscribe(setWxUIAttr,"attr")
         # 请求参数
         self.url_SendDanmu = "https://api.live.bilibili.com/msg/send"
         self.url_GetDanmuCfg = "https://api.live.bilibili.com/xlive/web-room/v1/dM/GetDMConfigByGroup"
@@ -201,7 +205,7 @@ class LyricDanmu(wx.Frame):
         self.ckbTabMod = wx.CheckBox(self.p4,-1,"Tab切换",pos=(162,43))
         self.ckbTabMod.SetForegroundColour("gray")
         self.ckbTabMod.SetValue(True)
-        wx.StaticText(self.p4,-1,"❔",pos=(230,40)).SetToolTip(
+        wx.StaticText(self.p4,-1,"⍰",pos=(230,40)).SetToolTip(
             "联动模式下使用Tab键切换前缀，切换范围取决于联动人数\n" +
             "也可以直接使用Alt+数字键1~5来切换到指定的前缀\n")
         self.cbbClbMod = wx.ComboBox(self.p4, pos=(250, 6), size=(72, -1), choices=["单人模式", "双人联动", "三人联动", "四人联动", "五人联动"],style=wx.CB_READONLY)
@@ -312,6 +316,8 @@ class LyricDanmu(wx.Frame):
         self.p4.Show(False)
         self.ResizeUI()
         self.Show(True)
+        if self.platform=="mac":
+            self.ShowRoomSelectFrame(None)
 
     def ShowCustomTextFrame(self,event):
         if self.customTextFrame:
@@ -435,9 +441,9 @@ class LyricDanmu(wx.Frame):
                 if mode["status"]==1:
                     self.modes[mode["mode"]]=mode["name"]
             if len(self.modes)==1:
-                self.btnDmCfg2.SetForegroundColour("gray")
+                UIChange(self.btnDmCfg2,color="gray")
             else:
-                self.btnDmCfg2.SetForegroundColour("black")
+                UIChange(self.btnDmCfg2,color="black")
         except Exception as e:
             print(e)
             dlg = wx.MessageDialog(None, "解析错误，请重试", "获取弹幕配置出错", wx.OK)
@@ -458,23 +464,21 @@ class LyricDanmu(wx.Frame):
         self.pool.submit(self.ThreadOfGetDanmuConfig)
 
     def ThreadOfGetDanmuConfig(self):
-        self.btnRoom1.Disable()
-        self.btnRoom2.Disable()
-        self.btnDmCfg1.Disable()
-        self.btnDmCfg2.Disable()
+        UIChange(self.btnRoom1,enabled=False)
+        UIChange(self.btnRoom2,enabled=False)
+        UIChange(self.btnDmCfg1,enabled=False)
+        UIChange(self.btnDmCfg2,enabled=False)
         if self.GetCurrentDanmuConfig():
-            self.btnDmCfg1.SetForegroundColour(getRgbColor(self.cur_color))
-            self.btnDmCfg2.SetLabel(bili_modes[str(self.cur_mode)])
             self.GetUsableDanmuConfig()
-            self.btnDmCfg1.Enable()
-            self.btnDmCfg2.Enable()
+            UIChange(self.btnDmCfg1,color=getRgbColor(self.cur_color),enabled=True)
+            UIChange(self.btnDmCfg2,label=bili_modes[str(self.cur_mode)],enabled=True)
         else:
             self.roomid = None
             self.roomName = None
-            self.btnRoom1.SetLabel("选择直播间")
-            self.btnRoom2.SetLabel("选择直播间")
-        self.btnRoom1.Enable()
-        self.btnRoom2.Enable()
+            UIChange(self.btnRoom1,label="选择直播间")
+            UIChange(self.btnRoom2,label="选择直播间")
+        UIChange(self.btnRoom1,enabled=True)
+        UIChange(self.btnRoom2,enabled=True)
     
     def ThreadOfSetDanmuConfig(self,color,mode):
         self.data_SetDanmuCfg["room_id"]=self.roomid
@@ -498,15 +502,14 @@ class LyricDanmu(wx.Frame):
             dlg.Destroy()
             return
         data = json.loads(res.text)
-        if data["code"]==0 and "data" in data.keys() and data["data"]["msg"]=="设置成功~":
+        if data["code"]==0:
             if color is not None:
                 self.cur_color=color
-                self.btnDmCfg1.SetForegroundColour(getRgbColor(color))
+                UIChange(self.btnDmCfg1,color=getRgbColor(color))
             else:
                 self.cur_mode=mode
-                self.btnDmCfg2.SetLabel(bili_modes[mode])
+                UIChange(self.btnDmCfg2,label=bili_modes[mode])
         else:
-            self.CallRecord("◆弹幕配置失败⋙ "+str(data))
             dlg = wx.MessageDialog(None, "设置失败，请重试", "保存弹幕配置出错", wx.OK)
             dlg.ShowModal()
             dlg.Destroy()
@@ -605,7 +608,7 @@ class LyricDanmu(wx.Frame):
             return
         if not self.NextLyric(None):
             return
-        if self.has_trans and self.lyc_mod == 2 and self.lblLyrics[3].GetLabel()!=self.lblLyrics[4].GetLabel():
+        if self.has_trans and self.lyc_mod == 2 and self.llist[self.lid-1][2]!=self.llist[self.lid][2]:
             self.SendLyric(3)
         self.SendLyric(4)
         self.sldLrc.Disable()
@@ -639,11 +642,11 @@ class LyricDanmu(wx.Frame):
                 continue
             if self.cur_t>= next_t:
                 self.NextLyric(None)
-                if self.has_trans and self.lyc_mod == 2 and self.lblLyrics[3].GetLabel()!=self.lblLyrics[4].GetLabel():
+                if self.has_trans and self.lyc_mod == 2 and self.llist[self.lid-1][2]!=self.llist[self.lid][2]:
                     self.SendLyric(3)
                 self.SendLyric(4)
                 next_t=self.timelines[self.oid+1]
-            self.btnSend.SetLabel(getTimeLineStr(self.cur_t))
+            UIChange(self.btnSend,label=getTimeLineStr(self.cur_t))
             self.cur_t = time.time()-self.timeline_base
             wx.MilliSleep(48)
         self.OnStopBtn(None)
@@ -894,7 +897,7 @@ class LyricDanmu(wx.Frame):
 
     def ClearQueue(self,event):
         self.danmuQueue.clear()
-        self.btnClearQueue.SetLabel("清空 [0]")
+        UIChange(self.btnClearQueue,label="清空 [0]")
 
     def PrevLyric(self, event):
         if self.init_lock:
@@ -903,7 +906,7 @@ class LyricDanmu(wx.Frame):
         if self.auto_sending and event is not None:
             self.timeline_base+=0.5
             self.cur_t-=0.5
-            self.btnSend.SetLabel(getTimeLineStr(self.cur_t))
+            UIChange(self.btnSend,label=getTimeLineStr(self.cur_t))
             return
         # 手动模式下，上一句
         if self.oid <= 0:
@@ -919,7 +922,7 @@ class LyricDanmu(wx.Frame):
         if self.auto_sending and event is not None:
             self.timeline_base-=0.5
             self.cur_t+=0.5
-            self.btnSend.SetLabel(getTimeLineStr(self.cur_t))
+            UIChange(self.btnSend,label=getTimeLineStr(self.cur_t))
             return
         # 手动模式下，下一句
         if self.oid + 2 >= self.omax:
@@ -946,7 +949,7 @@ class LyricDanmu(wx.Frame):
             return
         if not self.NextLyric(None):
             return
-        if self.has_trans and self.lyc_mod == 2 and self.lblLyrics[3].GetLabel()!=self.lblLyrics[4].GetLabel():
+        if self.has_trans and self.lyc_mod == 2 and self.llist[self.lid-1][2]!=self.llist[self.lid][2]:
             self.SendLyric(3)
         self.SendLyric(4)
 
@@ -969,7 +972,7 @@ class LyricDanmu(wx.Frame):
                 self.danmuQueue.append([self.roomid,msg+suf])
             else:
                 self.danmuQueue.append([self.roomid,msg])
-            self.btnClearQueue.SetLabel("清空 [%d]" % len(self.danmuQueue))#
+            UIChange(self.btnClearQueue,label="清空 [%d]"%len(self.danmuQueue))#
             return
         spaceIdx = []
         cutIdx = self.max_len
@@ -987,7 +990,7 @@ class LyricDanmu(wx.Frame):
         if 1 + len(msg[cutIdx:]) + len(pre) > self.max_len:
             cutIdx = self.max_len
         self.danmuQueue.append([self.roomid,msg[:cutIdx]])
-        self.btnClearQueue.SetLabel("清空 [%d]" % len(self.danmuQueue))#
+        UIChange(self.btnClearQueue,label="清空 [%d]"%len(self.danmuQueue))#
         if msg[cutIdx:] in [")","）","」","】","\"","”"]:  return
         self.SendSplitDanmu(pre + "…" + msg[cutIdx:],pre,suf)
 
@@ -1212,8 +1215,6 @@ class LyricDanmu(wx.Frame):
             self.global_shields=scope["rules"]
             if time.time()-scope["modified_time"]>self.global_shield_update_interval_s:
                 self.pool.submit(self.ThreadOfUpdateGlobalShields,2000)
-            else:
-                print("无需更新屏蔽词库")
         except Exception:
             dlg = wx.MessageDialog(None, "读取shields_global.dat失败", "提示", wx.OK)
             dlg.ShowModal()
@@ -1389,7 +1390,7 @@ class LyricDanmu(wx.Frame):
                 else: #旧版机制
                     self.pool.submit(self.SendDanmu, danmu[0], danmu[1])
                 last_time = time.time()
-                self.btnClearQueue.SetLabel("清空 [%d]" % len(self.danmuQueue))  #
+                UIChange(self.btnClearQueue,label="清空 [%d]" % len(self.danmuQueue))  #
             except RuntimeError:
                 pass
             except Exception as e:
@@ -1689,17 +1690,15 @@ class LyricDanmu(wx.Frame):
     
     def ThreadOfUpdateGlobalShields(self,delay=0):    # 弄这个tmp主要还是避免同时打开多个工具时可能出现的资源共用问题
         if os.path.exists("tmp.tmp"):   return
-        with open("tmp.tmp","w",encoding="utf-8") as f:  f.write("本文件可删除")
-        print("准备更新屏蔽词库")
+        with open("tmp.tmp","w",encoding="utf-8") as f:  f.write("")
         wx.MilliSleep(delay)
-        self.shieldConfigFrame.btnUpdateGlobal.SetLabel("获取更新中…")
-        #url_purge="https://purge.jsdelivr.net/gh/FHChen0420/bili_live_shield_words@main/BiliLiveShieldWords.py"
-        url_fetch="https://cdn.jsdelivr.net/gh/FHChen0420/bili_live_shield_words@main/BiliLiveShieldWords.py"
+        UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="获取更新中…")
+        url_UpdateGlobalShields="https://cdn.jsdelivr.net/gh/FHChen0420/bili_live_shield_words@main/BiliLiveShieldWords.py"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.221 Safari/537.36 SE 2.X MetaSr 1.0",
         }
         try:
-            r=requests.get(url=url_fetch,headers=headers,timeout=(5,10))
+            r=requests.get(url=url_UpdateGlobalShields,headers=headers,timeout=(5,10))
             so=re.search(r"# <DATA BEGIN>([\s\S]*?)# <DATA END>",r.text)
             code=so.group(1).replace("and not measure(x.group(3),4)","") #简化某条特殊规则
             # 写入内存
@@ -1714,11 +1713,10 @@ class LyricDanmu(wx.Frame):
                 f.write(bytes(code,encoding="utf-8"))
                 f.write(bytes("modified_time=%d"%int(time.time()),encoding="utf-8"))
                 f.write(bytes("  # 最近一次更新时间：%s"%getTime(fmt="%m-%d %H:%M"),encoding="utf-8"))
-            print("更新屏蔽词库成功")
-            self.shieldConfigFrame.btnUpdateGlobal.SetLabel("屏蔽词库更新完毕")
+            UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="屏蔽词库更新完毕")
         except Exception as e:
             print("更新屏蔽词库失败\n",str(e))
-            self.shieldConfigFrame.btnUpdateGlobal.SetLabel("屏蔽词库更新失败")
+            UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="屏蔽词库更新失败")
         finally:
             try:    os.remove("tmp.tmp")
             except: pass
