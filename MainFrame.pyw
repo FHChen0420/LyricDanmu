@@ -691,8 +691,7 @@ class LyricDanmu(wx.Frame):
         for t in listT:
             fs = self.SplitTnL(t)
             for f in fs:
-                if f[2] not in ["","//"]:
-                    dictT[f[3]]=f
+                dictT[f[3]]=f
         dataT = sorted(dictT.values(), key=lambda f:f[1])
         maxTidx=len(dataT)
         for o in listO:
@@ -706,8 +705,8 @@ class LyricDanmu(wx.Frame):
                 tf=dataT[i]
                 if abs(tf[1]-f[1])<=self.timeline_error:  #双语歌词对轴误差
                     if f[2] != "" and "不得翻唱" not in f[2]:
+                        tf[2]=f[2] if tf[2] in ["","//"] else tf[2]
                         res.append([f[0],f[1],tf[2],f[3]]) #将轴对到与原版歌词一致
-                        #res.append(tf) #直接使用翻译版歌词时轴
                         curTIdx+=1
                     else:
                         res.append(f)
