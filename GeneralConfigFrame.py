@@ -157,13 +157,5 @@ class GeneralConfigFrame(wx.Frame):
         parent.init_show_lyric=self.ckbInitLrc.GetValue()
         parent.no_proxy=self.ckbNoProxy.GetValue()
         os.environ["NO_PROXY"]="*" if parent.no_proxy else ""
-        parent.cookie=self.tcCookie.GetValue().strip()
-        parent.cookies["Cookie"]=parent.cookie
-        so = re.search(r"bili_jct=([0-9a-f]+);?", parent.cookie)
-        if so is not None:
-            parent.csrf = so.group(1)
-            parent.data_SendDanmu["csrf"]=parent.csrf
-            parent.data_SendDanmu["csrf_token"]=parent.csrf
-            parent.data_SetDanmuCfg["csrf"]=parent.csrf
-            parent.data_SetDanmuCfg["csrf_token"]=parent.csrf
+        parent.ChangeCookie(self.tcCookie.GetValue().strip())
         self.Destroy()

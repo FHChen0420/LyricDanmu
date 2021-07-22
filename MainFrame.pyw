@@ -23,8 +23,6 @@ from BiliLiveShieldWords import *
 from other_data import *
 from util import *
 
-session = requests.session()
-
 class LyricDanmu(wx.Frame):
     # -------------------------配置区开始--------------------------#
 
@@ -99,11 +97,9 @@ class LyricDanmu(wx.Frame):
             "csrf": self.csrf,
             "csrf_token": self.csrf,
         }
-        self.cookies = {
-            "Cookie": self.cookie,
-        }
         # Session
-        requests.utils.add_dict_to_cookiejar(session.cookies,self.cookies)
+        self.session = requests.session()
+        requests.utils.add_dict_to_cookiejar(self.session.cookies,{"Cookie": self.cookie})
         # 运行
         self.show_config = not self.init_show_lyric
         self.show_lyric = self.init_show_lyric
@@ -393,7 +389,7 @@ class LyricDanmu(wx.Frame):
     def GetCurrentDanmuConfig(self):
         self.params_GetUserInfo["room_id"]=self.roomid
         try:
-            res=session.get(url=self.url_GetUserInfo,headers=self.headers,params=self.params_GetUserInfo,
+            res=self.session.get(url=self.url_GetUserInfo,headers=self.headers,params=self.params_GetUserInfo,
                             timeout=(self.timeout_s,self.timeout_s))
         except requests.exceptions.ConnectionError:
             dlg = wx.MessageDialog(None, "网络异常，请重试", "获取弹幕配置出错", wx.OK)
@@ -428,7 +424,7 @@ class LyricDanmu(wx.Frame):
     def GetUsableDanmuConfig(self):
         self.params_GetDanmuCfg["room_id"]=self.roomid
         try:
-            res=session.get(url=self.url_GetDanmuCfg,headers=self.headers,params=self.params_GetDanmuCfg,
+            res=self.session.get(url=self.url_GetDanmuCfg,headers=self.headers,params=self.params_GetDanmuCfg,
                             timeout=(self.timeout_s,self.timeout_s))
         except requests.exceptions.ConnectionError:
             dlg = wx.MessageDialog(None, "网络异常，请重试", "获取弹幕配置出错", wx.OK)
@@ -502,7 +498,7 @@ class LyricDanmu(wx.Frame):
             self.data_SetDanmuCfg["color"]=None
             self.data_SetDanmuCfg["mode"]=mode
         try:
-            res=session.post(url=self.url_SetDanmuCfg,headers=self.headers,data=self.data_SetDanmuCfg,
+            res=self.session.post(url=self.url_SetDanmuCfg,headers=self.headers,data=self.data_SetDanmuCfg,
                             timeout=(self.timeout_s,self.timeout_s))
         except requests.exceptions.ConnectionError:
             dlg = wx.MessageDialog(None, "网络异常，请重试", "保存弹幕配置出错", wx.OK)
@@ -535,7 +531,7 @@ class LyricDanmu(wx.Frame):
         self.data_SendDanmu["msg"] = msg
         self.data_SendDanmu["roomid"] = roomid
         try:
-            res = session.post(url=self.url_SendDanmu, headers=self.headers, data=self.data_SendDanmu,
+            res = self.session.post(url=self.url_SendDanmu, headers=self.headers, data=self.data_SendDanmu,
                                 timeout=(self.timeout_s,self.timeout_s))
             data=json.loads(res.text)
             errmsg=data["msg"]
@@ -1735,6 +1731,17 @@ class LyricDanmu(wx.Frame):
     
     def CallRecord(self,msg):
         wx.CallAfter(pub.sendMessage,"record",msg=msg)
+    
+    def ChangeCookie(self,cookie):
+        self.cookie=cookie
+        requests.utils.add_dict_to_cookiejar(self.session.cookies,{"Cookie": cookie})
+        so = re.search(r"bili_jct=([0-9a-f]+);?", cookie)
+        if so is not None:
+            self.csrf = \
+            self.data_SendDanmu["csrf"]=\
+            self.data_SendDanmu["csrf_token"]=\
+            self.data_SetDanmuCfg["csrf"]=\
+            self.data_SetDanmuCfg["csrf_token"]=so.group(1)
 
 
 if __name__ == '__main__':
