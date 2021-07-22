@@ -465,14 +465,15 @@ class LyricDanmu(wx.Frame):
         return True
 
     def SetRoomid(self,roomid,name):
-        if roomid==self.roomid and name==self.roomName:
+        if name != "":
+            self.roomName=name
+            self.btnRoom1.SetLabel(name)
+            self.btnRoom2.SetLabel(name)
+        if roomid==self.roomid:
             return
         if self.auto_sending:
             self.OnStopBtn(None)
         self.roomid=roomid
-        self.roomName=name
-        self.btnRoom1.SetLabel(name)
-        self.btnRoom2.SetLabel(name)
         self.pool.submit(self.ThreadOfGetDanmuConfig)
 
     def ThreadOfGetDanmuConfig(self):

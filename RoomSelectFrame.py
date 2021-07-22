@@ -41,7 +41,6 @@ class RoomSelectFrame(wx.Frame):
         btnAdd.Bind(wx.EVT_BUTTON, self.Extend)
         if self.parent.roomid is not None:
             self.tcRoomId.SetValue(self.parent.roomid)
-            self.tcRoomName.SetValue(self.parent.roomName)
             if unsaved_roomid:
                 btnAdd.SetForegroundColour("BLUE")
                 btnAdd.SetFocus()
