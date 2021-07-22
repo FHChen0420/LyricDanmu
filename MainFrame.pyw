@@ -764,10 +764,13 @@ class LyricDanmu(wx.Frame):
         while i<fslen:
             base_tl=fs[i][1]
             content=fs[i][2]
+            if base_tl<0:
+                i+=1
+                continue
             j=1
             while i+j<fslen and fs[i+j][1]-base_tl<=self.lyric_merge_threshold_s \
             and len(content+fs[i+j][2])+1+prelen<=self.max_len:
-                content+="　"+fs[i+j][2]
+                content+=("　"+fs[i+j][2]) if fs[i+j][2]!="" else ""
                 j+=1
             content=re.sub("　+","　",content.strip("　"))
             res.append([fs[i][0],base_tl,content,fs[i][3]])
@@ -783,11 +786,14 @@ class LyricDanmu(wx.Frame):
             base_tl=fs[i][1]
             content_o=fs[i-1][2]
             content_t=fs[i][2]
+            if base_tl<0:
+                i+=2
+                continue
             j=2
             while i+j<fslen and fs[i+j][1]-base_tl<=self.lyric_merge_threshold_s \
             and len(content_t+fs[i+j][2])+1+prelen<=self.max_len:
-                content_o+="　"+fs[i+j-1][2]
-                content_t+="　"+fs[i+j][2]
+                content_o+=("　"+fs[i+j-1][2]) if fs[i+j-1][2]!="" else ""
+                content_t+=("　"+fs[i+j][2]) if fs[i+j][2]!="" else ""
                 j+=2
             content_o=re.sub("　+","　",content_o.strip("　"))
             content_t=re.sub("　+","　",content_t.strip("　"))
@@ -1084,7 +1090,7 @@ class LyricDanmu(wx.Frame):
         self.search_num = 18
         self.page_limit = 6
         self.enable_lyric_merge = True
-        self.lyric_merge_threshold_s = 5.6
+        self.lyric_merge_threshold_s = 5.0
         self.init_show_lyric = True
         self.no_proxy = True
         self.cookie = ""
