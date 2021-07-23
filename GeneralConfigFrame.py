@@ -1,5 +1,5 @@
+from re import T
 import wx
-import re
 import os
 
 class GeneralConfigFrame(wx.Frame):
@@ -9,13 +9,14 @@ class GeneralConfigFrame(wx.Frame):
     
     def ShowFrame(self,parent):
         pos=parent.GetPosition()
-        x=pos[0]+70
-        y=pos[1]+60
-        wx.Frame.__init__(self, parent, title="应用设置", pos=(x,y), size=(310,379), style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.MINIMIZE_BOX) |wx.FRAME_FLOAT_ON_PARENT)
+        x,y=pos[0]+70,(pos[1]+60) if parent.show_lyric else (pos[1]-300)
+        if y<0: y=0
+        wx.Frame.__init__(self, parent, title="应用设置", pos=(x,y), size=(310,375), style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.MINIMIZE_BOX) |wx.FRAME_FLOAT_ON_PARENT)
         if parent.show_pin:
             self.ToggleWindowStyle(wx.STAY_ON_TOP)
         self.Bind(wx.EVT_CLOSE,self.OnClose)
-        panel=wx.Panel(self,-1,size=(310,434))
+        panel=wx.Panel(self,-1,pos=(0,0),size=(310,340))
+        self.p2=wx.Panel(self,-1,pos=(0,340),size=(310,100))
         # 歌词前后缀
         wx.StaticText(panel,-1,"歌词前缀",pos=(15,10))
         wx.StaticText(panel,-1,"歌词后缀",pos=(15,40))
@@ -77,20 +78,31 @@ class GeneralConfigFrame(wx.Frame):
         wx.StaticText(panel,-1,"⍰",pos=(275,289)).SetToolTip(
             "科学上网时使用本工具可能会报网络异常错误\n"+
             "如果遇到此情况请尝试修改该选项")
-        # 账号配置
-        wx.StaticText(panel,-1,"账号配置",pos=(15,314))
-        self.tcCookie=wx.TextCtrl(panel,-1,parent.cookie,pos=(78,314),size=(190,75),style=wx.TE_MULTILINE|wx.TE_PROCESS_ENTER)
-        self.btnEditCookie=wx.Button(panel,-1,"修改Cookie",pos=(80,314),size=(80,22))
+        # 账号切换
+        self.btnAccounts=[]
+        wx.StaticText(panel,-1,"账号切换",pos=(15,314))
+        for i in range(2):
+            acc_name="账号%d"%(i+1) if parent.accounts[i][0]=="" else parent.accounts[i][0]
+            btn=wx.Button(panel,-1,acc_name,pos=(75+i*90,314),size=(85,22),name=str(i))
+            btn.Bind(wx.EVT_BUTTON,self.SwitchAccount)
+            btn.Bind(wx.EVT_RIGHT_DOWN,self.ShowCookieEdit)
+            self.btnAccounts.append(btn)
         wx.StaticText(panel,-1,"⍰",pos=(275,314)).SetToolTip(
+            "左键：切换账号　　右键：修改账号\n"+
             "Cookie获取方法：\n"+
             "电脑浏览器进入直播间 → 按F12打开开发者工具，选择Network栏\n"+
             " → 发送一条弹幕 → Network栏会捕获到名为send的记录\n"+
             " → 点击该记录的Headers栏 → 得到Request Headers中的cookie项\n"+
             " → 粘贴到文本框中并关闭配置窗口\n\n"+
             "如果经常切换B站账号，那么建议使用浏览器无痕模式获取cookie")
-        self.tcCookie.Show(False)
+        wx.StaticText(self.p2,-1,"账号标记",pos=(15,3)).SetForegroundColour("gray")
+        self.tcAccName=wx.TextCtrl(self.p2,-1,"",pos=(75,0),size=(135,22))
+        self.btnSaveAcc=wx.Button(self.p2,-1,"保存",pos=(215,0),size=(50,22))
+        wx.StaticText(self.p2,-1,"Cookie",pos=(20,35)).SetForegroundColour("gray")
+        self.tcCookie=wx.TextCtrl(self.p2,-1,"",pos=(75,26),size=(190,38),style=wx.TE_MULTILINE|wx.TE_PROCESS_ENTER)
         self.tcCookie.Bind(wx.EVT_TEXT_ENTER, self.OnEnter)
-        self.btnEditCookie.Bind(wx.EVT_BUTTON,self.ShowCookieEdit)
+        self.btnSaveAcc.Bind(wx.EVT_BUTTON,self.SaveAccountInfo)
+        self.p2.Show(False)
         self.Show()
 
     def OnIntervalChange(self, event):
@@ -109,11 +121,27 @@ class GeneralConfigFrame(wx.Frame):
         self.parent.lyric_merge_threshold_s = 0.1 * self.sldLrcMrg.GetValue()
 
     def ShowCookieEdit(self,event):
-        self.btnEditCookie.Show(False)
-        self.SetSize((310,426))
-        self.tcCookie.Show(True)
+        acc_no=int(event.GetEventObject().GetName())
+        self.tcAccName.SetValue(self.parent.accounts[acc_no][0])
+        self.tcCookie.SetValue(self.parent.accounts[acc_no][1])
+        self.p2.Show(True)
+        self.SetSize(310,440)
         self.tcCookie.SetFocus()
         self.tcCookie.SelectAll()
+        self.btnSaveAcc.SetName(str(acc_no))
+    
+    def SaveAccountInfo(self,event):
+        acc_no=int(event.GetEventObject().GetName())
+        acc_name=self.tcAccName.GetValue().strip()
+        acc_name="账号%d"%(acc_no+1) if acc_name=="" else acc_name
+        cookie=self.tcCookie.GetValue().strip()
+        self.btnAccounts[acc_no].SetLabel(acc_name)
+        self.parent.SaveAccountInfo(acc_no,acc_name,cookie)
+    
+    def SwitchAccount(self,event):
+        acc_no=int(event.GetEventObject().GetName())
+        self.parent.SwitchAccount(acc_no)
+        self.OnClose(None)
     
     def OnEnter(self,event):
         pass
@@ -157,5 +185,4 @@ class GeneralConfigFrame(wx.Frame):
         parent.init_show_lyric=self.ckbInitLrc.GetValue()
         parent.no_proxy=self.ckbNoProxy.GetValue()
         os.environ["NO_PROXY"]="*" if parent.no_proxy else ""
-        parent.ChangeCookie(self.tcCookie.GetValue().strip())
         self.Destroy()

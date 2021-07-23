@@ -26,7 +26,7 @@ from util import *
 class LyricDanmu(wx.Frame):
     # -------------------------配置区开始--------------------------#
 
-    title_version = "LyricDanmu v1.4.0"
+    version = "v1.4.0"
 
     # 发送队列检测间隔（毫秒）
     fetch_interval = 30
@@ -81,8 +81,8 @@ class LyricDanmu(wx.Frame):
             "msg": "",  # 弹幕内容
             "roomid": 0,  # 房间号
             "rnd": int(time.time()),
-            "csrf_token": self.csrf,
-            "csrf": self.csrf,
+            "csrf_token": "",
+            "csrf": "",
         }
         self.params_GetDanmuCfg = {
             "room_id": 0, # 房间号
@@ -94,12 +94,15 @@ class LyricDanmu(wx.Frame):
             "room_id": 0, # 房间号
             #"color": "0xffffff", # 颜色
             #"mode": 1, # 位置
-            "csrf": self.csrf,
-            "csrf_token": self.csrf,
+            "csrf": "",
+            "csrf_token": "",
         }
         # Session
-        self.session = requests.session()
-        requests.utils.add_dict_to_cookiejar(self.session.cookies,{"Cookie": self.cookie})
+        self.sessions = []
+        for i in range(2):
+            new_session=requests.session()
+            requests.utils.add_dict_to_cookiejar(new_session.cookies,{"Cookie": self.accounts[i][1]})
+            self.sessions.append(new_session)
         # 运行
         self.show_config = not self.init_show_lyric
         self.show_lyric = self.init_show_lyric
@@ -113,6 +116,7 @@ class LyricDanmu(wx.Frame):
         self.auto_pausing = False
         self.shield_changed = False
         self.history_state = False
+        self.cur_acc = 0
         self.colabor_mode = 0
         self.lyc_mod = 1
         self.pre_idx = 0
@@ -125,7 +129,8 @@ class LyricDanmu(wx.Frame):
 
     def ShowFrame(self, parent):
         # 窗体
-        wx.Frame.__init__(self, parent, title=self.title_version, style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX) | wx.STAY_ON_TOP)
+        wx.Frame.__init__(self, parent, title="LyricDanmu %s - %s"%(self.version,self.accounts[0][0]),
+            style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX) | wx.STAY_ON_TOP)
         self.Bind(wx.EVT_CLOSE, self.OnClose)
         self.Bind(wx.EVT_MOVE, self.OnMove)
         self.Bind(wx.EVT_CHILD_FOCUS,self.OnFocus)
@@ -389,8 +394,8 @@ class LyricDanmu(wx.Frame):
     def GetCurrentDanmuConfig(self):
         self.params_GetUserInfo["room_id"]=self.roomid
         try:
-            res=self.session.get(url=self.url_GetUserInfo,headers=self.headers,params=self.params_GetUserInfo,
-                            timeout=(self.timeout_s,self.timeout_s))
+            res=self.sessions[self.cur_acc].get(url=self.url_GetUserInfo,
+                headers=self.headers,params=self.params_GetUserInfo,timeout=(self.timeout_s,self.timeout_s))
         except requests.exceptions.ConnectionError:
             dlg = wx.MessageDialog(None, "网络异常，请重试", "获取弹幕配置出错", wx.OK)
             dlg.ShowModal()
@@ -424,8 +429,8 @@ class LyricDanmu(wx.Frame):
     def GetUsableDanmuConfig(self):
         self.params_GetDanmuCfg["room_id"]=self.roomid
         try:
-            res=self.session.get(url=self.url_GetDanmuCfg,headers=self.headers,params=self.params_GetDanmuCfg,
-                            timeout=(self.timeout_s,self.timeout_s))
+            res=self.sessions[self.cur_acc].get(url=self.url_GetDanmuCfg,
+                headers=self.headers,params=self.params_GetDanmuCfg,timeout=(self.timeout_s,self.timeout_s))
         except requests.exceptions.ConnectionError:
             dlg = wx.MessageDialog(None, "网络异常，请重试", "获取弹幕配置出错", wx.OK)
             dlg.ShowModal()
@@ -491,6 +496,7 @@ class LyricDanmu(wx.Frame):
     
     def ThreadOfSetDanmuConfig(self,color,mode):
         self.data_SetDanmuCfg["room_id"]=self.roomid
+        self.data_SetDanmuCfg["csrf"]=self.data_SetDanmuCfg["csrf_token"]=self.accounts[self.cur_acc][2]
         if color is not None:
             self.data_SetDanmuCfg["color"]=hex(int(color))
             self.data_SetDanmuCfg["mode"]=None
@@ -498,8 +504,8 @@ class LyricDanmu(wx.Frame):
             self.data_SetDanmuCfg["color"]=None
             self.data_SetDanmuCfg["mode"]=mode
         try:
-            res=self.session.post(url=self.url_SetDanmuCfg,headers=self.headers,data=self.data_SetDanmuCfg,
-                            timeout=(self.timeout_s,self.timeout_s))
+            res=self.sessions[self.cur_acc].post(url=self.url_SetDanmuCfg,
+                headers=self.headers,data=self.data_SetDanmuCfg,timeout=(self.timeout_s,self.timeout_s))
         except requests.exceptions.ConnectionError:
             dlg = wx.MessageDialog(None, "网络异常，请重试", "保存弹幕配置出错", wx.OK)
             dlg.ShowModal()
@@ -530,9 +536,10 @@ class LyricDanmu(wx.Frame):
         self.recent_danmu.pop(0)
         self.data_SendDanmu["msg"] = msg
         self.data_SendDanmu["roomid"] = roomid
+        self.data_SendDanmu["csrf"]=self.data_SendDanmu["csrf_token"]=self.accounts[self.cur_acc][2]
         try:
-            res = self.session.post(url=self.url_SendDanmu, headers=self.headers, data=self.data_SendDanmu,
-                                timeout=(self.timeout_s,self.timeout_s))
+            res = self.sessions[self.cur_acc].post(url=self.url_SendDanmu, 
+                headers=self.headers,data=self.data_SendDanmu,timeout=(self.timeout_s,self.timeout_s))
             data=json.loads(res.text)
             errmsg=data["msg"]
             code=data["code"]
@@ -1093,8 +1100,7 @@ class LyricDanmu(wx.Frame):
         self.lyric_merge_threshold_s = 5.0
         self.init_show_lyric = True
         self.no_proxy = True
-        self.cookie = ""
-        self.csrf = ""
+        self.accounts=[["*","",""],["","",""]]
 
     def CheckFile(self):
         if not os.path.exists("config.txt"):
@@ -1165,13 +1171,20 @@ class LyricDanmu(wx.Frame):
                         self.init_show_lyric = True if v.lower()=="true" else False
                     elif k == "忽略系统代理":
                         self.no_proxy = True if v.lower()=="true" else False
+                    elif k == "account_name":
+                        self.accounts[0][0] = "账号1" if v=="" else v
+                    elif k == "account_name2":
+                        self.accounts[1][0] = "账号2" if v=="" else v
                     elif k == "cookie":
-                        self.cookie = v
+                        self.accounts[0][1] = v
+                    elif k == "cookie2":
+                        self.accounts[1][1] = v
                 if not send_interval_check:
                     self.send_interval_ms = 750 if self.enable_new_send_type else 1050
-                so = re.search(r"bili_jct=([0-9a-f]+);?", self.cookie)
-                if so is not None:
-                    self.csrf = so.group(1)
+                for i in range(2):
+                    so = re.search(r"bili_jct=([0-9a-f]+);?", self.accounts[i][1])
+                    if so is not None:
+                        self.accounts[i][2] = so.group(1)
         except Exception as e:
             dlg = wx.MessageDialog(None, "读取config.txt失败", "启动出错", wx.OK)
             dlg.ShowModal()
@@ -1237,7 +1250,6 @@ class LyricDanmu(wx.Frame):
             return False
         self.ReadLocalSongs()
         return True
-
 
     def ReadCustomTexts(self):
         default_data={
@@ -1556,7 +1568,10 @@ class LyricDanmu(wx.Frame):
                 f.write("默认展开歌词=%s\n" % self.init_show_lyric)
                 f.write("忽略系统代理=%s\n" % self.no_proxy)
                 f.write("----------\n#账号配置#\n----------\n")
-                f.write("cookie=%s\n" % self.cookie)
+                f.write("account_name=%s\n" % self.accounts[0][0])
+                f.write("cookie=%s\n" % self.accounts[0][1])
+                f.write("account_name2=%s\n" % self.accounts[1][0])
+                f.write("cookie2=%s\n" % self.accounts[1][1])
         except Exception as e:
             print("SaveConfig:")
             print(e)
@@ -1696,7 +1711,9 @@ class LyricDanmu(wx.Frame):
     
     def LoginCheck(self,res):
         if res["code"]==-101 or "登录" in res["message"]:
-            dlg = wx.MessageDialog(None, "账号未登录，请检查cookie配置", "错误", wx.OK)
+            dlg = wx.MessageDialog(None, "账号配置不可用，请修改Cookie配置\n"+
+                "方法一：点击“应用设置”按钮，右键“账号切换”处的按钮进行修改\n"+
+                "方法二：关闭工具后，打开工具目录下的config.txt，修改cookie项", "错误", wx.OK)
             dlg.ShowModal()
             dlg.Destroy()
             return False
@@ -1738,17 +1755,23 @@ class LyricDanmu(wx.Frame):
     def CallRecord(self,msg):
         wx.CallAfter(pub.sendMessage,"record",msg=msg)
     
-    def ChangeCookie(self,cookie):
-        self.cookie=cookie
-        requests.utils.add_dict_to_cookiejar(self.session.cookies,{"Cookie": cookie})
+    def SaveAccountInfo(self,acc_no,acc_name,cookie):
+        self.accounts[acc_no][0]=acc_name
+        self.accounts[acc_no][1]=cookie
+        requests.utils.add_dict_to_cookiejar(self.sessions[acc_no].cookies,{"Cookie": cookie})
         so = re.search(r"bili_jct=([0-9a-f]+);?", cookie)
         if so is not None:
-            self.csrf = \
-            self.data_SendDanmu["csrf"]=\
-            self.data_SendDanmu["csrf_token"]=\
-            self.data_SetDanmuCfg["csrf"]=\
-            self.data_SetDanmuCfg["csrf_token"]=so.group(1)
-
+            self.accounts[acc_no][2]=so.group(1)
+        if acc_no==self.cur_acc:
+            self.SetTitle("LyricDanmu %s - %s"%(self.version,acc_name))
+    
+    def SwitchAccount(self,acc_no):
+        acc_name=self.accounts[acc_no][0]
+        if acc_no==self.cur_acc:    return
+        self.cur_acc=acc_no
+        self.SetTitle("LyricDanmu %s - %s"%(self.version,acc_name))
+        if self.roomid is not None:
+            self.pool.submit(self.ThreadOfGetDanmuConfig)
 
 if __name__ == '__main__':
     app = wx.App(False)
