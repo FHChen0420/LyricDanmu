@@ -9,10 +9,11 @@ class RoomSelectFrame(wx.Frame):
     
     def ShowFrame(self,parent):
         rowNum=len(self.parent.rooms)//4+1
-        h=35+30*rowNum
-        self.height=h
-        pos=parent.GetPosition()
-        wx.Frame.__init__(self, parent, title="选择直播间", pos=(pos[0]+20,pos[1]+30), size=(400, h),
+        self.height=h=35+30*rowNum
+        pos,ds=parent.GetPosition(),wx.DisplaySize()
+        x,y=pos[0]+20,pos[1]+30
+        if y+h>ds[1]:   y=ds[1]-h
+        wx.Frame.__init__(self, parent, title="选择直播间", pos=(x,y), size=(400, h),
                           style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.MINIMIZE_BOX) |wx.FRAME_FLOAT_ON_PARENT)
         if parent.show_pin:
             self.ToggleWindowStyle(wx.STAY_ON_TOP)
