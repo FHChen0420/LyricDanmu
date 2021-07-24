@@ -541,6 +541,9 @@ class LyricDanmu(wx.Frame):
             res = self.sessions[self.cur_acc].post(url=self.url_SendDanmu, 
                 headers=self.headers,data=self.data_SendDanmu,timeout=(self.timeout_s,self.timeout_s))
             data=json.loads(res.text)
+            if not self.LoginCheck(data):
+                self.CallRecord("▲账号无效⋙ "+msg)
+                return
             errmsg=data["msg"]
             code=data["code"]
             if code==10030:
@@ -598,8 +601,7 @@ class LyricDanmu(wx.Frame):
             print("[发送超时] %s"%msg)
             return False
         except Exception as e:
-            self.CallRecord("▲发送失败⋙ "+msg)
-            self.CallRecord("(具体信息：%s)"%str(e))
+            self.CallRecord("▲发送失败⋙ %s\n(具体信息：%s)"%(msg,str(e)))
             print("[其它发送错误 %d] %s\n%s"%(json.loads(res.text)["code"],msg,e))
             return False
 
@@ -1711,6 +1713,7 @@ class LyricDanmu(wx.Frame):
     
     def LoginCheck(self,res):
         if res["code"]==-101 or "登录" in res["message"]:
+            self.OnStopBtn(None)
             dlg = wx.MessageDialog(None, "账号配置不可用，请修改Cookie配置\n"+
                 "方法一：点击“应用设置”按钮，右键“账号切换”处的按钮进行修改\n"+
                 "方法二：关闭工具后，打开工具目录下的config.txt，修改cookie项", "错误", wx.OK)
