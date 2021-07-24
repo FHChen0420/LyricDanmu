@@ -1732,9 +1732,14 @@ class LyricDanmu(wx.Frame):
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.221 Safari/537.36 SE 2.X MetaSr 1.0",
         }
         try:
+            code=""
             r=requests.get(url=url_UpdateGlobalShields,headers=headers,timeout=(5,10))
             so=re.search(r"# <DATA BEGIN>([\s\S]*?)# <DATA END>",r.text)
             code=so.group(1).replace("and not measure(x.group(3),4)","") #简化某条特殊规则
+        except:
+            UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="无法获取更新")
+        try:
+            if code=="":    return
             # 写入内存
             scope = {"words":[],"rules":{}}
             code1="from BiliLiveShieldWords import get_len,measure,fill,r_pos\n"+code
@@ -1750,7 +1755,7 @@ class LyricDanmu(wx.Frame):
             UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="词库更新完毕")
         except Exception as e:
             print("更新屏蔽词库失败\n",str(e))
-            UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="词库更新失败")
+            UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="云端数据有误")
         finally:
             try:    os.remove("tmp.tmp")
             except: pass
