@@ -4,6 +4,7 @@ from BiliLiveShieldWords import deal
 class CustomTextFrame(wx.Frame):
     def __init__(self,parent):
         self.parent=parent
+        self.shield_changed = False
         self.ShowFrame(parent)
         self.RecvLyric(parent.custom_texts[0])
     
@@ -58,8 +59,9 @@ class CustomTextFrame(wx.Frame):
         self.RecvLyric(self.parent.custom_texts[index])
 
     def RecvLyric(self,data):
+        self.shield_changed = False
         content=data["content"].strip()
-        # NOTE
+        content=self.parent.DealWithCustomShields(content)
         content=deal(content,self.parent.global_shields)
         self.llist=[line for line in content.split("\n") if line.strip()!=""]
         self.llist.insert(0,"<BEGIN>")
@@ -103,7 +105,9 @@ class CustomTextFrame(wx.Frame):
         suf = "】"
         msg = self.lblLyrics[1].GetLabel()
         message = pre + msg
-        message = parent.DealWithCustomShields(message)
+        if self.shield_changed:
+            message = parent.DealWithCustomShields(message)
+            message = deal(message,parent.global_shields)
         parent.SendSplitDanmu(message,pre,suf)
         parent.AddHistory(msg)
     

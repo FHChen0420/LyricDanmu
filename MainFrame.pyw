@@ -841,8 +841,8 @@ class LyricDanmu(wx.Frame):
             all_lyrics_tl = re.sub(k, v, all_lyrics_tl)
         self.lyric_raw=all_lyrics
         self.lyric_raw_tl=all_lyrics_tl
-        all_lyrics=deal(all_lyrics,self.global_shields)
         all_lyrics = self.DealWithCustomShields(all_lyrics)
+        all_lyrics=deal(all_lyrics,self.global_shields)
         all_lyric_list=all_lyrics.split("\r\n")
         for i in range(len(all_lyric_list)):
             tmpData[i][2]=all_lyric_list[i]
@@ -983,6 +983,7 @@ class LyricDanmu(wx.Frame):
         message = pre + msg
         if self.shield_changed:
             message = self.DealWithCustomShields(message)
+            message = deal(message,self.global_shields)
         self.SendSplitDanmu(message,pre,suf)
         self.AddHistory(msg)
 
@@ -1073,8 +1074,8 @@ class LyricDanmu(wx.Frame):
             dlg.ShowModal()
             dlg.Destroy()
             return
-        comment = deal(comment,self.global_shields)
         comment = self.DealWithCustomShields(comment)
+        comment = deal(comment,self.global_shields)
         suf = "】" if comment.count("【") > comment.count("】") else ""
         self.SendSplitDanmu(comment,pre,suf)
         self.tcComment.Clear()
@@ -1226,10 +1227,17 @@ class LyricDanmu(wx.Frame):
             with open("shields.txt", "r", encoding="utf-8") as f:
                 for line in f:
                     mo = re.match(r"\s*(0|1)\s+(\S+)\s+(\S+)\s*(\S*)", line)
-                    if mo is not None:
-                        so=re.search(r"\\(?![1-9])|[\(\)\[\]\{\}\.\+\*\^\$\?\|]",mo.group(2))
-                        if so is None:
-                            self.custom_shields[mo.group(2)]=[int(mo.group(1)),mo.group(3),mo.group(4)]
+                    if mo is None:  continue
+                    so=re.search(r"\\(?![1-9])|[\(\)\[\]\{\}\.\+\*\^\$\?\|]",mo.group(2))
+                    if so is not None:  continue
+                    if mo.group(1)=="0":
+                        if "\\" in mo.group(2):
+                            rep=re.sub(r"\\([1-9])",lambda x: int(x.group(1))*"`",mo.group(2),count=1)
+                        else:
+                            rep=mo.group(2)[0]+"`"+mo.group(2)[1:]
+                        self.custom_shields[mo.group(2)]=[0,rep,mo.group(4)]
+                    else:
+                        self.custom_shields[mo.group(2)]=[1,mo.group(3).replace("·","`").replace("\\","\\\\"),mo.group(4)]
         except Exception:
             dlg = wx.MessageDialog(None, "读取shields.txt失败", "提示", wx.OK)
             dlg.ShowModal()
@@ -1609,7 +1617,7 @@ class LyricDanmu(wx.Frame):
         try:
             with open("shields.txt", "w", encoding="utf-8") as f:
                 for k,v in self.custom_shields.items():
-                    f.write("%d %s %s %s\n" % (v[0],k,v[1],v[2]))
+                    f.write("%d %s %s %s\n" % (v[0],k,v[1].replace("\\\\","\\"),v[2]))
                 f.flush()
         except Exception as e:
             print(e)
@@ -1664,13 +1672,13 @@ class LyricDanmu(wx.Frame):
                 msg=self.MultiDotBlock(k,msg)
             else:
                 try:
-                    msg=re.sub("(?i)"+" ?".join(k),v[1],msg)
+                    msg=re.sub("(?i)"+" ?".join(k),v[1].replace("`","\u0592"),msg)
                 except Exception as e:
                     print("[DealWithCustomShields Error]",k,e)
                     pass
         return msg
 
-    def MultiDotBlock(self,pattern,msg): #TODO 这里有一定冗余/是否考虑统一分隔符？
+    def MultiDotBlock(self,pattern,msg):
         origin_msg=msg
         try:
             pattern=re.sub(r"\\(?![1-9])","",pattern)

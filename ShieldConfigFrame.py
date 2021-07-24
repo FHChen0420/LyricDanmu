@@ -22,11 +22,11 @@ class ShieldConfigFrame(wx.Frame):
         for k,v in parent.custom_shields.items():
             self.list.InsertItem(index, "")
             self.list.SetItem(index,1,k)
-            self.list.SetItem(index,2,v[1])
+            self.list.SetItem(index,2,v[1].replace("\\\\","\\"))
             self.list.SetItem(index,3,v[2] if v[2]!="" else "(ALL)")
             index+=1
-        self.btnDelete=wx.Button(panel,-1,"删  除",pos=(10,175),size=(60,24))
-        self.btnEdit=wx.Button(panel,-1,"修  改",pos=(80,175),size=(60,24))
+        self.btnEdit=wx.Button(panel,-1,"修  改",pos=(10,175),size=(60,24))
+        self.btnDelete=wx.Button(panel,-1,"删  除",pos=(80,175),size=(60,24))
         self.btnUpdateGlobal=wx.Button(panel,-1,"-更新屏蔽词库-",pos=(160,175),size=(110,24))
         wx.StaticText(panel,-1,"处理前",pos=(10,207))
         self.tcBefore=wx.TextCtrl(panel,-1,"",pos=(55,205),size=(130,24))
@@ -56,7 +56,7 @@ class ShieldConfigFrame(wx.Frame):
 
     def InsertItem(self,event):
         before=self.tcBefore.GetValue().replace(" ","")
-        after=self.tcAfter.GetValue().replace(" ","")
+        after=self.tcAfter.GetValue().replace(" ","").replace("·","`")
         rooms=self.tcRoom.GetValue().replace(" ","")
         rooms=re.sub("[,，;；]",",",rooms)
         if len(before)==0:
@@ -92,8 +92,10 @@ class ShieldConfigFrame(wx.Frame):
         self.list.SetItem(index,2,after)
         self.list.SetItem(index,3,rooms if rooms!="" else "(ALL)")
         self.list.Select(index)
-        self.parent.custom_shields[before]=[self.cbbDeal.GetSelection(),after,rooms]
+        self.parent.custom_shields[before]=[self.cbbDeal.GetSelection(),after.replace("\\","\\\\"),rooms]
         self.parent.shield_changed = True
+        if self.parent.customTextFrame:
+            self.parent.customTextFrame.shield_changed = True
         self.tcBefore.Clear()
         self.tcAfter.Clear()
         self.tcRoom.Clear()
@@ -118,6 +120,8 @@ class ShieldConfigFrame(wx.Frame):
         self.list.DeleteItem(index)
         self.parent.custom_shields.pop(before)
         self.parent.shield_changed = True
+        if self.parent.customTextFrame:
+            self.parent.customTextFrame.shield_changed = True
 
     def OnItemSelected(self,event):
         self.btnEdit.Enable()
