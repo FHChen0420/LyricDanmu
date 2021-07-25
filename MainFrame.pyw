@@ -31,9 +31,6 @@ class LyricDanmu(wx.Frame):
     # 发送队列检测间隔（毫秒）
     fetch_interval = 30
 
-    # 双语歌词对轴误差（秒）
-    timeline_error = 0.07
-
     # 屏蔽词库更新间隔（秒）
     global_shield_update_interval_s = 3600
 
@@ -669,56 +666,28 @@ class LyricDanmu(wx.Frame):
             wx.MilliSleep(48)
         self.OnStopBtn(None)
 
-    def DealLocalLyric(self,lrcO):
-        res = []
-        listO = lrcO.strip().split("\n")
-        for o in listO:
-            fs = self.SplitTnL(o)
-            for f in fs:
-                res.append(f)
-        return sorted(res, key=lambda f:f[1])
+    def GetLyricData(self,lrcO):
+        listO = []
+        for o in lrcO.strip().split("\n"):
+            for f in self.SplitTnL(o):    listO.append(f)
+        return sorted(listO, key=lambda f:f[1])
 
-    def DealSingleLyric(self, lrcO):
-        res = {}
-        listO = lrcO.strip().split("\n")
-        for o in listO:
-            fs = self.SplitTnL(o)
-            for f in fs:
-                res[f[3]]=f
-        return sorted(res.values(), key=lambda f:f[1])
-
-    def DealMixLyric(self, lrcO, lrcT):
-        listO = lrcO.strip().split("\n")
-        listT = lrcT.strip().split("\n")
-        curTIdx = 0
-        dictT = {}
-        dictO = {}
-        res = []
-        for t in listT:
-            fs = self.SplitTnL(t)
-            for f in fs:
-                dictT[f[3]]=f
-        dataT = sorted(dictT.values(), key=lambda f:f[1])
-        maxTidx=len(dataT)
-        for o in listO:
-            fs = self.SplitTnL(o)
-            for f in fs:
-                dictO[f[3]]=f
-        dataO = sorted(dictO.values(), key=lambda f:f[1])
-        for f in dataO:
-            res.append(f)
-            for i in range(curTIdx,maxTidx):
-                tf=dataT[i]
-                if abs(tf[1]-f[1])<=self.timeline_error:  #双语歌词对轴误差
-                    if f[2] != "" and "不得翻唱" not in f[2]:
-                        tf[2]=f[2] if tf[2] in ["","//"] else tf[2]
-                        res.append([f[0],f[1],tf[2],f[3]]) #将轴对到与原版歌词一致
-                        curTIdx+=1
-                    else:
-                        res.append(f)
-                    break
-            else:
-                res.append(f)
+    def GetMixLyricData(self, lrcO, lrcT):
+        dictT,dictO,res = {},{},[]
+        for t in lrcT.strip().split("\n"):
+            for f in self.SplitTnL(t):    dictT[f[3]]=f
+        tempT = sorted(dictT.values(), key=lambda f:f[1])
+        for o in lrcO.strip().split("\n"):
+            for f in self.SplitTnL(o):    dictO[f[3]]=f
+        listO,olen = sorted(dictO.values(), key=lambda f:f[1]),len(dictO)
+        td,tlT,tlO = [5]*olen,[None]*olen,[f[1] if f[2]!="" else -5 for f in listO]
+        for f in tempT:
+            for i in range(olen):
+                dif=abs(f[1]-tlO[i])
+                if dif<td[i] and listO[i][2]!="":   td[i],tlT[i]=dif,f[3]
+        for i in range(olen):
+            res.append(listO[i])
+            res.append(listO[i] if tlT[i] is None or re.match("不得翻唱|^//$",dictT[tlT[i]][2]) else dictT[tlT[i]])
         return res
 
     def SplitTnL(self,line):
@@ -823,29 +792,25 @@ class LyricDanmu(wx.Frame):
             tmpList=data["lyric"].strip().split("\n")
             tmpData=[["", 0, i.strip(), ""] for i in tmpList]
             self.has_timeline=False
-        elif data["src"]=="local":
-            tmpData=self.DealLocalLyric(data["lyric"])
-        elif self.has_trans:
-            tmpData=self.DealMixLyric(data["lyric"],data["tlyric"])
+        elif self.has_trans and data["src"]!="local":
+            tmpData=self.GetMixLyricData(data["lyric"],data["tlyric"])
         else:
-            tmpData=self.DealSingleLyric(data["lyric"])
+            tmpData=self.GetLyricData(data["lyric"])
         tmpData=self.FilterLyric(tmpData)
+        self.lyric_raw="\r\n".join([i[2] for i in tmpData])
+        self.lyric_raw_tl="\r\n".join([i[3]+i[2] for i in tmpData])
         if self.has_timeline and self.enable_lyric_merge:
             tmpData=self.MergeMixLyric(tmpData) if self.has_trans else self.MergeSingleLyric(tmpData)
-        all_lyrics="\r\n".join([i[2] for i in tmpData])
-        all_lyrics_tl="\r\n".join([i[3]+i[2] for i in tmpData])
-        all_lyrics=re.sub(r" +"," ",all_lyrics)
-        all_lyrics_tl=re.sub(r" +"," ",all_lyrics_tl)
+        lyrics="\r\n".join([i[2] for i in tmpData])
         for k, v in html_transform_rules.items():
-            all_lyrics = re.sub(k, v, all_lyrics)
-            all_lyrics_tl = re.sub(k, v, all_lyrics_tl)
-        self.lyric_raw=all_lyrics
-        self.lyric_raw_tl=all_lyrics_tl
-        all_lyrics = self.DealWithCustomShields(all_lyrics)
-        all_lyrics=deal(all_lyrics,self.global_shields)
-        all_lyric_list=all_lyrics.split("\r\n")
-        for i in range(len(all_lyric_list)):
-            tmpData[i][2]=all_lyric_list[i]
+            lyrics = re.sub(k, v, lyrics)
+            self.lyric_raw = re.sub(k,v,self.lyric_raw)
+            self.lyric_raw_tl = re.sub(k,v,self.lyric_raw_tl)
+        lyrics = self.DealWithCustomShields(lyrics)
+        lyrics = deal(lyrics,self.global_shields)
+        lyric_list=lyrics.split("\r\n")
+        for i in range(len(lyric_list)):
+            tmpData[i][2]=lyric_list[i]
         tmpData.insert(0,["",-1,"<BEGIN>"])
         tmpData.append(["",-1,"<END>"])
         if self.has_trans:
