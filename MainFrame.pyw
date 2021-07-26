@@ -1254,26 +1254,39 @@ class LyricDanmu(wx.Frame):
             index+=1
         return True
 
+    def ConvertLocalSong(self,filepath):
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                tmpContent=f.read().strip()
+            if not re.match("<name>",tmpContent):   return
+            content="<local>\n"+tmpContent+"\n</local>"
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(content)
+            return xml.dom.minidom.parseString(content)
+        except Exception as e:
+            print("ConvertLocalSong:",filepath,type(e),str(e))
+
     def ReadLocalSongs(self):
         fileList = os.listdir("songs")
         for file in fileList:
             filepath = "songs/" + file
-            if not os.path.isfile(filepath):
-                continue
-            try:
-                with open(filepath, "r", encoding="utf-8") as f:
-                    content = f.read()
-                    mo=re.search(r"<name>([\S\s]*?)</name>\s+?<artists>([\S\s]*?)</artists>\s+?<tags>([\S\s]*?)</tags>\s+?<type>([\S\s]*?)</type>\s+?<lyric>([\S\s]*?)</lyric>",content)
-                    if mo is None:
-                        continue
-                    name =re.sub(r";|；","",mo.group(1))
-                    artists=re.sub(r";|；","",mo.group(2))
-                    lang = "双语" if mo.group(4).strip() == "双语" else "单语"
-                    self.locals[file]=name+";"+artists+";"+lang+";"+mo.group(3)
+            if not os.path.isfile(filepath):    continue
+            DOMTree = None
+            try:    DOMTree = xml.dom.minidom.parse(filepath)
+            except xml.parsers.expat.ExpatError:
+                DOMTree = self.ConvertLocalSong(filepath)
             except Exception as e:
-                print("ReadLocalSongs:")
-                print(e)
-                pass
+                print("ReadLocalSongs(1):",filepath,type(e),str(e))
+            if DOMTree is None:     continue
+            try:
+                localSong = DOMTree.documentElement
+                name=re.sub(r";|；","/",getNodeValue(localSong,"name"))
+                artists=re.sub(r";|；","/",getNodeValue(localSong,"artists"))
+                lang="双语" if getNodeValue(localSong,"type") == "双语" else "单语"
+                tags=getNodeValue(localSong,"tags")
+                self.locals[file]=name+";"+artists+";"+lang+";"+tags
+            except Exception as e:
+                print("ReadLocalSongs(2):",filepath,type(e),str(e))
 
     def TogglePinUI(self, event):
         self.show_pin = not self.show_pin
@@ -1453,11 +1466,13 @@ class LyricDanmu(wx.Frame):
             dlg.Destroy()
         try:
             with open("songs/%s.txt"%filename,"w",encoding="utf-8") as f:
+                f.write("<local>\n")
                 f.write("<name>" + name + "</name>\n")
                 f.write("<artists>" + artists + "</artists>\n")
                 f.write("<tags>" + tags + "</tags>\n")
                 f.write("<type>" + lang + "</type>\n")
-                f.write("<lyric>\n" + lyric +"\n</lyric>")
+                f.write("<lyric>\n" + lyric +"\n</lyric>\n")
+                f.write("</local>")
             self.locals[filename+".txt"]=name+";"+artists+";"+lang+";"+tags
             dlg = wx.MessageDialog(None, "歌词保存成功", "提示", wx.OK)
             dlg.ShowModal()
