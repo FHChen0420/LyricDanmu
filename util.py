@@ -39,4 +39,9 @@ def SetFont(obj,size,bold=False,name=None):
         obj.SetFont(wx.Font(size,wx.FONTFAMILY_DEFAULT,wx.FONTSTYLE_NORMAL,weight))
     else:
         obj.SetFont(wx.Font(size,wx.FONTFAMILY_DEFAULT,wx.FONTSTYLE_NORMAL,weight,faceName=name))
+
+def getNodeValue(parent,childName):
+    try:    return parent.getElementsByTagName(childName)[0].childNodes[0].nodeValue.strip()
+    except IndexError:  return ""
+    except Exception as e:  raise e
     
