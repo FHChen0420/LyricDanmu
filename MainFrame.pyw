@@ -1544,7 +1544,7 @@ class LyricDanmu(wx.Frame):
                 f.write("默认歌词后缀=%s\n" % self.suffix)
                 f.write("歌词前缀备选=%s\n" % ",".join(self.prefixs))
                 f.write("歌词后缀备选=%s\n" % ",".join(self.suffixs))
-                f.write("歌词高亮显示=%s\n" % ("当前播放行" if self.lyric_offset else "待发送歌词"))
+                f.write("歌词高亮显示=%s\n" % ("当前播放行" if self.lyric_offset==0 else "待发送歌词"))
                 f.write("启用歌词合并=%s\n" % self.enable_lyric_merge)
                 f.write("歌词合并阈值=%d\n" % int(1000*self.lyric_merge_threshold_s))
                 f.write("新版发送机制=%s\n" % self.enable_new_send_type)
