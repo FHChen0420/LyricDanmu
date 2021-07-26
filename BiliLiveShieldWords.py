@@ -31,7 +31,7 @@ def substitute(pat,rep,string):
     def min_sub(so):
         '''回调函数，获取替换结果'''
         min_so=get_min_so(so)
-        min_rep=rep if isinstance(rep,str) else rep(min_so)
+        min_rep=re.sub(r"\\(\d)",lambda x:min_so.group(int(x.group(1))),rep) if isinstance(rep,str) else rep(min_so)
         return so.group().replace(min_so.group(),min_rep)
     return re.sub(pat,min_sub,string)
 
