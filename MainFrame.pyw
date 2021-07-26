@@ -1559,9 +1559,9 @@ class LyricDanmu(wx.Frame):
                 f.write("忽略系统代理=%s\n" % self.no_proxy)
                 f.write("----------\n#账号配置#\n----------\n")
                 f.write("账号标注=%s\n" % self.accounts[0][0])
-                f.write("COOKIE=%s\n" % self.accounts[0][1])
+                f.write("cookie=%s\n" % self.accounts[0][1])
                 f.write("账号标注2=%s\n" % self.accounts[1][0])
-                f.write("COOKIE2=%s\n" % self.accounts[1][1])
+                f.write("cookie2=%s\n" % self.accounts[1][1])
         except Exception as e:
             print("SaveConfig:")
             print(e)
