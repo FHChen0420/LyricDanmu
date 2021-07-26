@@ -490,7 +490,7 @@ class SearchResult(wx.Frame):
                 return
             if re.search(r"\[\d+:\d+(\.\d*)?\]", lrcO) is None:
                 lrc = lrcO.strip()
-                dlg = wx.MessageDialog(None, "是否以双语形式获取歌词？", "提示", wx.YES_NO)
+                dlg = wx.MessageDialog(None, "是否以双语形式获取歌词？", "提示", wx.YES_NO|wx.NO_DEFAULT)
                 has_trans = dlg.ShowModal() == wx.ID_YES
                 data={
                     "src": "wy",
@@ -560,7 +560,7 @@ class SearchResult(wx.Frame):
                 return
             if re.search(r"\[\d+:\d+(\.\d*)?\]", lrcO) is None:
                 lrc = lrcO.strip()
-                dlg = wx.MessageDialog(None, "是否以双语形式获取歌词？", "提示", wx.YES_NO)
+                dlg = wx.MessageDialog(None, "是否以双语形式获取歌词？", "提示", wx.YES_NO|wx.NO_DEFAULT)
                 has_trans = dlg.ShowModal() == wx.ID_YES
                 data={
                     "src": "qq",
