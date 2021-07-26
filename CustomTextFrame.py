@@ -72,22 +72,17 @@ class CustomTextFrame(wx.Frame):
 
     def RefreshLyric(self):
         for i in range(5):
-            lid = self.lid + i - 1
-            if lid >= 0 and lid < self.lmax:
-                self.lblLyrics[i].SetLabel(self.llist[lid])
-            else:
-                self.lblLyrics[i].SetLabel("")
+            lid = self.lid + i - 1 +self.parent.lyric_offset
+            self.lblLyrics[i].SetLabel(self.llist[lid] if 0 <= lid < self.lmax else "")
     
     def PrevLyric(self, event):
-        if self.lid <= 0:
-            return False
+        if self.lid <= 0:   return False
         self.lid-=1
         self.RefreshLyric()
         return True
 
     def NextLyric(self, event):
-        if self.lid >= self.lmax-2:
-            return False
+        if self.lid >= self.lmax-2: return False
         self.lid+=1
         self.RefreshLyric()
         return True
@@ -99,11 +94,10 @@ class CustomTextFrame(wx.Frame):
             dlg.ShowModal()
             dlg.Destroy()
             return
-        if not self.NextLyric(None):
-            return
+        if not self.NextLyric(None):    return
         pre = "【"
         suf = "】"
-        msg = self.lblLyrics[1].GetLabel()
+        msg = self.lblLyrics[1-parent.lyric_offset].GetLabel()
         message = pre + msg
         if self.shield_changed:
             message = parent.DealWithCustomShields(message)

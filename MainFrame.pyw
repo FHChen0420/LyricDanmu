@@ -859,9 +859,11 @@ class LyricDanmu(wx.Frame):
         self.lyc_mod = cur_lyc_mod
 
     def RefreshLyric(self):
+        if self.init_lock:  return
+        offset=2*self.lyric_offset if self.has_trans else self.lyric_offset
         for i in range(11):
-            lid = self.lid + i - 4
-            if lid >= 0 and lid < self.lmax:
+            lid = self.lid + i - 4 + offset
+            if 0 <= lid < self.lmax:
                 self.lblTimelines[i].SetLabel(self.llist[lid][0])
                 self.lblLyrics[i].SetLabel(self.llist[lid][2])
             else:
@@ -869,13 +871,11 @@ class LyricDanmu(wx.Frame):
                 self.lblLyrics[i].SetLabel("")
 
     def CopyLyricLine(self, event):
-        if self.init_lock:
-            return
+        if self.init_lock:  return
         pyperclip.copy(self.lblLyrics[4].GetLabel())
 
     def CopyLyricAll(self, event):
-        if self.init_lock:
-            return
+        if self.init_lock:  return
         if self.has_timeline:
             dlg = wx.MessageDialog(None, "是否复制歌词时间轴？", "提示", wx.YES_NO|wx.NO_DEFAULT)
             pyperclip.copy(self.lyric_raw_tl if dlg.ShowModal()==wx.ID_YES else self.lyric_raw)
@@ -888,8 +888,7 @@ class LyricDanmu(wx.Frame):
         UIChange(self.btnClearQueue,label="清空 [0]")
 
     def PrevLyric(self, event):
-        if self.init_lock:
-            return
+        if self.init_lock:  return
         # 自动模式下，延缓进度
         if self.auto_sending and event is not None:
             self.timeline_base+=0.5
@@ -904,8 +903,7 @@ class LyricDanmu(wx.Frame):
         return True
 
     def NextLyric(self, event):
-        if self.init_lock:
-            return
+        if self.init_lock:  return
         # 自动模式下，提早进度
         if self.auto_sending and event is not None:
             self.timeline_base-=0.5
@@ -928,15 +926,13 @@ class LyricDanmu(wx.Frame):
         wx.CallAfter(pub.sendMessage,"lyric")
 
     def OnSendLrcBtn(self, event):
-        if self.init_lock or self.auto_sending:
-            return
+        if self.init_lock or self.auto_sending: return
         if self.roomid is None:
             dlg = wx.MessageDialog(None, "未指定直播间", "提示", wx.OK)
             dlg.ShowModal()
             dlg.Destroy()
             return
-        if not self.NextLyric(None):
-            return
+        if not self.NextLyric(None):    return
         if self.has_trans and self.lyc_mod == 2 and self.llist[self.lid-1][2]!=self.llist[self.lid][2]:
             self.SendLyric(3)
         self.SendLyric(4)
@@ -1064,6 +1060,7 @@ class LyricDanmu(wx.Frame):
         self.default_src = "wy"
         self.search_num = 18
         self.page_limit = 6
+        self.lyric_offset = 0
         self.enable_lyric_merge = True
         self.lyric_merge_threshold_s = 5.0
         self.init_show_lyric = True
@@ -1097,7 +1094,7 @@ class LyricDanmu(wx.Frame):
                 for line in f:
                     if "=" not in line:     continue
                     sp = line.split("=", 1)
-                    k,v=sp[0].strip(),sp[1].strip()
+                    k,v=sp[0].strip().lower(),sp[1].strip()
                     if k == "默认歌词前缀":
                         self.prefix = v
                     elif k == "默认歌词后缀":
@@ -1106,6 +1103,8 @@ class LyricDanmu(wx.Frame):
                         self.prefixs = v.split(",")
                     elif k == "歌词后缀备选":
                         self.suffixs = v.split(",")
+                    elif k == "歌词高亮显示":
+                        self.lyric_offset = 0 if "待发送" not in v else 1
                     elif k == "启用歌词合并":
                         self.enable_lyric_merge = True if v.lower()=="true" else False
                     elif k == "歌词合并阈值":
@@ -1139,9 +1138,9 @@ class LyricDanmu(wx.Frame):
                         self.init_show_lyric = True if v.lower()=="true" else False
                     elif k == "忽略系统代理":
                         self.no_proxy = True if v.lower()=="true" else False
-                    elif k == "account_name":
+                    elif k == "账号标注":
                         self.accounts[0][0] = "账号1" if v=="" else v
-                    elif k == "account_name2":
+                    elif k == "账号标注2":
                         self.accounts[1][0] = "账号2" if v=="" else v
                     elif k == "cookie":
                         self.accounts[0][1] = v
@@ -1530,6 +1529,7 @@ class LyricDanmu(wx.Frame):
                 f.write("默认歌词后缀=%s\n" % self.suffix)
                 f.write("歌词前缀备选=%s\n" % ",".join(self.prefixs))
                 f.write("歌词后缀备选=%s\n" % ",".join(self.suffixs))
+                f.write("歌词高亮显示=%s\n" % ("当前播放行" if self.lyric_offset else "待发送歌词"))
                 f.write("启用歌词合并=%s\n" % self.enable_lyric_merge)
                 f.write("歌词合并阈值=%d\n" % int(1000*self.lyric_merge_threshold_s))
                 f.write("新版发送机制=%s\n" % self.enable_new_send_type)
@@ -1543,10 +1543,10 @@ class LyricDanmu(wx.Frame):
                 f.write("默认展开歌词=%s\n" % self.init_show_lyric)
                 f.write("忽略系统代理=%s\n" % self.no_proxy)
                 f.write("----------\n#账号配置#\n----------\n")
-                f.write("account_name=%s\n" % self.accounts[0][0])
-                f.write("cookie=%s\n" % self.accounts[0][1])
-                f.write("account_name2=%s\n" % self.accounts[1][0])
-                f.write("cookie2=%s\n" % self.accounts[1][1])
+                f.write("账号标注=%s\n" % self.accounts[0][0])
+                f.write("COOKIE=%s\n" % self.accounts[0][1])
+                f.write("账号标注2=%s\n" % self.accounts[1][0])
+                f.write("COOKIE2=%s\n" % self.accounts[1][1])
         except Exception as e:
             print("SaveConfig:")
             print(e)

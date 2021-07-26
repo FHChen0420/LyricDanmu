@@ -9,14 +9,14 @@ class GeneralConfigFrame(wx.Frame):
     
     def ShowFrame(self,parent):
         pos=parent.GetPosition()
-        x,y=pos[0]+70,(pos[1]+60) if parent.show_lyric else (pos[1]-300)
+        x,y=pos[0]+70,(pos[1]+40) if parent.show_lyric else (pos[1]-320)
         if y<0: y=0
-        wx.Frame.__init__(self, parent, title="应用设置", pos=(x,y), size=(310,375), style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.MINIMIZE_BOX) |wx.FRAME_FLOAT_ON_PARENT)
+        wx.Frame.__init__(self, parent, title="应用设置", pos=(x,y), size=(310,405), style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.MINIMIZE_BOX) |wx.FRAME_FLOAT_ON_PARENT)
         if parent.show_pin:
             self.ToggleWindowStyle(wx.STAY_ON_TOP)
         self.Bind(wx.EVT_CLOSE,self.OnClose)
-        panel=wx.Panel(self,-1,pos=(0,0),size=(310,340))
-        self.p2=wx.Panel(self,-1,pos=(0,340),size=(310,100))
+        panel=wx.Panel(self,-1,pos=(0,0),size=(310,370))
+        self.p2=wx.Panel(self,-1,pos=(0,370),size=(310,100))
         # 歌词前后缀
         wx.StaticText(panel,-1,"歌词前缀",pos=(15,10))
         wx.StaticText(panel,-1,"歌词后缀",pos=(15,40))
@@ -33,8 +33,8 @@ class GeneralConfigFrame(wx.Frame):
         wx.StaticText(panel,-1,"默认来源",pos=(80,70))
         wx.StaticText(panel,-1,"搜索条数",pos=(80,100))
         wx.StaticText(panel,-1,"每页条数",pos=(195,100))
-        self.rdSrcWY=wx.RadioButton(panel,-1,"网易云",pos=(135,70),style=0)
-        self.rdSrcQQ=wx.RadioButton(panel,-1,"QQ音乐",pos=(195,70),style=0)
+        self.rdSrcWY=wx.RadioButton(panel,-1,"网易云",pos=(135,70),style=wx.RB_GROUP)
+        self.rdSrcQQ=wx.RadioButton(panel,-1,"QQ音乐",pos=(195,70))
         self.rdSrcWY.SetValue(True) if parent.default_src=="wy" else self.rdSrcQQ.SetValue(True)
         wx.StaticText(panel,-1,"⍰",pos=(275,70)).SetToolTip(
             "歌词前后缀备选：使用\",\"分隔各项\n" +
@@ -42,52 +42,57 @@ class GeneralConfigFrame(wx.Frame):
             "歌词前后缀更改将在工具重启后生效")
         self.tcSearchNum=wx.TextCtrl(panel,-1,str(parent.search_num),pos=(135,98),size=(40,22))
         self.tcPgSize=wx.TextCtrl(panel,-1,str(parent.page_limit),pos=(250,98),size=(40,22))
+        # 歌词高亮
+        wx.StaticText(panel,-1,"歌词高亮",pos=(15,130))
+        self.rdHlCur=wx.RadioButton(panel,-1,"当前播放行",pos=(80,130),style=wx.RB_GROUP)
+        self.rdHlNext=wx.RadioButton(panel,-1,"待发送歌词",pos=(170,130))
+        self.rdHlCur.SetValue(True) if parent.lyric_offset==0 else self.rdHlNext.SetValue(True)
         # 歌词合并
-        wx.StaticText(panel,-1,"歌词合并",pos=(15,130))
-        self.ckbLrcMrg = wx.CheckBox(panel,-1,"启用歌词合并", pos=(80,130))
+        wx.StaticText(panel,-1,"歌词合并",pos=(15,160))
+        self.ckbLrcMrg = wx.CheckBox(panel,-1,"启用歌词合并", pos=(80,160))
         self.ckbLrcMrg.SetValue(parent.enable_lyric_merge)
-        wx.StaticText(panel,-1,"⍰",pos=(275,130)).SetToolTip(
+        wx.StaticText(panel,-1,"⍰",pos=(275,160)).SetToolTip(
             "将零碎的短歌词拼接显示并发送，减少歌词弹幕发送数量\n"+
             "仅对有时轴的歌词生效，合并双语歌词时以中文长度为基准\n"+
             "合并阈值：合并歌词时，最多允许拼接多少秒以内的歌词")
-        self.lblLrcMrg = wx.StaticText(panel, -1, "%4.1f s" %(parent.lyric_merge_threshold_s), pos=(240, 154))
-        self.sldLrcMrg = wx.Slider(panel, -1, int(10 * parent.lyric_merge_threshold_s), 30, 80, pos=(70, 154), size=(170, 30),style=wx.SL_HORIZONTAL)
+        self.lblLrcMrg = wx.StaticText(panel, -1, "%4.1f s" %(parent.lyric_merge_threshold_s), pos=(240, 184))
+        self.sldLrcMrg = wx.Slider(panel, -1, int(10 * parent.lyric_merge_threshold_s), 30, 80, pos=(70, 184), size=(170, 30),style=wx.SL_HORIZONTAL)
         self.sldLrcMrg.Bind(wx.EVT_SLIDER, self.OnLrcMergeThChange)
         # 发送间隔
-        wx.StaticText(panel,-1,"发送间隔",pos=(15,184))
-        self.ckbNewItv = wx.CheckBox(panel,-1,"启用新版发送间隔机制", pos=(80,184))
+        wx.StaticText(panel,-1,"发送间隔",pos=(15,214))
+        self.ckbNewItv = wx.CheckBox(panel,-1,"启用新版发送间隔机制", pos=(80,214))
         self.ckbNewItv.SetValue(parent.enable_new_send_type)
-        wx.StaticText(panel,-1,"⍰",pos=(275,184)).SetToolTip(
+        wx.StaticText(panel,-1,"⍰",pos=(275,214)).SetToolTip(
             "新版：上一条弹幕的响应时刻 → 本条弹幕的发送时刻\n"+
             "旧版：上一条弹幕的发送时刻 → 本条弹幕的发送时刻\n"+
             "推荐间隔：新版700~850，旧版1000~1100")
-        self.lblItv = wx.StaticText(panel, -1, "%4d ms" % parent.send_interval_ms, pos=(240, 208))
-        self.sldItv = wx.Slider(panel, -1, int(0.1 * parent.send_interval_ms), 50, 150, pos=(70, 208), size=(170, 30),style=wx.SL_HORIZONTAL)
+        self.lblItv = wx.StaticText(panel, -1, "%4d ms" % parent.send_interval_ms, pos=(240, 238))
+        self.sldItv = wx.Slider(panel, -1, int(0.1 * parent.send_interval_ms), 50, 150, pos=(70, 238), size=(170, 30),style=wx.SL_HORIZONTAL)
         self.sldItv.Bind(wx.EVT_SLIDER, self.OnIntervalChange)
         # 超时阈值
-        wx.StaticText(panel,-1,"超时阈值",pos=(15,238))
-        self.lblTmt = wx.StaticText(panel, -1, "%4.1f s" %(parent.timeout_s), pos=(240, 238))
-        self.sldTmt = wx.Slider(panel, -1, int(10 * parent.timeout_s), 20, 100, pos=(70, 234), size=(170, 30),style=wx.SL_HORIZONTAL)
+        wx.StaticText(panel,-1,"超时阈值",pos=(15,268))
+        self.lblTmt = wx.StaticText(panel, -1, "%4.1f s" %(parent.timeout_s), pos=(240, 268))
+        self.sldTmt = wx.Slider(panel, -1, int(10 * parent.timeout_s), 20, 100, pos=(70, 264), size=(170, 30),style=wx.SL_HORIZONTAL)
         self.sldTmt.Bind(wx.EVT_SLIDER, self.OnTimeoutChange)
         # 其它设置
-        wx.StaticText(panel,-1,"其它设置",pos=(15,264))
-        self.ckbInitLrc = wx.CheckBox(panel,-1,"启动时展开歌词面板", pos=(80,264))
+        wx.StaticText(panel,-1,"其它设置",pos=(15,294))
+        self.ckbInitLrc = wx.CheckBox(panel,-1,"启动时展开歌词面板", pos=(80,294))
         self.ckbInitLrc.SetValue(parent.init_show_lyric)
-        self.ckbNoProxy = wx.CheckBox(panel,-1,"不使用系统代理", pos=(80,289))
+        self.ckbNoProxy = wx.CheckBox(panel,-1,"不使用系统代理", pos=(80,319))
         self.ckbNoProxy.SetValue(parent.no_proxy)
-        wx.StaticText(panel,-1,"⍰",pos=(275,289)).SetToolTip(
+        wx.StaticText(panel,-1,"⍰",pos=(275,319)).SetToolTip(
             "科学上网时使用本工具可能会报网络异常错误\n"+
             "如果遇到此情况请尝试修改该选项")
         # 账号切换
         self.btnAccounts=[]
-        wx.StaticText(panel,-1,"账号切换",pos=(15,314))
+        wx.StaticText(panel,-1,"账号切换",pos=(15,344))
         for i in range(2):
             acc_name="账号%d"%(i+1) if parent.accounts[i][0]=="" else parent.accounts[i][0]
-            btn=wx.Button(panel,-1,acc_name,pos=(75+i*90,314),size=(85,22),name=str(i))
+            btn=wx.Button(panel,-1,acc_name,pos=(75+i*90,344),size=(85,22),name=str(i))
             btn.Bind(wx.EVT_BUTTON,self.SwitchAccount)
             btn.Bind(wx.EVT_RIGHT_DOWN,self.ShowCookieEdit)
             self.btnAccounts.append(btn)
-        wx.StaticText(panel,-1,"⍰",pos=(275,314)).SetToolTip(
+        wx.StaticText(panel,-1,"⍰",pos=(275,344)).SetToolTip(
             "左键：切换账号　　右键：修改账号\n"+
             "Cookie获取方法：\n"+
             "电脑浏览器进入直播间 → 按F12打开开发者工具，选择Network栏\n"+
@@ -125,7 +130,7 @@ class GeneralConfigFrame(wx.Frame):
         self.tcAccName.SetValue(self.parent.accounts[acc_no][0])
         self.tcCookie.SetValue(self.parent.accounts[acc_no][1])
         self.p2.Show(True)
-        self.SetSize(310,440)
+        self.SetSize(310,470)
         self.tcCookie.SetFocus()
         self.tcCookie.SelectAll()
         self.btnSaveAcc.SetName(str(acc_no))
@@ -171,18 +176,20 @@ class GeneralConfigFrame(wx.Frame):
             if search_num<5:    search_num=5
             if search_num>30:    search_num=30
             parent.search_num=search_num
-        except:
-            pass
+        except: pass
         try:
             page_limit=int(self.tcPgSize.GetValue().strip())
             if page_limit<5:    page_limit=5
             if page_limit>8:    page_limit=8
             parent.page_limit=page_limit
-        except:
-            pass
+        except: pass
+        parent.lyric_offset=0 if self.rdHlCur.GetValue() else 1
         parent.enable_new_send_type=self.ckbNewItv.GetValue()
         parent.enable_lyric_merge=self.ckbLrcMrg.GetValue()
         parent.init_show_lyric=self.ckbInitLrc.GetValue()
         parent.no_proxy=self.ckbNoProxy.GetValue()
         os.environ["NO_PROXY"]="*" if parent.no_proxy else ""
+        parent.RefreshLyric()
+        if self.parent.customTextFrame:
+            self.parent.customTextFrame.RefreshLyric()
         self.Destroy()
