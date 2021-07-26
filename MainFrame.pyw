@@ -26,7 +26,7 @@ from util import *
 class LyricDanmu(wx.Frame):
     # -------------------------配置区开始--------------------------#
 
-    version = "v1.4.0"
+    version = "v1.4.1"
 
     # 发送队列检测间隔（毫秒）
     fetch_interval = 30
