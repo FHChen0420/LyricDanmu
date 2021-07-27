@@ -790,7 +790,7 @@ class LyricDanmu(wx.Frame):
         so=re.search(r"\[(\d+):(\d+)(\.\d*)?\]",data["lyric"])
         if so is None:
             tmpList=data["lyric"].strip().split("\n")
-            tmpData=[["", 0, i.strip(), ""] for i in tmpList]
+            tmpData=[["", -1, i.strip(), ""] for i in tmpList]
             self.has_timeline=False
         elif self.has_trans and data["src"]!="local":
             tmpData=self.GetMixLyricData(data["lyric"],data["tlyric"])
@@ -811,11 +811,18 @@ class LyricDanmu(wx.Frame):
         lyric_list=lyrics.split("\r\n")
         for i in range(len(lyric_list)):
             tmpData[i][2]=lyric_list[i]
-        tmpData.insert(0,["",-1,"<BEGIN>"])
-        tmpData.append(["",-1,"<END>"])
+        if self.add_song_name and data["name"]!="" and len(tmpData)>0:
+            tl=(tmpData[-1][1]+3) if tmpData[-1][1]>=0 else -1
+            tl_str="%2d:%02d"%(tl//60,tl%60) if tl>=0 else ""
+            tmpData.append(["",tl,"",""])
+            tmpData.append([tl_str,tl,"歌名："+data["name"],""])
+            if self.has_trans:
+                tmpData.append([tl_str,tl,"歌名："+data["name"],""]) 
+        tmpData.insert(0,["",-1,"<BEGIN>",""])
+        tmpData.append(["",-1,"<END>",""])
         if self.has_trans:
-            tmpData.insert(0,["",-1,"<BEGIN>"])
-            tmpData.append(["",-1,"<END>"])
+            tmpData.insert(0,["",-1,"<BEGIN>",""])
+            tmpData.append(["",-1,"<END>",""])
         self.llist=tmpData
         self.lmax = len(self.llist)
         self.olist = []
@@ -996,6 +1003,7 @@ class LyricDanmu(wx.Frame):
             "src": "local",
             "has_trans": has_trans,
             "lyric": lyric,
+            "name": "",
         }
         self.RecvLyric(data)
 
@@ -1063,6 +1071,7 @@ class LyricDanmu(wx.Frame):
         self.lyric_offset = 0
         self.enable_lyric_merge = True
         self.lyric_merge_threshold_s = 5.0
+        self.add_song_name = False
         self.init_show_lyric = True
         self.no_proxy = True
         self.accounts=[["*","",""],["","",""]]
@@ -1111,6 +1120,8 @@ class LyricDanmu(wx.Frame):
                         merge_th = int(v)
                         if 3000 <= merge_th <= 8000:
                             self.lyric_merge_threshold_s=0.001*merge_th
+                    elif k == "曲终显示歌名":
+                        self.add_song_name = True if v.lower()=="true" else False
                     elif k == "新版发送机制":
                         self.enable_new_send_type = True if v.lower()=="true" else False
                     elif k == "最低发送间隔":
@@ -1231,8 +1242,7 @@ class LyricDanmu(wx.Frame):
             "content":"",
         }
         try:
-            DOMTree = xml.dom.minidom.parse("custom_texts.txt")
-            collection = DOMTree.documentElement
+            collection = xml.dom.minidom.parse("custom_texts.txt").documentElement
             texts = collection.getElementsByTagName("text")
         except Exception:
             dlg = wx.MessageDialog(None, "读取custom_texts.txt失败", "提示", wx.OK)
@@ -1280,7 +1290,7 @@ class LyricDanmu(wx.Frame):
             if DOMTree is None:     continue
             try:
                 localSong = DOMTree.documentElement
-                name=re.sub(r";|；","/",getNodeValue(localSong,"name"))
+                name=re.sub(r";|；","",getNodeValue(localSong,"name"))
                 artists=re.sub(r";|；","/",getNodeValue(localSong,"artists"))
                 lang="双语" if getNodeValue(localSong,"type") == "双语" else "单语"
                 tags=getNodeValue(localSong,"tags")
@@ -1485,13 +1495,9 @@ class LyricDanmu(wx.Frame):
             return False
 
     def ShowLocalInfo(self,file):
-        filepath = "songs/" + file
-        if not os.path.isfile(filepath):
-            return False
         try:
-            with open(filepath, "r", encoding="utf-8") as f:
-                mo = re.search(r"<lyric>([\S\s]*?)</lyric>",f.read())
-                lyric="" if mo is None else mo.group(1).strip()
+            localSong =xml.dom.minidom.parse("songs/"+file).documentElement
+            lyric=getNodeValue(localSong,"lyric")
             raw_info=self.locals[file]
             info=raw_info.split(";",3)
             trans_id = 1 if info[2] == "双语" else 0
@@ -1506,8 +1512,7 @@ class LyricDanmu(wx.Frame):
             self.ResizeUI()
             return True
         except Exception as e:
-            print("ShowLocalInfo:")
-            print(e)
+            print("ShowLocalInfo:",str(e))
             return False
 
     def SearchByOneCharTag(self, char, collection):
@@ -1547,6 +1552,7 @@ class LyricDanmu(wx.Frame):
                 f.write("歌词高亮显示=%s\n" % ("当前播放行" if self.lyric_offset==0 else "待发送歌词"))
                 f.write("启用歌词合并=%s\n" % self.enable_lyric_merge)
                 f.write("歌词合并阈值=%d\n" % int(1000*self.lyric_merge_threshold_s))
+                f.write("曲终显示歌名=%s\n" % self.add_song_name)
                 f.write("新版发送机制=%s\n" % self.enable_new_send_type)
                 f.write("最低发送间隔=%d\n" % self.send_interval_ms)
                 f.write("请求超时阈值=%d\n" % int(1000*self.timeout_s))

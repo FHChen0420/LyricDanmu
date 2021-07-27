@@ -3,12 +3,13 @@ import re
 import requests
 import json
 import pyperclip
+import xml.dom.minidom
 from math import ceil
 from random import randint
 from pubsub import pub
 from langconv import Converter
 from MarkSettingFrame import MarkSettingFrame
-from util import UIChange,SetFont
+from util import UIChange,SetFont,getNodeValue
 from other_data import preprocess_cn_rules,ignore_lyric_pattern
 
 class SearchResult(wx.Frame):
@@ -289,14 +290,16 @@ class SearchResult(wx.Frame):
             self.txtTypes.append([])
             j = 0
             for song in self.all_songs[i * self.page_limit:(i + 1) * self.page_limit]:
+                song_id=str(song["id"])
+                short_name=re.sub("\(.*?\)|（.*?）","",song["name"])
                 txtName = wx.StaticText(p, -1, song["name"].strip(), pos=(15, 50 * j), size=(360, 30),style=wx.ST_NO_AUTORESIZE)
                 txtType = wx.StaticText(self.panels[i], -1, "", pos=(15, 50 * j + 25), size=(35, -1),style=wx.ST_NO_AUTORESIZE)
                 txtArtist = wx.StaticText(p, -1, song["artists"][0]["name"].strip(), pos=(50, 50 * j + 25),size=(100, -1), style=wx.ST_NO_AUTORESIZE)
                 txtAlbum = wx.StaticText(p, -1, song["album"]["name"].strip(), pos=(155, 50 * j + 25), size=(220, -1),style=wx.ST_NO_AUTORESIZE)
                 SetFont(txtName,12 if wins else 16,bold=True,name="微软雅黑" if wins else None)
-                btn1 = wx.Button(p, -1, "▶", pos=(380, 50 * j), size=(40, 40), name=str(song["id"]))
-                btn2 = wx.Button(p, -1, "✎", pos=(419, 50 * j), size=(40, 40), name=str(song["name"]))
-                btn3 = wx.Button(p, -1, "☆", pos=(458, 50 * j), size=(40, 40), name=str(song["id"]))
+                btn1 = wx.Button(p, -1, "▶", pos=(380, 50 * j), size=(40, 40), name=song_id+";"+short_name)
+                btn2 = wx.Button(p, -1, "✎", pos=(419, 50 * j), size=(40, 40), name=song["name"])
+                btn3 = wx.Button(p, -1, "☆", pos=(458, 50 * j), size=(40, 40), name=song_id)
                 SetFont(btn1,14)
                 SetFont(btn2,14)
                 SetFont(btn3,14)
@@ -309,6 +312,7 @@ class SearchResult(wx.Frame):
                 if "my_local" in song.keys():
                     txtName.SetForegroundColour("MEDIUM BLUE")
                     btn3.SetLabel("✪")
+                    btn1.SetName(song_id)
                     btn1.Bind(wx.EVT_BUTTON, self.GetLocalLyric)
                     btn3.Bind(wx.EVT_BUTTON, self.ShowLocalInfo)
                     if song["type"]=="双语":
@@ -324,7 +328,7 @@ class SearchResult(wx.Frame):
                     txtName.SetForegroundColour("MEDIUM BLUE")
                     btn3.SetLabel("★")
                 self.txtTypes[i].append(txtType)
-                if ";" not in song["id"]:
+                if ";" not in song_id:
                     btn1.Bind(wx.EVT_BUTTON, self.GetNetworkLyricWY)
                     btn3.Bind(wx.EVT_BUTTON, self.OnMarkWY)
                 else:
@@ -433,27 +437,21 @@ class SearchResult(wx.Frame):
         self.txtMsg.SetLabel("获取歌词中...")
         file=event.GetEventObject().GetName()
         try:
-            with open("songs/"+file,"r",encoding="utf-8") as f:
-                content=f.read()
-                mo1=re.search(r"<type>\s*?(单语|双语)\s*?</type>",content)
-                mo2=re.search(r"<lyric>([\S\s]*?)</lyric>",content)
-                if mo1 is None or mo2 is None:
-                    self.txtMsg.SetForegroundColour("red")
-                    self.txtMsg.SetLabel("读取本地文件失败")
-                    return
-                has_trans=mo1.group(1)=="双语"
-                data={
-                    "src": "local",
-                    "has_trans": has_trans,
-                    "lyric": mo2.group(1),
-                }
-                self.parent.RecvLyric(data)
-                if has_trans:
-                    self.txtMsg.SetForegroundColour("blue")
-                    self.txtMsg.SetLabel("已获取双语歌词")
-                else:
-                    self.txtMsg.SetForegroundColour("purple")
-                    self.txtMsg.SetLabel("已获取单语歌词")
+            localSong = xml.dom.minidom.parse("songs/"+file).documentElement
+            has_trans=getNodeValue(localSong,"type")=="双语"
+            data={
+                "src": "local",
+                "has_trans": has_trans,
+                "lyric": getNodeValue(localSong,"lyric"),
+                "name": re.sub("\(.*?\)|（.*?）","",getNodeValue(localSong,"name")),
+            }
+            self.parent.RecvLyric(data)
+            if has_trans:
+                self.txtMsg.SetForegroundColour("blue")
+                self.txtMsg.SetLabel("已获取双语歌词")
+            else:
+                self.txtMsg.SetForegroundColour("purple")
+                self.txtMsg.SetLabel("已获取单语歌词")
         except:
             self.txtMsg.SetForegroundColour("red")
             self.txtMsg.SetLabel("读取本地文件失败")
@@ -470,8 +468,8 @@ class SearchResult(wx.Frame):
             self.ChangeIP()
             self.txtMsg.SetForegroundColour("gray")
             self.txtMsg.SetLabel("获取歌词中...")
-            song_id = event.GetEventObject().GetName()
-            self.params_GetLyricWY["id"] = song_id
+            info=event.GetEventObject().GetName().split(";",1)
+            self.params_GetLyricWY["id"],name = info[0],info[1]
             res = requests.get(url=self.url_GetLyricWY, headers=self.headersWY, params=self.params_GetLyricWY, timeout=(5, 5))
             lyrics = json.loads(res.text)
             if lyrics["code"] != 200:
@@ -489,13 +487,14 @@ class SearchResult(wx.Frame):
                 self.txtMsg.SetLabel("目标歌曲无歌词")
                 return
             if re.search(r"\[\d+:\d+(\.\d*)?\]", lrcO) is None:
-                lrc = lrcO.strip()
+                lrcO = lrcO.strip()
                 dlg = wx.MessageDialog(None, "是否以双语形式获取歌词？", "提示", wx.YES_NO|wx.NO_DEFAULT)
                 has_trans = dlg.ShowModal() == wx.ID_YES
                 data={
                     "src": "wy",
                     "has_trans": has_trans,
                     "lyric": lrcO,
+                    "name": name,
                 }
                 self.parent.RecvLyric(data)
                 dlg.Destroy()
@@ -510,6 +509,7 @@ class SearchResult(wx.Frame):
                     "src": "wy",
                     "has_trans": False,
                     "lyric": lrcO,
+                    "name": name,
                 }
                 self.parent.RecvLyric(data)
                 self.txtMsg.SetForegroundColour("purple")
@@ -520,6 +520,7 @@ class SearchResult(wx.Frame):
                     "has_trans": True,
                     "lyric": lrcO,
                     "tlyric": lrcT,
+                    "name": name,
                 }
                 self.parent.RecvLyric(data)
                 self.txtMsg.SetForegroundColour("blue")
@@ -540,8 +541,8 @@ class SearchResult(wx.Frame):
             self.ChangeIP()
             self.txtMsg.SetForegroundColour("gray")
             self.txtMsg.SetLabel("获取歌词中...")
-            song_id = event.GetEventObject().GetName()
-            self.params_GetLyricQQ["songmid"] = song_id.split(";")[1]
+            info=event.GetEventObject().GetName().split(";",2)
+            self.params_GetLyricQQ["songmid"],name = info[1],info[2]
             res = requests.get(url=self.url_GetLyricQQ, headers=self.headersQQ, params=self.params_GetLyricQQ, timeout=(5, 5))
             lyrics = json.loads(res.text)
             if lyrics["code"] == -1901:
@@ -559,13 +560,14 @@ class SearchResult(wx.Frame):
                 self.txtMsg.SetLabel("目标歌曲无歌词")
                 return
             if re.search(r"\[\d+:\d+(\.\d*)?\]", lrcO) is None:
-                lrc = lrcO.strip()
+                lrcO = lrcO.strip()
                 dlg = wx.MessageDialog(None, "是否以双语形式获取歌词？", "提示", wx.YES_NO|wx.NO_DEFAULT)
                 has_trans = dlg.ShowModal() == wx.ID_YES
                 data={
                     "src": "qq",
                     "has_trans": has_trans,
                     "lyric": lrcO,
+                    "name": name,
                 }
                 self.parent.RecvLyric(data)
                 dlg.Destroy()
@@ -580,6 +582,7 @@ class SearchResult(wx.Frame):
                     "src": "qq",
                     "has_trans": False,
                     "lyric": lrcO,
+                    "name": name,
                 }
                 self.parent.RecvLyric(data)
                 self.txtMsg.SetForegroundColour("purple")
@@ -590,6 +593,7 @@ class SearchResult(wx.Frame):
                     "has_trans": True,
                     "lyric": lrcO,
                     "tlyric": lrcT,
+                    "name": name,
                 }
                 self.parent.RecvLyric(data)
                 self.txtMsg.SetForegroundColour("blue")

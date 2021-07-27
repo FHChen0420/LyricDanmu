@@ -1,4 +1,3 @@
-from re import T
 import wx
 import os
 
@@ -47,16 +46,19 @@ class GeneralConfigFrame(wx.Frame):
         self.rdHlCur=wx.RadioButton(panel,-1,"当前播放行",pos=(80,130),style=wx.RB_GROUP)
         self.rdHlNext=wx.RadioButton(panel,-1,"待发送歌词",pos=(170,130))
         self.rdHlCur.SetValue(True) if parent.lyric_offset==0 else self.rdHlNext.SetValue(True)
-        # 歌词合并
-        wx.StaticText(panel,-1,"歌词合并",pos=(15,160))
+        # 歌词处理
+        wx.StaticText(panel,-1,"歌词处理",pos=(15,160))
         self.ckbLrcMrg = wx.CheckBox(panel,-1,"启用歌词合并", pos=(80,160))
-        self.ckbLrcMrg.SetValue(parent.enable_lyric_merge)
+        self.ckbAddSongName = wx.CheckBox(panel,-1,"曲终显示歌名", pos=(180,160))
         wx.StaticText(panel,-1,"⍰",pos=(275,160)).SetToolTip(
-            "将零碎的短歌词拼接显示并发送，减少歌词弹幕发送数量\n"+
-            "仅对有时轴的歌词生效，合并双语歌词时以中文长度为基准\n"+
-            "合并阈值：合并歌词时，最多允许拼接多少秒以内的歌词")
+            "歌词合并：将短歌词拼接显示并发送，仅对有时轴的歌词生效\n"+
+            "合并阈值：合并歌词时，最多允许拼接多少秒以内的歌词\n"+
+            "曲终显示歌名：在歌词末尾添加形如“歌名：XXX”的记录")
+        wx.StaticText(panel,-1,"合并阈值",pos=(15,186)).SetForegroundColour("gray")
         self.lblLrcMrg = wx.StaticText(panel, -1, "%4.1f s" %(parent.lyric_merge_threshold_s), pos=(240, 184))
         self.sldLrcMrg = wx.Slider(panel, -1, int(10 * parent.lyric_merge_threshold_s), 30, 80, pos=(70, 184), size=(170, 30),style=wx.SL_HORIZONTAL)
+        self.ckbLrcMrg.SetValue(parent.enable_lyric_merge)
+        self.ckbAddSongName.SetValue(parent.add_song_name)
         self.sldLrcMrg.Bind(wx.EVT_SLIDER, self.OnLrcMergeThChange)
         # 发送间隔
         wx.StaticText(panel,-1,"发送间隔",pos=(15,214))
@@ -186,6 +188,7 @@ class GeneralConfigFrame(wx.Frame):
         parent.lyric_offset=0 if self.rdHlCur.GetValue() else 1
         parent.enable_new_send_type=self.ckbNewItv.GetValue()
         parent.enable_lyric_merge=self.ckbLrcMrg.GetValue()
+        parent.add_song_name=self.ckbAddSongName.GetValue()
         parent.init_show_lyric=self.ckbInitLrc.GetValue()
         parent.no_proxy=self.ckbNoProxy.GetValue()
         os.environ["NO_PROXY"]="*" if parent.no_proxy else ""
