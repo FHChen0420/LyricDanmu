@@ -814,10 +814,12 @@ class LyricDanmu(wx.Frame):
         if self.add_song_name and data["name"]!="" and len(tmpData)>0:
             tl=(tmpData[-1][1]+3) if tmpData[-1][1]>=0 else -1
             tl_str="%2d:%02d"%(tl//60,tl%60) if tl>=0 else ""
+            name_info=self.DealWithCustomShields("歌名："+data["name"])
+            name_info=deal(name_info,self.global_shields)
             tmpData.append(["",tl,"",""])
-            tmpData.append([tl_str,tl,"歌名："+data["name"],""])
+            tmpData.append([tl_str,tl,name_info,""])
             if self.has_trans:
-                tmpData.append([tl_str,tl,"歌名："+data["name"],""]) 
+                tmpData.append([tl_str,tl,name_info,""]) 
         tmpData.insert(0,["",-1,"<BEGIN>",""])
         tmpData.append(["",-1,"<END>",""])
         if self.has_trans:
