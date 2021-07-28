@@ -3,7 +3,6 @@ build
 dist
 songs
 logs
-MainFrame.spec
 config.txt
 rooms.txt
 marks_qq.txt
@@ -13,6 +12,7 @@ shields.txt
 shields_global.dat
 icon.ico
 tmp.tmp
-导出EXE.cmd
+*.cmd
+*.spec
 _*.py
 _*.pyw
