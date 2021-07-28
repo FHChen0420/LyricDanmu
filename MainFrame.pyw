@@ -49,6 +49,7 @@ class LyricDanmu(wx.Frame):
         self.locals = {}
         self.custom_shields = {}
         self.global_shields = {}
+        self.room_shields = {}
         self.custom_texts = []
         self.DefaultConfig()
         self.pool = ThreadPoolExecutor(max_workers=6)  # 线程池
@@ -475,6 +476,7 @@ class LyricDanmu(wx.Frame):
         if self.auto_sending:
             self.OnStopBtn(None)
         self.roomid=roomid
+        self.GetRoomShields(roomid)
         self.pool.submit(self.ThreadOfGetDanmuConfig)
 
     def ThreadOfGetDanmuConfig(self):
@@ -489,6 +491,7 @@ class LyricDanmu(wx.Frame):
         else:
             self.roomid = None
             self.roomName = None
+            self.GetRoomShields()
             UIChange(self.btnRoom1,label="选择直播间")
             UIChange(self.btnRoom2,label="选择直播间")
         UIChange(self.btnRoom1,enabled=True)
@@ -962,7 +965,7 @@ class LyricDanmu(wx.Frame):
                 spaceIdx.append(i + 1)
             elif msg[i] in "（“(「":
                 spaceIdx.append(i)
-            elif msg[i] in "，：！？）”…,:!?)」":
+            elif msg[i] in "，：！？）”…,:!?)」~":
                 spaceIdx.append(i + 1)
         if len(spaceIdx) > 0:
             for idx in spaceIdx:
@@ -1151,7 +1154,7 @@ class LyricDanmu(wx.Frame):
                     so = re.search(r"bili_jct=([0-9a-f]+);?", self.accounts[i][1])
                     if so is not None:
                         self.accounts[i][2] = so.group(1)
-        except Exception as e:
+        except Exception:
             dlg = wx.MessageDialog(None, "读取config.txt失败", "启动出错", wx.OK)
             dlg.ShowModal()
             dlg.Destroy()
@@ -1191,16 +1194,16 @@ class LyricDanmu(wx.Frame):
                 for line in f:
                     mo = re.match(r"\s*(0|1)\s+(\S+)\s+(\S+)\s*(\S*)", line)
                     if mo is None:  continue
-                    so=re.search(r"\\(?![1-9])|[\(\)\[\]\{\}\.\+\*\^\$\?\|]",mo.group(2))
-                    if so is not None:  continue
+                    if re.search(r"\\(?![1-9])|[\(\)\[\]\{\}\.\+\*\^\$\?\|]",mo.group(2)) is not None:  continue
                     if mo.group(1)=="0":
-                        if "\\" in mo.group(2):
-                            rep=re.sub(r"\\([1-9])",lambda x: int(x.group(1))*"`",mo.group(2),count=1)
-                        else:
-                            rep=mo.group(2)[0]+"`"+mo.group(2)[1:]
-                        self.custom_shields[mo.group(2)]=[0,rep,mo.group(4)]
-                    else:
-                        self.custom_shields[mo.group(2)]=[1,mo.group(3).replace("·","`").replace("\\","\\\\"),mo.group(4)]
+                        if "\\" in mo.group(2): rep=re.sub(r"\\([1-9])",lambda x: int(x.group(1))*"`",mo.group(2),count=1)
+                        else:   rep=mo.group(2)[0]+"`"+mo.group(2)[1:]
+                    else:   rep=mo.group(3).replace("·","`").replace("\\","\\\\")
+                    rooms=mo.group(4)
+                    if mo.group(2) in self.custom_shields.keys(): #合并房间列表
+                        old_rooms=self.custom_shields[mo.group(2)][2]
+                        rooms=(old_rooms+","+rooms) if old_rooms!="" and rooms!="" else ""
+                    self.custom_shields[mo.group(2)]=[int(mo.group(1)),rep,rooms]
         except Exception:
             dlg = wx.MessageDialog(None, "读取shields.txt失败", "提示", wx.OK)
             dlg.ShowModal()
@@ -1639,9 +1642,16 @@ class LyricDanmu(wx.Frame):
     def SetColaborMode(self,event):
         self.colabor_mode=self.cbbClbMod.GetSelection()
     
-    def DealWithCustomShields(self,msg):
+    def GetRoomShields(self,roomid=None):
+        room_shields={}
+        if roomid is None:  roomid="none"
         for k,v in self.custom_shields.items():
-            if v[2]!="" and self.roomid not in v[2].split(","): continue
+            if v[2]!="" and roomid not in re.split("[,;，；]",v[2]): continue
+            room_shields[k]=v[:2]
+        self.room_shields=room_shields
+
+    def DealWithCustomShields(self,msg):
+        for k,v in self.room_shields.items():
             if v[0]==0 and re.search(r"\\[1-9]",k) is not None:
                 msg=self.MultiDotBlock(k,msg)
             else:
