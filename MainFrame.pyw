@@ -29,10 +29,13 @@ class LyricDanmu(wx.Frame):
     version = "v1.4.1"
 
     # 发送队列检测间隔（毫秒）
-    fetch_interval = 30
+    fetch_interval_s = 30
 
     # 屏蔽词库更新间隔（秒）
     global_shield_update_interval_s = 3600
+
+    # 长间隔歌词检测阈值（秒）
+    lyric_empty_line_threshold_s = 11
 
     # -------------------------配置区结束--------------------------#
 
@@ -669,16 +672,16 @@ class LyricDanmu(wx.Frame):
     def GetLyricData(self,lrcO):
         listO = []
         for o in lrcO.strip().split("\n"):
-            for f in self.SplitTnL(o):    listO.append(f)
+            for f in splitTnL(o):    listO.append(f)
         return sorted(listO, key=lambda f:f[1])
 
     def GetMixLyricData(self, lrcO, lrcT):
         dictT,dictO,res = {},{},[]
         for t in lrcT.strip().split("\n"):
-            for f in self.SplitTnL(t):    dictT[f[3]]=f
+            for f in splitTnL(t):    dictT[f[3]]=f
         tempT = sorted(dictT.values(), key=lambda f:f[1])
         for o in lrcO.strip().split("\n"):
-            for f in self.SplitTnL(o):    dictO[f[3]]=f
+            for f in splitTnL(o):    dictO[f[3]]=f
         listO,olen = sorted(dictO.values(), key=lambda f:f[1]),len(dictO)
         td,tlT,tlO = [5]*olen,[None]*olen,[f[1] if f[2]!="" else -5 for f in listO]
         for f in tempT:
@@ -690,29 +693,8 @@ class LyricDanmu(wx.Frame):
             res.append(listO[i] if tlT[i] is None or re.match("不得翻唱|^//$",dictT[tlT[i]][2]) else dictT[tlT[i]])
         return res
 
-    def SplitTnL(self,line):
-        fs=[]
-        parts=line.split("]")
-        if len(parts)<=1:   return []
-        content = parts[-1].strip()
-        for tl in parts[0:-1]:
-            mo=re.match(r"\[(\d+):(\d+)(\.\d*)?",tl)
-            if mo is None:  continue
-            t_min = int(mo.group(1))
-            t_sec = int(mo.group(2))
-            t_ms_str = ".00" if mo.group(3) is None else mo.group(3)
-            t_ms=eval(t_ms_str)
-            secnum = 60*t_min+t_sec+t_ms
-            secfmt = "%2d:%02d"%(t_min,t_sec)
-            secOrigin = "["+mo.group(1)+":"+mo.group(2)+t_ms_str+"]"
-            fs.append([secfmt, secnum, content, secOrigin]) #e.g. ["01:30", 90.233, "歌词内容", "[01:30.233]"]
-        return fs
-
     def FilterLyric(self,fs):
-        res=[]
-        i=0
-        fslen=len(fs)
-        prev_empty = False
+        res,fslen,prev_empty,i=[],len(fs),False,0
         while i<fslen:
             if re.search(ignore_lyric_pattern,fs[i][2]):
                 i += 2 if self.has_trans else 1
@@ -722,9 +704,9 @@ class LyricDanmu(wx.Frame):
                 prev_empty = False
             else:
                 if not prev_empty:
-                    res.append(["",-2,"",""])
+                    res.append(["",fs[i][1],"",""])
                     if self.has_trans:
-                        res.append(["",-2,"",""])
+                        res.append(["",fs[i][1],"",""])
                     prev_empty = True
                 i+=1
                 continue
@@ -735,49 +717,53 @@ class LyricDanmu(wx.Frame):
         return res
 
     def MergeSingleLyric(self,fs):
-        res=[]
-        i=0
-        fslen=len(fs)
-        prelen=len(self.cbbLycPre.GetValue().lstrip())
-        while i<fslen:
-            base_tl=fs[i][1]
-            content=fs[i][2]
-            if base_tl<0:
-                i+=1
+        fslen,usedlen=len(fs),len(self.cbbLycPre.GetValue().lstrip())+1
+        res,base_tl,prev_tl,content,new_line=[],0,100,"",True
+        for i in range(fslen):
+            tl,c=fs[i][1],fs[i][2]
+            if c=="":   continue
+            if tl-prev_tl>=self.lyric_empty_line_threshold_s:
+                if not new_line:    res.append([getTimeLineStr(base_tl,1),base_tl,content,""])
+                res.append(["",prev_tl+3,"",""])
+                new_line=True
+            prev_tl=tl
+            if new_line:
+                base_tl,content,new_line=tl,c,False
                 continue
-            j=1
-            while i+j<fslen and fs[i+j][1]-base_tl<=self.lyric_merge_threshold_s \
-            and len(content+fs[i+j][2])+1+prelen<=self.max_len:
-                content+=("　"+fs[i+j][2]) if fs[i+j][2]!="" else ""
-                j+=1
-            content=re.sub("　+","　",content.strip("　"))
-            res.append([fs[i][0],base_tl,content,fs[i][3]])
-            i+=j
+            if tl-base_tl<=self.lyric_merge_threshold_s and len(content+c)+usedlen<=self.max_len:
+                content+="　"+c
+                continue
+            res.append([getTimeLineStr(base_tl,1),base_tl,content,""])
+            base_tl,content=tl,c
+        if not new_line:    res.append([getTimeLineStr(base_tl,1),base_tl,content,""])
         return res
 
-    def MergeMixLyric(self,fs): # 长度度量以中文翻译为准
-        res=[]
-        i=1
-        fslen=len(fs)
-        prelen=len(self.cbbLycPre.GetValue().lstrip())
-        while i<fslen:
-            base_tl=fs[i][1]
-            content_o=fs[i-1][2]
-            content_t=fs[i][2]
-            if base_tl<0:
-                i+=2
+    def MergeMixLyric(self,fs):
+        fslen,usedlen=len(fs),len(self.cbbLycPre.GetValue().lstrip())+1
+        res,base_tl,prev_tl,content_o,content_t,new_line=[],0,100,"","",True
+        for i in range(0,fslen,2):
+            tl,co,ct=fs[i+1][1],fs[i][2],fs[i+1][2]
+            if ct=="":   continue
+            if tl-prev_tl>=self.lyric_empty_line_threshold_s:
+                if not new_line:
+                    res.append([getTimeLineStr(base_tl,1),base_tl,content_o,""])
+                    res.append([getTimeLineStr(base_tl,1),base_tl,content_t,""])
+                res.append(["",prev_tl+3,"",""])
+                res.append(["",prev_tl+3,"",""])
+                new_line=True
+            prev_tl=tl
+            if new_line:
+                base_tl,content_o,content_t,new_line=tl,co,ct,False
                 continue
-            j=2
-            while i+j<fslen and fs[i+j][1]-base_tl<=self.lyric_merge_threshold_s \
-            and len(content_t+fs[i+j][2])+1+prelen<=self.max_len:
-                content_o+=("　"+fs[i+j-1][2]) if fs[i+j-1][2]!="" else ""
-                content_t+=("　"+fs[i+j][2]) if fs[i+j][2]!="" else ""
-                j+=2
-            content_o=re.sub("　+","　",content_o.strip("　"))
-            content_t=re.sub("　+","　",content_t.strip("　"))
-            res.append([fs[i][0],base_tl,content_o,fs[i][3]])
-            res.append([fs[i][0],base_tl,content_t,fs[i][3]])
-            i+=j
+            if tl-base_tl<=self.lyric_merge_threshold_s and len(content_t+ct)+usedlen<=self.max_len:
+                content_o,content_t=content_o+"　"+co,content_t+"　"+ct
+                continue
+            res.append([getTimeLineStr(base_tl,1),base_tl,content_o,""])
+            res.append([getTimeLineStr(base_tl,1),base_tl,content_t,""])
+            base_tl,content_o,content_t=tl,co,ct
+        if not new_line:
+            res.append([getTimeLineStr(base_tl,1),base_tl,content_o,""])
+            res.append([getTimeLineStr(base_tl,1),base_tl,content_t,""])
         return res
 
     def RecvLyric(self,data):
@@ -813,7 +799,7 @@ class LyricDanmu(wx.Frame):
             tmpData[i][2]=lyric_list[i]
         if self.add_song_name and data["name"]!="" and len(tmpData)>0:
             tl=(tmpData[-1][1]+3) if tmpData[-1][1]>=0 else -1
-            tl_str="%2d:%02d"%(tl//60,tl%60) if tl>=0 else ""
+            tl_str=getTimeLineStr(tl,1) if tl>=0 else ""
             name_info=self.DealWithCustomShields("歌名："+data["name"])
             name_info=deal(name_info,self.global_shields)
             tmpData.append(["",tl,"",""])
@@ -1401,7 +1387,7 @@ class LyricDanmu(wx.Frame):
         last_time = 0
         while self.running:
             try:
-                wx.MilliSleep(self.fetch_interval)
+                wx.MilliSleep(self.fetch_interval_s)
                 if len(self.danmuQueue) == 0:
                     continue
                 danmu = self.danmuQueue.pop(0)
