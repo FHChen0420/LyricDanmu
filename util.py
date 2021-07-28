@@ -1,5 +1,6 @@
 import wx
 import time
+import re
 from pubsub import pub
 
 def getRgbColor(num):
@@ -14,10 +15,11 @@ def getTime(ts=None,ms=False,fmt="%H:%M:%S"):
     elif ms:        ts=ts/1000
     return time.strftime(fmt,time.localtime(ts))
 
-def getTimeLineStr(t):
+def getTimeLineStr(t,style=0):
     m=t//60
     s=t-60*m
-    return "%02d:%04.1f"%(m,s)
+    fmt="%02d:%04.1f" if style==0 else "%2d:%02d"
+    return fmt%(m,s)
 
 def setWxUIAttr(obj,label=None,color=None,enabled=None):
     try:
@@ -44,4 +46,19 @@ def getNodeValue(parent,childName):
     try:    return parent.getElementsByTagName(childName)[0].childNodes[0].nodeValue.strip()
     except IndexError:  return ""
     except Exception as e:  raise e
+
+def splitTnL(line):
+    fs,parts=[],line.split("]")
+    if len(parts)<=1:   return []
+    content = parts[-1].strip()
+    for tl in parts[0:-1]:
+        mo=re.match(r"\[(\d+):(\d+)(\.\d*)?",tl)
+        if mo is None:  continue
+        t_min,t_sec = int(mo.group(1)),int(mo.group(2))
+        t_ms=0 if mo.group(3) is None else eval(mo.group(3))
+        secnum = 60*t_min+t_sec+t_ms
+        secfmt = "%2d:%02d"%(t_min,t_sec)
+        secOrigin = mo.group()+"]"
+        fs.append([secfmt, secnum, content, secOrigin]) #e.g. ["01:30", 90.233, "歌词内容", "[01:30.233]"]
+    return fs
     
