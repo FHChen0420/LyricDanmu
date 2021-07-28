@@ -1111,7 +1111,7 @@ class LyricDanmu(wx.Frame):
                         merge_th = int(v)
                         if 3000 <= merge_th <= 8000:
                             self.lyric_merge_threshold_s=0.001*merge_th
-                    elif k == "曲终显示歌名":
+                    elif k == "曲末显示歌名":
                         self.add_song_name = True if v.lower()=="true" else False
                     elif k == "新版发送机制":
                         self.enable_new_send_type = True if v.lower()=="true" else False
@@ -1543,7 +1543,7 @@ class LyricDanmu(wx.Frame):
                 f.write("歌词高亮显示=%s\n" % ("当前播放行" if self.lyric_offset==0 else "待发送歌词"))
                 f.write("启用歌词合并=%s\n" % self.enable_lyric_merge)
                 f.write("歌词合并阈值=%d\n" % int(1000*self.lyric_merge_threshold_s))
-                f.write("曲终显示歌名=%s\n" % self.add_song_name)
+                f.write("曲末显示歌名=%s\n" % self.add_song_name)
                 f.write("新版发送机制=%s\n" % self.enable_new_send_type)
                 f.write("最低发送间隔=%d\n" % self.send_interval_ms)
                 f.write("请求超时阈值=%d\n" % int(1000*self.timeout_s))

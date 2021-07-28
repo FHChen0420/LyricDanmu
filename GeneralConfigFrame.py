@@ -49,11 +49,11 @@ class GeneralConfigFrame(wx.Frame):
         # 歌词处理
         wx.StaticText(panel,-1,"歌词处理",pos=(15,160))
         self.ckbLrcMrg = wx.CheckBox(panel,-1,"启用歌词合并", pos=(80,160))
-        self.ckbAddSongName = wx.CheckBox(panel,-1,"曲终显示歌名", pos=(180,160))
+        self.ckbAddSongName = wx.CheckBox(panel,-1,"曲末显示歌名", pos=(180,160))
         wx.StaticText(panel,-1,"⍰",pos=(275,160)).SetToolTip(
             "歌词合并：将短歌词拼接显示并发送，仅对有时轴的歌词生效\n"+
             "合并阈值：合并歌词时，最多允许拼接多少秒以内的歌词\n"+
-            "曲终显示歌名：在歌词末尾添加形如“歌名：XXX”的记录")
+            "曲末显示歌名：在歌词末尾添加形如“歌名：XXX”的记录")
         wx.StaticText(panel,-1,"合并阈值",pos=(15,186)).SetForegroundColour("gray")
         self.lblLrcMrg = wx.StaticText(panel, -1, "%4.1f s" %(parent.lyric_merge_threshold_s), pos=(240, 184))
         self.sldLrcMrg = wx.Slider(panel, -1, int(10 * parent.lyric_merge_threshold_s), 30, 80, pos=(70, 184), size=(170, 30),style=wx.SL_HORIZONTAL)
