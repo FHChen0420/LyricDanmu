@@ -78,7 +78,7 @@ class ShieldConfigFrame(wx.Frame):
             dlg.Destroy()
             return
         index=0
-        for k,v in self.parent.custom_shields.items():
+        for k in self.parent.custom_shields.keys():
             if before==k:
                 dlg = wx.MessageDialog(None, "屏蔽词已在列表中，是否更新处理规则？", "提示", wx.YES_NO|wx.YES_DEFAULT)
                 if dlg.ShowModal()==wx.ID_YES:
@@ -95,8 +95,7 @@ class ShieldConfigFrame(wx.Frame):
         self.list.SetItem(index,3,rooms if rooms!="" else "(ALL)")
         self.list.Select(index)
         parent.custom_shields[before]=[shield_type,after.replace("\\","\\\\"),rooms]
-        if parent.roomid in re.split("[,;，；]",rooms):
-            parent.room_shields[before]=[shield_type,after.replace("\\","\\\\")]
+        parent.GetRoomShields(parent.roomid)
         parent.shield_changed = True
         if parent.customTextFrame:
             parent.customTextFrame.shield_changed = True
@@ -124,8 +123,7 @@ class ShieldConfigFrame(wx.Frame):
         before=self.list.GetItem(index,1).GetText()
         self.list.DeleteItem(index)
         parent.custom_shields.pop(before)
-        if before in parent.room_shields.keys():
-            parent.room_shields.pop(before)
+        parent.GetRoomShields(parent.roomid)
         parent.shield_changed = True
         if parent.customTextFrame:
             parent.customTextFrame.shield_changed = True
