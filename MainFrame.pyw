@@ -1692,8 +1692,12 @@ class LyricDanmu(wx.Frame):
             self.recent_history.pop()
 
     def UpdateRecord(self,msg):
-        self.recordFrame.tcRecord.AppendText(msg+"\n")
-    
+        tcRecord=self.recordFrame.tcRecord
+        from_,to_=tcRecord.GetSelection()
+        tcRecord.AppendText(msg+"\n")
+        if self.recordFrame.IsActive and from_!=to_:
+            tcRecord.SetSelection(from_,to_)
+
     def ShieldLog(self,string):
         try:
             path="logs/SHIELDED_%s.log"%getTime(fmt="%y_%m")
