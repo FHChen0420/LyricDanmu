@@ -850,17 +850,16 @@ class LyricDanmu(wx.Frame):
             self.btnStopAuto.Disable()
 
     def SetLycMod(self, event):
-        cur_lyc_mod = self.cbbLycMod.GetSelection()
-        if not self.init_lock and self.has_trans and self.lyc_mod * cur_lyc_mod == 0 and self.lyc_mod + cur_lyc_mod > 0:
-            self.lid = self.lid + (1 if cur_lyc_mod > 0 else -1)
-            self.RefreshLyric()
-        self.lyc_mod = cur_lyc_mod
+        self.lyc_mod = self.cbbLycMod.GetSelection()
+        if not self.init_lock:
+            self.lid = self.olist[self.oid+self.lyric_offset]+int(self.has_trans and self.lyc_mod>0)
+        self.RefreshLyric()
 
     def RefreshLyric(self):
         if self.init_lock:  return
-        offset=2*self.lyric_offset if self.has_trans else self.lyric_offset
+        offset=int(self.has_trans and self.lyc_mod>0) - 4 
         for i in range(11):
-            lid = self.lid + i - 4 + offset
+            lid = self.olist[self.oid+self.lyric_offset] + i +offset
             if 0 <= lid < self.lmax:
                 self.lblTimelines[i].SetLabel(self.llist[lid][0])
                 self.lblLyrics[i].SetLabel(self.llist[lid][2])
