@@ -117,6 +117,7 @@ class LyricDanmu(wx.Frame):
         self.auto_pausing = False
         self.shield_changed = False
         self.history_state = False
+        self.show_msg_dlg = False
         self.cur_acc = 0
         self.colabor_mode = 0
         self.lyc_mod = 1
@@ -594,10 +595,7 @@ class LyricDanmu(wx.Frame):
                     return self.SendDanmu(roomid,msg,False)
                 self.CallRecord("▲远程连接异常关闭⋙ "+msg)
             self.CallRecord("▲网络异常⋙ "+msg)
-            dlg = wx.MessageDialog(None, "网络连接出错", "弹幕发送失败", wx.OK)
-            print(e)
-            dlg.ShowModal()
-            dlg.Destroy()
+            self.pool.submit(self.ThreadOfShowMsgDlg,"网络连接出错","弹幕发送失败")
             return False
         except requests.exceptions.ReadTimeout:
             self.CallRecord("▲请求超时⋙ "+msg)
@@ -1757,6 +1755,15 @@ class LyricDanmu(wx.Frame):
     
     def CallRecord(self,msg):
         wx.CallAfter(pub.sendMessage,"record",msg=msg)
+    
+    def ThreadOfShowMsgDlg(self,content,title):
+        if self.show_msg_dlg:   return
+        self.show_msg_dlg=True
+        dlg = wx.MessageDialog(None, content, title, wx.OK)
+        dlg.ShowModal()
+        dlg.Destroy()
+        wx.MilliSleep(3000)
+        self.show_msg_dlg=False
     
     def SaveAccountInfo(self,acc_no,acc_name,cookie):
         self.accounts[acc_no][0]=acc_name
