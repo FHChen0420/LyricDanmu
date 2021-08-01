@@ -414,8 +414,8 @@ class LyricDanmu(wx.Frame):
             if data["code"]!=0:
                 return showInfoDialog("设置失败，请重试", "保存弹幕配置出错")
             if color is not None:
-                self.cur_color=color
-                UIChange(self.btnDmCfg1,color=getRgbColor(color))
+                self.cur_color=int(color,16)
+                UIChange(self.btnDmCfg1,color=getRgbColor(self.cur_color))
             else:
                 self.cur_mode=mode
                 UIChange(self.btnDmCfg2,label=BILI_MODES[mode])
