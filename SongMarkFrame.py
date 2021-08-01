@@ -1,7 +1,7 @@
 import wx
 import re
 
-class MarkSettingFrame(wx.Frame):
+class SongMarkFrame(wx.Frame):
     def __init__(self, parent, src, song_id, tags, btn):
         self.parent=parent
         self.src=src

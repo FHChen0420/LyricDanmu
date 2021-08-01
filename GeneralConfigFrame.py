@@ -89,7 +89,7 @@ class GeneralConfigFrame(wx.Frame):
         self.btnAccounts=[]
         wx.StaticText(panel,-1,"账号切换",pos=(15,344))
         for i in range(2):
-            acc_name="账号%d"%(i+1) if parent.accounts[i][0]=="" else parent.accounts[i][0]
+            acc_name="账号%d"%(i+1) if parent.account_names[i]=="" else parent.account_names[i]
             btn=wx.Button(panel,-1,acc_name,pos=(75+i*90,344),size=(85,22),name=str(i))
             btn.Bind(wx.EVT_BUTTON,self.SwitchAccount)
             btn.Bind(wx.EVT_RIGHT_DOWN,self.ShowCookieEdit)
@@ -121,6 +121,7 @@ class GeneralConfigFrame(wx.Frame):
         tmt = self.sldTmt.GetValue()
         self.lblTmt.SetLabel("%4.1f s" % (tmt * 0.1))
         self.parent.timeout_s = 0.1 * self.sldTmt.GetValue()
+        self.parent.blApi.set_default_timeout(self.parent.timeout_s)
     
     def OnLrcMergeThChange(self, event):
         mrg = self.sldLrcMrg.GetValue()
@@ -129,8 +130,8 @@ class GeneralConfigFrame(wx.Frame):
 
     def ShowCookieEdit(self,event):
         acc_no=int(event.GetEventObject().GetName())
-        self.tcAccName.SetValue(self.parent.accounts[acc_no][0])
-        self.tcCookie.SetValue(self.parent.accounts[acc_no][1])
+        self.tcAccName.SetValue(self.parent.account_names[acc_no])
+        self.tcCookie.SetValue(self.parent.cookies[acc_no])
         self.p2.Show(True)
         self.SetSize(310,470)
         self.tcCookie.SetFocus()

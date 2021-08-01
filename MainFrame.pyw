@@ -4,14 +4,13 @@ import requests
 import time
 import re
 import os
-import json
 import pyperclip
 from concurrent.futures import ThreadPoolExecutor,as_completed
 from pubsub import pub
 import xml.dom.minidom
 import platform
 
-from SearchResult import SearchResult
+from SongSearchFrame import SongSearchFrame
 from RoomSelectFrame import RoomSelectFrame
 from ColorFrame import ColorFrame
 from GeneralConfigFrame import GeneralConfigFrame
@@ -19,98 +18,38 @@ from RecordFrame import RecordFrame
 from ShieldConfigFrame import ShieldConfigFrame
 from CustomTextFrame import CustomTextFrame
 from BiliLiveShieldWords import *
-
-from other_data import *
+from API import *
+from constant import *
 from util import *
 
+LD_VERSION = "v1.4.1"
+
 class LyricDanmu(wx.Frame):
-    # -------------------------配置区开始--------------------------#
-
-    version = "v1.4.1"
-
-    # 发送队列检测间隔（毫秒）
-    fetch_interval_s = 30
-
-    # 屏蔽词库更新间隔（秒）
-    global_shield_update_interval_s = 3600
-
-    # 长间隔歌词检测阈值（秒）
-    lyric_empty_line_threshold_s = 11
-
-    # -------------------------配置区结束--------------------------#
 
     def __init__(self, parent):
         # 获取操作系统信息
         self.platform="win" if "Windows" in platform.platform() else "mac"
         # 读取文件配置
-        self.rooms={}
-        self.wy_marks = {}
-        self.qq_marks = {}
-        self.locals = {}
-        self.custom_shields = {}
-        self.global_shields = {}
-        self.room_shields = {}
-        self.custom_texts = []
         self.DefaultConfig()
-        self.pool = ThreadPoolExecutor(max_workers=6)  # 线程池
-        self.danmuQueue = []  # 弹幕发送队列
         self.CheckFile()
-        if not self.ReadFile():
-            return
-        if self.no_proxy:
-            os.environ["NO_PROXY"]="*"
+        if not self.ReadFile(): return
+        if self.no_proxy: os.environ["NO_PROXY"]="*"
         # 消息订阅
         pub.subscribe(self.UpdateRecord,"record")
         pub.subscribe(self.RefreshLyric,"lyric")
-        pub.subscribe(setWxUIAttr,"attr")
-        # 请求参数
-        self.url_SendDanmu = "https://api.live.bilibili.com/msg/send"
-        self.url_GetDanmuCfg = "https://api.live.bilibili.com/xlive/web-room/v1/dM/GetDMConfigByGroup"
-        self.url_GetUserInfo = "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByUser"
-        self.url_SetDanmuCfg = "https://api.live.bilibili.com/xlive/web-room/v1/dM/AjaxSetConfig"
-        self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.221 Safari/537.36 SE 2.X MetaSr 1.0",
-            "Origin": "https://live.bilibili.com",
-            "Referer": "https://live.bilibili.com/",
-            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8,ja;q=0.7",
-        }
-        self.data_SendDanmu = {
-            "color": 16777215,
-            "fontsize": 25,
-            # "mode":1,
-            # "bubble":0,
-            "msg": "",  # 弹幕内容
-            "roomid": 0,  # 房间号
-            "rnd": int(time.time()),
-            "csrf_token": "",
-            "csrf": "",
-        }
-        self.params_GetDanmuCfg = {
-            "room_id": 0, # 房间号
-        }
-        self.params_GetUserInfo = {
-            "room_id": 0, # 房间号
-        }
-        self.data_SetDanmuCfg = { #注：颜色和位置不能同时设置
-            "room_id": 0, # 房间号
-            #"color": "0xffffff", # 颜色
-            #"mode": 1, # 位置
-            "csrf": "",
-            "csrf_token": "",
-        }
-        # Session
-        self.sessions = []
-        for i in range(2):
-            new_session=requests.session()
-            requests.utils.add_dict_to_cookiejar(new_session.cookies,{"Cookie": self.accounts[i][1]})
-            self.sessions.append(new_session)
+        pub.subscribe(setWxUIAttr,"ui_change")
+        # API
+        self.blApi = BiliLiveAPI(self.cookies,self.timeout_s)
+        self.wyApi = NetEaseMusicAPI()
+        self.qqApi = QQMusicAPI()
+        self.jdApi = JsdelivrAPI()
         # 运行
         self.show_config = not self.init_show_lyric
         self.show_lyric = self.init_show_lyric
         self.show_import = False
         self.show_pin = True
         self.roomid = None
-        self.roomName = None
+        self.room_name = None
         self.running = True
         self.init_lock = True
         self.auto_sending = False
@@ -126,17 +65,21 @@ class LyricDanmu(wx.Frame):
         self.recent_danmu = [None,None]
         self.recent_history = []
         self.tmp_history = []
+        self.danmu_queue = []
+        self.pool = ThreadPoolExecutor(max_workers=6)
+        if self.need_update_global_shields:
+            self.pool.submit(self.ThreadOfUpdateGlobalShields,2000)
         self.pool.submit(self.ThreadOfSend)
         self.ShowFrame(parent)
 
     def ShowFrame(self, parent):
         # 窗体
-        wx.Frame.__init__(self, parent, title="LyricDanmu %s - %s"%(self.version,self.accounts[0][0]),
+        wx.Frame.__init__(self, parent, title="LyricDanmu %s - %s"%(LD_VERSION,self.account_names[0]),
             style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX) | wx.STAY_ON_TOP)
         self.Bind(wx.EVT_CLOSE, self.OnClose)
         self.Bind(wx.EVT_MOVE, self.OnMove)
         self.Bind(wx.EVT_CHILD_FOCUS,self.OnFocus)
-        self.searchFrame = None
+        self.songSearchFrame = None
         self.colorFrame = None
         self.generalConfigFrame = None
         self.customTextFrame = None
@@ -175,7 +118,7 @@ class LyricDanmu(wx.Frame):
         self.btnDmCfg2 = wx.Button(self.p3, -1, "⋘", pos=(59, 40), size=(43, 32))
         if self.platform=="win":
             self.btnDmCfg1.SetBackgroundColour(wx.Colour(250,250,250))
-            SetFont(self.btnDmCfg2,13,name="微软雅黑")
+            setFont(self.btnDmCfg2,13,name="微软雅黑")
         self.btnDmCfg1.Disable()
         self.btnDmCfg2.Disable()
         self.btnDmCfg1.Bind(wx.EVT_BUTTON, self.ShowColorFrame)
@@ -313,15 +256,15 @@ class LyricDanmu(wx.Frame):
         self.btnSaveToLocal.Bind(wx.EVT_BUTTON,self.SaveToLocal)
         #
         if self.platform=="mac":
-            SetFont(self,13)
+            setFont(self,13)
             for obj in self.p1.Children:
-                SetFont(obj,10)
+                setFont(obj,10)
             for obj in [txtLycMod,txtLycPre,txtLycSuf,self.cbbLycMod,
                         self.cbbLycPre,self.cbbLycSuf,self.btnRoom2,self.tcSearch]:
-                SetFont(obj,13)
+                setFont(obj,13)
             for i in range(11):
-                SetFont(self.lblTimelines[i],12)
-                SetFont(self.lblLyrics[i],13)
+                setFont(self.lblTimelines[i],12)
+                setFont(self.lblLyrics[i],13)
         #
         self.tcSearch.SetFocus() if self.init_show_lyric else self.tcComment.SetFocus()
         self.p0.Show(True)
@@ -394,60 +337,29 @@ class LyricDanmu(wx.Frame):
             self.generalConfigFrame=GeneralConfigFrame(self)
 
     def GetCurrentDanmuConfig(self):
-        self.params_GetUserInfo["room_id"]=self.roomid
         try:
-            res=self.sessions[self.cur_acc].get(url=self.url_GetUserInfo,
-                headers=self.headers,params=self.params_GetUserInfo,timeout=(self.timeout_s,self.timeout_s))
-        except requests.exceptions.ConnectionError:
-            dlg = wx.MessageDialog(None, "网络异常，请重试", "获取弹幕配置出错", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return False
-        except requests.exceptions.ReadTimeout:
-            dlg = wx.MessageDialog(None, "获取超时，请重试", "获取弹幕配置出错", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return False
-        try:
-            data=json.loads(res.text)
-            if not self.LoginCheck(data):    return
-            if data["code"]==19002001 or data["message"]=="获取房间基础信息失败":
-                dlg = wx.MessageDialog(None, "房间不存在", "获取弹幕配置出错", wx.OK)
-                dlg.ShowModal()
-                dlg.Destroy()
-                return False
+            data=self.blApi.get_user_info(self.roomid,self.cur_acc)
+            if not self.LoginCheck(data):    return False
+            if data["code"]==19002001:
+                return showInfoDialog("房间不存在", "获取弹幕配置出错")
             config=data["data"]["property"]["danmu"]
             self.max_len=config["length"]
             self.cur_color=config["color"]
             self.cur_mode=config["mode"]
-        except Exception as e:
-            print(e)
-            dlg = wx.MessageDialog(None, "解析错误，请重试", "获取弹幕配置出错", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return False
+        except requests.exceptions.ConnectionError as e:
+            print("[A]",e)
+            return showInfoDialog("网络异常，请重试", "获取弹幕配置出错")
+        except requests.exceptions.ReadTimeout:
+            return showInfoDialog("获取超时，请重试", "获取弹幕配置出错")
+        except Exception:
+            return showInfoDialog("解析错误，请重试", "获取弹幕配置出错")
         return True
 
     def GetUsableDanmuConfig(self):
-        self.params_GetDanmuCfg["room_id"]=self.roomid
         try:
-            res=self.sessions[self.cur_acc].get(url=self.url_GetDanmuCfg,
-                headers=self.headers,params=self.params_GetDanmuCfg,timeout=(self.timeout_s,self.timeout_s))
-        except requests.exceptions.ConnectionError:
-            dlg = wx.MessageDialog(None, "网络异常，请重试", "获取弹幕配置出错", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return False
-        except requests.exceptions.ReadTimeout:
-            dlg = wx.MessageDialog(None, "获取超时，请重试", "获取弹幕配置出错", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return False
-        try:
-            data=json.loads(res.text)
-            if not self.LoginCheck(data):    return
-            self.colors={}
-            self.modes={}
+            data=self.blApi.get_danmu_config(self.roomid,self.cur_acc)
+            if not self.LoginCheck(data):    return False
+            self.colors,self.modes={},{}
             for group in data["data"]["group"]:
                 for color in group["color"]:
                     if color["status"]==1:
@@ -455,21 +367,19 @@ class LyricDanmu(wx.Frame):
             for mode in data["data"]["mode"]:
                 if mode["status"]==1:
                     self.modes[mode["mode"]]=mode["name"]
-            if len(self.modes)==1:
-                UIChange(self.btnDmCfg2,color="gray")
-            else:
-                UIChange(self.btnDmCfg2,color="black")
-        except Exception as e:
-            print(e)
-            dlg = wx.MessageDialog(None, "解析错误，请重试", "获取弹幕配置出错", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return False
+            UIChange(self.btnDmCfg2,color="gray" if len(self.modes)==1 else "black")
+        except requests.exceptions.ConnectionError as e:
+            print("[B]",e)
+            return showInfoDialog("网络异常，请重试", "获取弹幕配置出错")
+        except requests.exceptions.ReadTimeout:
+            return showInfoDialog("获取超时，请重试", "获取弹幕配置出错")
+        except Exception:
+            return showInfoDialog("解析错误，请重试", "获取弹幕配置出错")
         return True
 
     def SetRoomid(self,roomid,name):
         if name != "":
-            self.roomName=name
+            self.room_name=name
             self.btnRoom1.SetLabel(name)
             self.btnRoom2.SetLabel(name)
         if roomid==self.roomid:
@@ -488,10 +398,10 @@ class LyricDanmu(wx.Frame):
         if self.GetCurrentDanmuConfig():
             self.GetUsableDanmuConfig()
             UIChange(self.btnDmCfg1,color=getRgbColor(self.cur_color),enabled=True)
-            UIChange(self.btnDmCfg2,label=bili_modes[str(self.cur_mode)],enabled=True)
+            UIChange(self.btnDmCfg2,label=BILI_MODES[str(self.cur_mode)],enabled=True)
         else:
             self.roomid = None
-            self.roomName = None
+            self.room_name = None
             self.GetRoomShields()
             UIChange(self.btnRoom1,label="选择直播间")
             UIChange(self.btnRoom2,label="选择直播间")
@@ -499,112 +409,77 @@ class LyricDanmu(wx.Frame):
         UIChange(self.btnRoom2,enabled=True)
     
     def ThreadOfSetDanmuConfig(self,color,mode):
-        self.data_SetDanmuCfg["room_id"]=self.roomid
-        self.data_SetDanmuCfg["csrf"]=self.data_SetDanmuCfg["csrf_token"]=self.accounts[self.cur_acc][2]
-        if color is not None:
-            self.data_SetDanmuCfg["color"]=hex(int(color))
-            self.data_SetDanmuCfg["mode"]=None
-        else:
-            self.data_SetDanmuCfg["color"]=None
-            self.data_SetDanmuCfg["mode"]=mode
         try:
-            res=self.sessions[self.cur_acc].post(url=self.url_SetDanmuCfg,
-                headers=self.headers,data=self.data_SetDanmuCfg,timeout=(self.timeout_s,self.timeout_s))
-        except requests.exceptions.ConnectionError:
-            dlg = wx.MessageDialog(None, "网络异常，请重试", "保存弹幕配置出错", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return
-        except requests.exceptions.ReadTimeout:
-            dlg = wx.MessageDialog(None, "获取超时，请重试", "保存弹幕配置出错", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return
-        data = json.loads(res.text)
-        if data["code"]==0:
+            data=self.blApi.set_danmu_config(self.roomid,color,mode,self.cur_acc)
+            if data["code"]!=0:
+                return showInfoDialog("设置失败，请重试", "保存弹幕配置出错")
             if color is not None:
                 self.cur_color=color
                 UIChange(self.btnDmCfg1,color=getRgbColor(color))
             else:
                 self.cur_mode=mode
-                UIChange(self.btnDmCfg2,label=bili_modes[mode])
-        else:
-            dlg = wx.MessageDialog(None, "设置失败，请重试", "保存弹幕配置出错", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
+                UIChange(self.btnDmCfg2,label=BILI_MODES[mode])
+        except requests.exceptions.ConnectionError:
+            return showInfoDialog("网络异常，请重试", "保存弹幕配置出错")
+        except requests.exceptions.ReadTimeout:
+            return showInfoDialog("获取超时，请重试", "保存弹幕配置出错")
+        except Exception:
+            return showInfoDialog("解析错误，请重试", "保存弹幕配置出错")
+        return True
 
-    def SendDanmu(self, roomid, msg, allowResend=True):
+    def SendDanmu(self, roomid, msg, try_times=2):
         if msg in self.recent_danmu and len(msg) < self.max_len:
             msg+=("\u0592" if msg+"\u0594" in self.recent_danmu else "\u0594")
         self.recent_danmu.append(msg)
         self.recent_danmu.pop(0)
-        self.data_SendDanmu["msg"] = msg
-        self.data_SendDanmu["roomid"] = roomid
-        self.data_SendDanmu["csrf"]=self.data_SendDanmu["csrf_token"]=self.accounts[self.cur_acc][2]
         try:
-            res = self.sessions[self.cur_acc].post(url=self.url_SendDanmu, 
-                headers=self.headers,data=self.data_SendDanmu,timeout=(self.timeout_s,self.timeout_s))
-            data=json.loads(res.text)
+            data=self.blApi.send_danmu(roomid,msg,self.cur_acc)
             if not self.LoginCheck(data):
-                self.CallRecord("▲账号无效⋙ "+msg)
-                return
-            errmsg=data["msg"]
-            code=data["code"]
+                return self.CallRecord("▲账号无效⋙ "+msg)
+            errmsg,code=data["msg"],data["code"]
             if code==10030:
-                if allowResend:
+                if try_times>0:
                     self.CallRecord("⇩ [频率过快,尝试重发]")
                     wx.MilliSleep(self.send_interval_ms)
-                    return self.SendDanmu(roomid,msg,False)
-                self.CallRecord("▲频率过快⋙ "+msg)
-                return False
+                    return self.SendDanmu(roomid,msg,try_times-2)
+                return self.CallRecord("▲频率过快⋙ "+msg)
             if code==10031:
-                self.CallRecord("▲重复发送⋙ "+msg)
-                return False
+                return self.CallRecord("▲重复发送⋙ "+msg)
             if code==11000:
-                if allowResend:
+                if try_times>0:
                     self.CallRecord("⇩ [弹幕被吞,尝试重发]")
                     wx.MilliSleep(self.send_interval_ms)
-                    return self.SendDanmu(roomid,msg,False)
-                self.CallRecord("▲弹幕被吞⋙ "+msg)
-                return False
+                    return self.SendDanmu(roomid,msg,try_times-2)
+                return self.CallRecord("▲弹幕被吞⋙ "+msg)
             if code!=0:
-                self.CallRecord("▲发送失败⋙ %s\n(具体信息：%s)"%(msg,data))
-                return False
+                return self.CallRecord("▲发送失败⋙ %s\n(具体信息：%s)"%(msg,data))
             if errmsg=="":
                 self.CallRecord(getTime()+"｜"+msg)
                 return True
-            elif errmsg in ["f","fire"]:
-                self.CallRecord("▲全局屏蔽⋙ "+msg)
+            if errmsg in ["f","fire"]:
                 self.ShieldLog(msg)
-            elif errmsg=="k":
-                self.CallRecord("▲房间屏蔽⋙ "+msg)
-            elif errmsg=="max limit":
-                if allowResend:
+                return self.CallRecord("▲全局屏蔽⋙ "+msg)
+            if errmsg=="k":
+                return self.CallRecord("▲房间屏蔽⋙ "+msg)
+            if errmsg=="max limit":
+                if try_times>0:
                     self.CallRecord("⇩ [房间弹幕过密,尝试重发]")
                     wx.MilliSleep(self.send_interval_ms)
-                    return self.SendDanmu(roomid,msg,False)
-                self.CallRecord("▲房间弹幕过密⋙ "+msg)
-            else:
-                self.CallRecord("▲"+errmsg+"⋙ "+msg)
-            return False
+                    return self.SendDanmu(roomid,msg,try_times-1)
+                return self.CallRecord("▲房间弹幕过密⋙ "+msg)
+            return self.CallRecord("▲"+errmsg+"⋙ "+msg)
         except requests.exceptions.ConnectionError as e:
             if "Remote end closed connection without response" in str(e):
-                if allowResend:
-                    #self.CallRecord("⇩ [远程连接异常关闭,尝试重发]")
+                if try_times>0:
                     wx.MilliSleep(200)
-                    return self.SendDanmu(roomid,msg,False)
-                self.CallRecord("▲远程连接异常关闭⋙ "+msg)
-            self.CallRecord("▲网络异常⋙ "+msg)
+                    return self.SendDanmu(roomid,msg,try_times-1)
+                return self.CallRecord("▲远程连接异常关闭⋙ "+msg)
             self.pool.submit(self.ThreadOfShowMsgDlg,"网络连接出错","弹幕发送失败")
-            return False
+            return self.CallRecord("▲网络异常⋙ "+msg)
         except requests.exceptions.ReadTimeout:
-            self.CallRecord("▲请求超时⋙ "+msg)
-            print("[发送超时] %s"%msg)
-            return False
+            return self.CallRecord("▲请求超时⋙ "+msg)
         except Exception as e:
-            self.CallRecord("▲发送失败⋙ %s\n(具体信息：%s)"%(msg,str(e)))
-            print("[其它发送错误 %d] %s\n%s"%(json.loads(res.text)["code"],msg,e))
-            return False
+            return self.CallRecord("▲发送失败⋙ %s\n(具体信息：%s)"%(msg,str(e)))
 
     def OnAutoSendLrcBtn(self,event):
         if self.init_lock or not self.has_timeline:
@@ -621,10 +496,7 @@ class LyricDanmu(wx.Frame):
                 self.btnAutoSend.SetLabel("继续 ▶")
             return
         if self.roomid is None:
-            dlg = wx.MessageDialog(None, "未指定直播间", "提示", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return
+            return showInfoDialog("未指定直播间", "提示")
         if not self.NextLyric(None):
             return
         if self.has_trans and self.lyc_mod == 2 and self.llist[self.lid-1][2]!=self.llist[self.lid][2]:
@@ -697,7 +569,7 @@ class LyricDanmu(wx.Frame):
     def FilterLyric(self,fs):
         res,fslen,prev_empty,i=[],len(fs),False,0
         while i<fslen:
-            if re.search(ignore_lyric_pattern,fs[i][2]):
+            if re.search(LYRIC_IGNORE_RULES,fs[i][2]):
                 i += 2 if self.has_trans else 1
                 continue
             if fs[i][2] != "":
@@ -723,7 +595,7 @@ class LyricDanmu(wx.Frame):
         for i in range(fslen):
             tl,c=fs[i][1],fs[i][2]
             if c=="":   continue
-            if tl-prev_tl>=self.lyric_empty_line_threshold_s:
+            if tl-prev_tl>=LYRIC_EMPTY_LINE_THRESHOLD_S:
                 if not new_line:    res.append([getTimeLineStr(base_tl,1),base_tl,content,""])
                 res.append(["",prev_tl+3,"",""])
                 new_line=True
@@ -745,7 +617,7 @@ class LyricDanmu(wx.Frame):
         for i in range(0,fslen,2):
             tl,co,ct=fs[i+1][1],fs[i][2],fs[i+1][2]
             if ct=="":   continue
-            if tl-prev_tl>=self.lyric_empty_line_threshold_s:
+            if tl-prev_tl>=LYRIC_EMPTY_LINE_THRESHOLD_S:
                 if not new_line:
                     res.append([getTimeLineStr(base_tl,1),base_tl,content_o,""])
                     res.append([getTimeLineStr(base_tl,1),base_tl,content_t,""])
@@ -789,7 +661,7 @@ class LyricDanmu(wx.Frame):
         if self.has_timeline and self.enable_lyric_merge:
             tmpData=self.MergeMixLyric(tmpData) if self.has_trans else self.MergeSingleLyric(tmpData)
         lyrics="\r\n".join([i[2] for i in tmpData])
-        for k, v in html_transform_rules.items():
+        for k, v in HTML_TRANSFORM_RULES.items():
             lyrics = re.sub(k, v, lyrics)
             self.lyric_raw = re.sub(k,v,self.lyric_raw)
             self.lyric_raw_tl = re.sub(k,v,self.lyric_raw_tl)
@@ -879,7 +751,7 @@ class LyricDanmu(wx.Frame):
             pyperclip.copy(self.lyric_raw)
 
     def ClearQueue(self,event):
-        self.danmuQueue.clear()
+        self.danmu_queue.clear()
         UIChange(self.btnClearQueue,label="清空 [0]")
 
     def PrevLyric(self, event):
@@ -923,10 +795,7 @@ class LyricDanmu(wx.Frame):
     def OnSendLrcBtn(self, event):
         if self.init_lock or self.auto_sending: return
         if self.roomid is None:
-            dlg = wx.MessageDialog(None, "未指定直播间", "提示", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return
+            return showInfoDialog("未指定直播间", "提示")
         if not self.NextLyric(None):    return
         if self.has_trans and self.lyc_mod == 2 and self.llist[self.lid-1][2]!=self.llist[self.lid][2]:
             self.SendLyric(3)
@@ -945,14 +814,14 @@ class LyricDanmu(wx.Frame):
 
     def SendSplitDanmu(self, msg, pre, suf):
         if len(msg) > self.max_len:
-            for k, v in compress_rules.items():
+            for k, v in COMPRESS_RULES.items():
                 msg = re.sub(k, v, msg)
         if len(msg) <= self.max_len:
             if len(msg+suf) <= self.max_len:
-                self.danmuQueue.append([self.roomid,msg+suf])
+                self.danmu_queue.append([self.roomid,msg+suf])
             else:
-                self.danmuQueue.append([self.roomid,msg])
-            UIChange(self.btnClearQueue,label="清空 [%d]"%len(self.danmuQueue))#
+                self.danmu_queue.append([self.roomid,msg])
+            UIChange(self.btnClearQueue,label="清空 [%d]"%len(self.danmu_queue))#
             return
         spaceIdx = []
         cutIdx = self.max_len
@@ -969,38 +838,32 @@ class LyricDanmu(wx.Frame):
                 if idx <= self.max_len: cutIdx = idx
         if 1 + len(msg[cutIdx:]) + len(pre) > self.max_len:
             cutIdx = self.max_len
-        self.danmuQueue.append([self.roomid,msg[:cutIdx]])
-        UIChange(self.btnClearQueue,label="清空 [%d]"%len(self.danmuQueue))#
+        self.danmu_queue.append([self.roomid,msg[:cutIdx]])
+        UIChange(self.btnClearQueue,label="清空 [%d]"%len(self.danmu_queue))#
         if msg[cutIdx:] in [")","）","」","】","\"","”"]:  return
         self.SendSplitDanmu(pre + "…" + msg[cutIdx:],pre,suf)
 
     def ImportLyric(self, event):
         lyric = self.tcImport.GetValue().strip()
         if lyric == "":
-            dlg = wx.MessageDialog(None, "歌词不能为空", "歌词导入失败", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return
+            return showInfoDialog("歌词不能为空", "歌词导入失败")
         if lyric.count("\n") <= 4 or len(lyric) <= 50:
-            dlg = wx.MessageDialog(None, "歌词内容过短", "歌词导入失败", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return
+            return showInfoDialog("歌词内容过短", "歌词导入失败")
         has_trans = self.cbbImport.GetSelection() == 1
-        data={
+        ldata={
             "src": "local",
             "has_trans": has_trans,
             "lyric": lyric,
             "name": "",
         }
-        self.RecvLyric(data)
+        self.RecvLyric(ldata)
 
     def SearchLyric(self, event):
         src=event.GetEventObject().GetName()
         words = self.tcSearch.GetValue().strip().replace("\\","")
         if words in ["","*"]:   return
-        if self.searchFrame:
-            self.searchFrame.Destroy()
+        if self.songSearchFrame:
+            self.songSearchFrame.Destroy()
         merge_mark_ids={}
         for k,v in self.wy_marks.items():
             merge_mark_ids["W"+k]=v
@@ -1012,7 +875,7 @@ class LyricDanmu(wx.Frame):
         else:
             mark_ids = self.SearchByTag(words, merge_mark_ids)
             local_names = self.SearchByTag(words, self.locals)
-        self.searchFrame = SearchResult(self, src, words, mark_ids, local_names)
+        self.songSearchFrame = SongSearchFrame(self, src, words, mark_ids, local_names)
 
     def SendComment(self, event):
         pre = self.cbbComPre.GetValue()
@@ -1021,16 +884,10 @@ class LyricDanmu(wx.Frame):
         if msg == "":
             return
         if self.roomid is None:
-            dlg = wx.MessageDialog(None, "未指定直播间", "提示", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return
+            return showInfoDialog("未指定直播间", "提示")
         comment = pre + msg
         if len(comment) > 50:
-            dlg = wx.MessageDialog(None, "弹幕内容过长", "弹幕发送失败", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return
+            return showInfoDialog("弹幕内容过长", "弹幕发送失败")
         comment = self.DealWithCustomShields(comment)
         comment = deal(comment,self.global_shields)
         suf = "】" if comment.count("【") > comment.count("】") else ""
@@ -1045,6 +902,14 @@ class LyricDanmu(wx.Frame):
         self.cbbImport2.SetSelection(mode)
 
     def DefaultConfig(self):
+        self.rooms={}
+        self.wy_marks = {}
+        self.qq_marks = {}
+        self.locals = {}
+        self.custom_shields = {}
+        self.global_shields = {}
+        self.room_shields = {}
+        self.custom_texts = []
         self.max_len = 30
         self.prefix = "【♪"
         self.suffix = "】"
@@ -1062,7 +927,8 @@ class LyricDanmu(wx.Frame):
         self.add_song_name = False
         self.init_show_lyric = True
         self.no_proxy = True
-        self.accounts=[["*","",""],["","",""]]
+        self.account_names=["",""]
+        self.cookies=["",""]
 
     def CheckFile(self):
         if not os.path.exists("config.txt"):
@@ -1078,8 +944,7 @@ class LyricDanmu(wx.Frame):
         if not os.path.exists("shields_global.dat"):
             with open("shields_global.dat", "w", encoding="utf-8") as f:    f.write("")
         if not os.path.exists("custom_texts.txt"):
-            with open("custom_texts.txt", "w", encoding="utf-8") as f:
-                f.write(default_custom_text)
+            with open("custom_texts.txt", "w", encoding="utf-8") as f:  f.write(DEFAULT_CUSTOM_TEXT)
         if not os.path.exists("songs"):
             os.mkdir("songs")
         if not os.path.exists("logs"):
@@ -1138,24 +1003,17 @@ class LyricDanmu(wx.Frame):
                     elif k == "忽略系统代理":
                         self.no_proxy = True if v.lower()=="true" else False
                     elif k == "账号标注":
-                        self.accounts[0][0] = "账号1" if v=="" else v
+                        self.account_names[0] = "账号1" if v=="" else v
                     elif k == "账号标注2":
-                        self.accounts[1][0] = "账号2" if v=="" else v
+                        self.account_names[1] = "账号2" if v=="" else v
                     elif k == "cookie":
-                        self.accounts[0][1] = v
+                        self.cookies[0] = v
                     elif k == "cookie2":
-                        self.accounts[1][1] = v
+                        self.cookies[1] = v
                 if not send_interval_check:
                     self.send_interval_ms = 750 if self.enable_new_send_type else 1050
-                for i in range(2):
-                    so = re.search(r"bili_jct=([0-9a-f]+);?", self.accounts[i][1])
-                    if so is not None:
-                        self.accounts[i][2] = so.group(1)
         except Exception:
-            dlg = wx.MessageDialog(None, "读取config.txt失败", "启动出错", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return False
+            return showInfoDialog("读取config.txt失败", "启动出错")
         try:
             with open("rooms.txt", "r", encoding="utf-8") as f:
                 for line in f:
@@ -1163,9 +1021,7 @@ class LyricDanmu(wx.Frame):
                     if mo is not None:
                         self.rooms[mo.group(1)] = mo.group(2).rstrip()
         except Exception:
-            dlg = wx.MessageDialog(None, "读取rooms.txt失败", "提示", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
+            showInfoDialog("读取rooms.txt失败", "提示")
         try:
             with open("marks_wy.txt", "r", encoding="utf-8") as f:
                 for line in f:
@@ -1173,9 +1029,7 @@ class LyricDanmu(wx.Frame):
                     if mo is not None:
                         self.wy_marks[mo.group(1)] = mo.group(2).rstrip()
         except Exception:
-            dlg = wx.MessageDialog(None, "读取marks_wy.txt失败", "提示", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
+            showInfoDialog("读取marks_wy.txt失败", "提示")
         try:
             with open("marks_qq.txt", "r", encoding="utf-8") as f:
                 for line in f:
@@ -1183,9 +1037,7 @@ class LyricDanmu(wx.Frame):
                     if mo is not None:
                         self.qq_marks[mo.group(1)] = mo.group(2).rstrip()
         except Exception:
-            dlg = wx.MessageDialog(None, "读取marks_qq.txt失败", "提示", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
+            showInfoDialog("读取marks_qq.txt失败", "提示")
         try:
             with open("shields.txt", "r", encoding="utf-8") as f:
                 for line in f:
@@ -1202,10 +1054,9 @@ class LyricDanmu(wx.Frame):
                         rooms=(old_rooms+","+rooms) if old_rooms!="" and rooms!="" else ""
                     self.custom_shields[mo.group(2)]=[int(mo.group(1)),rep,rooms]
         except Exception:
-            dlg = wx.MessageDialog(None, "读取shields.txt失败", "提示", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
+            showInfoDialog("读取shields.txt失败", "提示")
         try:
+            self.need_update_global_shields=False
             scope = {"modified_time":0,"words":[],"rules":{}}
             with open("shields_global.dat","r",encoding="utf-8") as f:
                 code="from BiliLiveShieldWords import get_len,measure,fill,r_pos\n"+f.read()
@@ -1213,14 +1064,10 @@ class LyricDanmu(wx.Frame):
             for word in scope["words"]:
                 generate_rule(word,scope["rules"])
             self.global_shields=scope["rules"]
-            if time.time()-scope["modified_time"]>self.global_shield_update_interval_s:
-                self.pool.submit(self.ThreadOfUpdateGlobalShields,2000)
+            self.need_update_global_shields=time.time()-scope["modified_time"]>GLOBAL_SHIELDS_UPDATE_INTERVAL_S
         except Exception:
-            dlg = wx.MessageDialog(None, "读取shields_global.dat失败", "提示", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-        if not self.ReadCustomTexts():
-            return False
+            showInfoDialog("读取shields_global.dat失败", "提示")
+        self.ReadCustomTexts()
         self.ReadLocalSongs()
         return True
 
@@ -1233,10 +1080,7 @@ class LyricDanmu(wx.Frame):
             collection = xml.dom.minidom.parse("custom_texts.txt").documentElement
             texts = collection.getElementsByTagName("text")
         except Exception:
-            dlg = wx.MessageDialog(None, "读取custom_texts.txt失败", "提示", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return False
+            return showInfoDialog("读取custom_texts.txt失败", "提示")
         index=0
         for text in texts:
             data=default_data.copy()
@@ -1245,12 +1089,10 @@ class LyricDanmu(wx.Frame):
             data["content"]=text.childNodes[0].data
             self.custom_texts.append(data)
             index+=1
-            if index>=4:
-                break
+            if index>=4:    break
         while index<4:
             self.custom_texts.append(default_data.copy())
             index+=1
-        return True
 
     def ConvertLocalSong(self,filepath):
         try:
@@ -1387,29 +1229,23 @@ class LyricDanmu(wx.Frame):
         last_time = 0
         while self.running:
             try:
-                wx.MilliSleep(self.fetch_interval_s)
-                if len(self.danmuQueue) == 0:
+                wx.MilliSleep(FETCH_INTERVAL_S)
+                if len(self.danmu_queue) == 0:
                     continue
-                danmu = self.danmuQueue.pop(0)
+                danmu = self.danmu_queue.pop(0)
                 interval_s = 0.001 * self.send_interval_ms + last_time - time.time()
                 if interval_s > 0:
                     wx.MilliSleep(int(1000 * interval_s))
                 if self.enable_new_send_type: #新版机制
                     task = [self.pool.submit(self.SendDanmu, danmu[0], danmu[1])]
-                    for i in as_completed(task):
-                        pass
+                    for i in as_completed(task):    pass
                 else: #旧版机制
                     self.pool.submit(self.SendDanmu, danmu[0], danmu[1])
                 last_time = time.time()
-                UIChange(self.btnClearQueue,label="清空 [%d]" % len(self.danmuQueue))  #
-            except RuntimeError:
-                pass
+                UIChange(self.btnClearQueue,label="清空 [%d]" % len(self.danmu_queue))  #
+            except RuntimeError:    pass
             except Exception as e:
-                self.running = False
-                dlg = wx.MessageDialog(None, "弹幕发送线程出错，请重启并将问题反馈给作者\n" + str(e), "发生错误", wx.OK)
-                dlg.ShowModal()
-                dlg.Destroy()
-                break
+                return showInfoDialog("弹幕发送线程出错，请重启并将问题反馈给作者\n" + str(e), "发生错误")
 
     def Mark(self,src,song_id,tags):
         if src=="wy":
@@ -1428,31 +1264,21 @@ class LyricDanmu(wx.Frame):
     def SaveToLocal(self,event):
         lyric=self.tcImport.GetValue().strip()
         if lyric == "":
-            dlg = wx.MessageDialog(None, "歌词不能为空", "歌词保存失败", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return
+            return showInfoDialog("歌词不能为空", "歌词保存失败")
         if lyric.count("\n") <= 4 or len(lyric) <= 50:
-            dlg = wx.MessageDialog(None, "歌词内容过短", "歌词保存失败", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return
+            return showInfoDialog("歌词内容过短", "歌词保存失败")
         name=self.tcSongName.GetValue().strip()
         if name=="":
-            dlg = wx.MessageDialog(None, "歌名不能为空", "歌词保存失败", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return
+            return showInfoDialog("歌名不能为空", "歌词保存失败")
         artists=self.tcArtists.GetValue().strip()
         tags=self.tcTags.GetValue().strip()
         has_trans=self.cbbImport2.GetSelection()==1
         self.CreateLyricFile(name,artists,tags,lyric,has_trans)
 
     def CreateLyricFile(self,name,artists,tags,lyric,has_trans):
-        name=re.sub(r";|；","",name)
-        filename=name
+        filename=re.sub(r";|；","",name)
         lang="双语" if has_trans else "单语"
-        for k,v in char_transform_rules.items():
+        for k,v in FILENAME_TRANSFORM_RULES.items():
             filename=filename.replace(k,v)
         tags = re.sub(r"\r?\n|；", ";", tags)
         tags = re.sub(r";+", ";", tags)
@@ -1472,15 +1298,10 @@ class LyricDanmu(wx.Frame):
                 f.write("<lyric>\n" + lyric +"\n</lyric>\n")
                 f.write("</local>")
             self.locals[filename+".txt"]=name+";"+artists+";"+lang+";"+tags
-            dlg = wx.MessageDialog(None, "歌词保存成功", "提示", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
+            showInfoDialog("歌词保存成功", "提示")
             return True
         except:
-            dlg = wx.MessageDialog(None, "文件写入失败", "歌词保存失败", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return False
+            return showInfoDialog("文件写入失败", "歌词保存失败")
 
     def ShowLocalInfo(self,file):
         try:
@@ -1552,10 +1373,10 @@ class LyricDanmu(wx.Frame):
                 f.write("默认展开歌词=%s\n" % self.init_show_lyric)
                 f.write("忽略系统代理=%s\n" % self.no_proxy)
                 f.write("----------\n#账号配置#\n----------\n")
-                f.write("账号标注=%s\n" % self.accounts[0][0])
-                f.write("cookie=%s\n" % self.accounts[0][1])
-                f.write("账号标注2=%s\n" % self.accounts[1][0])
-                f.write("cookie2=%s\n" % self.accounts[1][1])
+                f.write("账号标注=%s\n" % self.account_names[0])
+                f.write("cookie=%s\n" % self.cookies[0])
+                f.write("账号标注2=%s\n" % self.account_names[1])
+                f.write("cookie2=%s\n" % self.cookies[1])
         except Exception as e:
             print("SaveConfig:")
             print(e)
@@ -1679,7 +1500,7 @@ class LyricDanmu(wx.Frame):
     def WrapUpPattern(self,words):
         words = re.sub(r"\s+", "", words)
         pattern = "∷".join(words)
-        for k,v in regex_transform_rules.items():
+        for k,v in REGEX_CHAR_TRANSFORM_RULES.items():
             pattern = pattern.replace(k, v)
         pattern = "(?i)" + pattern.replace("∷", ".*?")
         return pattern
@@ -1707,27 +1528,19 @@ class LyricDanmu(wx.Frame):
     def LoginCheck(self,res):
         if res["code"]==-101 or "登录" in res["message"]:
             self.OnStopBtn(None)
-            dlg = wx.MessageDialog(None, "账号配置不可用，请修改Cookie配置\n"+
+            return showInfoDialog("账号配置不可用，请修改Cookie配置\n"+
                 "方法一：点击“应用设置”按钮，右键“账号切换”处的按钮进行修改\n"+
-                "方法二：关闭工具后，打开工具目录下的config.txt，修改cookie项", "错误", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return False
+                "方法二：关闭工具后，打开工具目录下的config.txt，修改cookie项", "错误")
         return True
     
-    def ThreadOfUpdateGlobalShields(self,delay=0):    # 弄这个tmp主要还是避免同时打开多个工具时可能出现的资源共用问题
+    def ThreadOfUpdateGlobalShields(self):
         if os.path.exists("tmp.tmp"):   return
         with open("tmp.tmp","w",encoding="utf-8") as f:  f.write("")
-        wx.MilliSleep(delay)
         UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="获取更新中…")
-        url_UpdateGlobalShields="https://cdn.jsdelivr.net/gh/FHChen0420/bili_live_shield_words@main/BiliLiveShieldWords.py"
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.221 Safari/537.36 SE 2.X MetaSr 1.0",
-        }
         try:
             code=""
-            r=requests.get(url=url_UpdateGlobalShields,headers=headers,timeout=(5,10))
-            so=re.search(r"# <DATA BEGIN>([\s\S]*?)# <DATA END>",r.text)
+            data=self.jdApi.get_latest_bili_live_shield_words(timeout=(5,10))
+            so=re.search(r"# <DATA BEGIN>([\s\S]*?)# <DATA END>",data)
             code=so.group(1).replace("and not measure(x.group(3),4)","") #简化某条特殊规则
         except:
             UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="无法获取更新")
@@ -1746,8 +1559,7 @@ class LyricDanmu(wx.Frame):
                 f.write(bytes("modified_time=%d"%int(time.time()),encoding="utf-8"))
                 f.write(bytes("  # 最近一次更新时间：%s"%getTime(fmt="%m-%d %H:%M"),encoding="utf-8"))
             UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="词库更新完毕")
-        except Exception as e:
-            print("更新屏蔽词库失败\n",str(e))
+        except:
             UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="云端数据有误")
         finally:
             try:    os.remove("tmp.tmp")
@@ -1755,31 +1567,27 @@ class LyricDanmu(wx.Frame):
     
     def CallRecord(self,msg):
         wx.CallAfter(pub.sendMessage,"record",msg=msg)
+        return False
     
     def ThreadOfShowMsgDlg(self,content,title):
         if self.show_msg_dlg:   return
         self.show_msg_dlg=True
-        dlg = wx.MessageDialog(None, content, title, wx.OK)
-        dlg.ShowModal()
-        dlg.Destroy()
+        showInfoDialog(content,title)
         wx.MilliSleep(3000)
         self.show_msg_dlg=False
     
     def SaveAccountInfo(self,acc_no,acc_name,cookie):
-        self.accounts[acc_no][0]=acc_name
-        self.accounts[acc_no][1]=cookie
-        requests.utils.add_dict_to_cookiejar(self.sessions[acc_no].cookies,{"Cookie": cookie})
-        so = re.search(r"bili_jct=([0-9a-f]+);?", cookie)
-        if so is not None:
-            self.accounts[acc_no][2]=so.group(1)
+        self.account_names[acc_no]=acc_name
+        self.cookies[acc_no]=cookie
+        self.blApi.update_cookie(cookie,acc_no)
         if acc_no==self.cur_acc:
-            self.SetTitle("LyricDanmu %s - %s"%(self.version,acc_name))
+            self.SetTitle("LyricDanmu %s - %s"%(LD_VERSION,acc_name))
     
     def SwitchAccount(self,acc_no):
-        acc_name=self.accounts[acc_no][0]
+        acc_name=self.account_names[acc_no]
         if acc_no==self.cur_acc:    return
         self.cur_acc=acc_no
-        self.SetTitle("LyricDanmu %s - %s"%(self.version,acc_name))
+        self.SetTitle("LyricDanmu %s - %s"%(LD_VERSION,acc_name))
         if self.roomid is not None:
             self.pool.submit(self.ThreadOfGetDanmuConfig)
 
