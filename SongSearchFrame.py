@@ -121,7 +121,7 @@ class SongSearchFrame(wx.Frame):
             data=self.qqApi.search_songs(words,limit=self.search_num,changeIP=True)
             if data["code"] != 0:
                 return showInfoDialog("获取歌曲列表失败", "搜索出错")
-            if data["subcode"]!=0 or len(self.all_songs)==0:
+            if data["subcode"]!=0 and len(self.all_songs)==0:
                 return showInfoDialog("找不到相关歌曲", "提示")
             self.recommond = None
             qq_songs=data["data"]["song"]["list"]
