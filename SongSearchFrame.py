@@ -17,13 +17,13 @@ class SongSearchFrame(wx.Frame):
         self.search_num = parent.search_num
         self.page_limit = parent.page_limit
         self.all_songs = []
+        self.wyApi=parent.wyApi
+        self.qqApi=parent.qqApi
         self.GetLocalSongs(local_names)
         self.GetMarkSongs(mark_ids)
         if src=="wy":
-            self.api=parent.wyApi
             self.GetNetworkSongsWY(words, mark_ids)
         else:
-            self.api=parent.qqApi
             self.GetNetworkSongsQQ(words, mark_ids)
 
     def GetLocalSongs(self,local_names):
@@ -44,10 +44,14 @@ class SongSearchFrame(wx.Frame):
 
     def GetMarkSongs(self,mark_ids):
         if len(mark_ids) == 0: return
-        for mid in mark_ids:
-            src,song_id=mid[0],mid[1:]
+        for mark_id in mark_ids:
+            src,song_id=mark_id[0],mark_id[1:]
             try:
-                data=self.api.get_song_info(song_id,changeIP=True)
+                if src=="W":    
+                    data=self.wyApi.get_song_info(song_id,changeIP=True)
+                else:
+                    song_mid=song_id.split(";")[0]
+                    data=self.qqApi.get_song_info(song_mid,changeIP=True)
                 if data["code"] != (200 if src=="W" else 0):
                     raise Exception("Code: "+str(data["code"]))
                 if len(data["songs" if src=="W" else "data"])==0:
@@ -89,7 +93,7 @@ class SongSearchFrame(wx.Frame):
 
     def GetNetworkSongsWY(self, words, mark_ids):
         try:
-            data=self.api.search_songs(words,limit=self.search_num,changeIP=True)
+            data=self.wyApi.search_songs(words,limit=self.search_num,changeIP=True)
             if data["code"] != 200:
                 return showInfoDialog("获取歌曲列表失败", "搜索出错")
             if "abroad" in data.keys():
@@ -114,7 +118,7 @@ class SongSearchFrame(wx.Frame):
 
     def GetNetworkSongsQQ(self, words, mark_ids):
         try:
-            data=self.api.search_songs(words,limit=self.search_num,changeIP=True)
+            data=self.qqApi.search_songs(words,limit=self.search_num,changeIP=True)
             if data["code"] != 0:
                 return showInfoDialog("获取歌曲列表失败", "搜索出错")
             if data["subcode"]!=0 or len(self.all_songs)==0:
@@ -251,7 +255,7 @@ class SongSearchFrame(wx.Frame):
 
     def GetLyricTypeWY(self, song_id, txt):
         try:
-            data=self.api.get_lyric(song_id,changeIP=True)
+            data=self.wyApi.get_lyric(song_id,changeIP=True)
             if data["code"] != 200:
                 return UIChange(obj=txt,color="gray",label="错误")
             if "lrc" not in data.keys():
@@ -277,7 +281,7 @@ class SongSearchFrame(wx.Frame):
 
     def GetLyricTypeQQ(self, song_mid, txt):
         try:
-            data=self.api.get_lyric(song_mid,changeIP=True)
+            data=self.qqApi.get_lyric(song_mid,changeIP=True)
             if data["code"] == -1901:
                 return UIChange(obj=txt,color="red",label="无词")
             if data["code"] != 0:
@@ -336,7 +340,7 @@ class SongSearchFrame(wx.Frame):
             self.txtMsg.SetLabel("获取歌词中...")
             info=event.GetEventObject().GetName().split(";",1)
             song_id,name = info[0],info[1]
-            data=self.api.get_lyric(song_id,changeIP=True)
+            data=self.wyApi.get_lyric(song_id,changeIP=True)
             if data["code"] != 200:
                 self.txtMsg.SetForegroundColour("red")
                 self.txtMsg.SetLabel("获取歌词失败")
@@ -407,7 +411,7 @@ class SongSearchFrame(wx.Frame):
             self.txtMsg.SetLabel("获取歌词中...")
             info=event.GetEventObject().GetName().split(";",2)
             song_mid,name = info[1],info[2]
-            data=self.api.get_lyric(song_mid,changeIP=True)
+            data=self.qqApi.get_lyric(song_mid,changeIP=True)
             if data["code"] == -1901:
                 self.txtMsg.SetForegroundColour("red")
                 self.txtMsg.SetLabel("目标歌曲无歌词")
@@ -510,7 +514,7 @@ class SongSearchFrame(wx.Frame):
             self.songMarkFrame.Destroy()
         if label=="☆":
             try:
-                data=self.api.get_song_info(song_id,changeIP=True)
+                data=self.wyApi.get_song_info(song_id,changeIP=True)
                 if data["code"] != 200:
                     return showInfoDialog("无法获取歌曲信息，请重试", "获取歌曲信息出错")
                 song=data["songs"][0]
@@ -540,7 +544,7 @@ class SongSearchFrame(wx.Frame):
             self.songMarkFrame.Destroy()
         if label=="☆":
             try:
-                data=self.api.get_song_info(song_id,changeIP=True)
+                data=self.qqApi.get_song_info(song_id,changeIP=True)
                 if data["code"] != 0:
                     return showInfoDialog("无法获取歌曲信息，请重试", "获取歌曲信息出错")
                 song=data["data"][0]
