@@ -28,6 +28,6 @@ class ColorFrame(wx.Frame):
     
     def ChangeColor(self,event):
         color=event.GetEventObject().GetName()
-        self.Parent.pool.submit(self.Parent.ThreadOfSetDanmuConfig,color,None)
+        self.Parent.pool.submit(self.Parent.ThreadOfSetDanmuConfig,hex(int(color)),None)
         self.Parent.colorFrame=None
         self.Destroy()
