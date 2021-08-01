@@ -3,6 +3,9 @@ import time
 import re
 from pubsub import pub
 
+def isEmpty(string):
+    return string is None or string.strip()==""
+
 def getRgbColor(num):
     num=int(num)
     r=num//65536
@@ -29,18 +32,22 @@ def setWxUIAttr(obj,label=None,color=None,enabled=None):
             obj.SetLabel(label)
         if enabled is not None:
             obj.Enable(enabled)
-    except RuntimeError:
-        pass
+    except RuntimeError: pass
+    except Exception as e:  raise e
 
 def UIChange(obj,label=None,color=None,enabled=None):
-    wx.CallAfter(pub.sendMessage,"attr",obj=obj,label=label,color=color,enabled=enabled)
+    try: wx.CallAfter(pub.sendMessage,"ui_change",obj=obj,label=label,color=color,enabled=enabled)
+    except Exception as e:  raise e
 
-def SetFont(obj,size,bold=False,name=None):
+def setFont(obj,size,bold=False,name=None):
     weight=wx.FONTWEIGHT_BOLD if bold else wx.FONTWEIGHT_NORMAL
-    if name is None:
-        obj.SetFont(wx.Font(size,wx.FONTFAMILY_DEFAULT,wx.FONTSTYLE_NORMAL,weight))
-    else:
-        obj.SetFont(wx.Font(size,wx.FONTFAMILY_DEFAULT,wx.FONTSTYLE_NORMAL,weight,faceName=name))
+    try:
+        if name is None:
+            obj.SetFont(wx.Font(size,wx.FONTFAMILY_DEFAULT,wx.FONTSTYLE_NORMAL,weight))
+        else:
+            obj.SetFont(wx.Font(size,wx.FONTFAMILY_DEFAULT,wx.FONTSTYLE_NORMAL,weight,faceName=name))
+    except RuntimeError: pass
+    except Exception as e:  raise e
 
 def getNodeValue(parent,childName):
     try:    return parent.getElementsByTagName(childName)[0].childNodes[0].nodeValue.strip()
@@ -61,4 +68,9 @@ def splitTnL(line):
         secOrigin = mo.group()+"]"
         fs.append([secfmt, secnum, content, secOrigin]) #e.g. ["01:30", 90.233, "歌词内容", "[01:30.233]"]
     return fs
-    
+
+def showInfoDialog(content="",title=""):
+    dlg = wx.MessageDialog(None, content, title, wx.OK)
+    dlg.ShowModal()
+    dlg.Destroy()
+    return False
