@@ -25,8 +25,8 @@ from util import *
 LD_VERSION = "v1.4.1"
 
 class LyricDanmu(wx.Frame):
-
     def __init__(self, parent):
+        """B站直播同传/歌词弹幕发送工具"""
         # 获取操作系统信息
         self.platform="win" if "Windows" in platform.platform() else "mac"
         # 读取文件配置
@@ -43,7 +43,7 @@ class LyricDanmu(wx.Frame):
         self.wyApi = NetEaseMusicAPI()
         self.qqApi = QQMusicAPI()
         self.jdApi = JsdelivrAPI()
-        # 运行
+        # 运行参数
         self.show_config = not self.init_show_lyric
         self.show_lyric = self.init_show_lyric
         self.show_import = False
@@ -64,7 +64,7 @@ class LyricDanmu(wx.Frame):
         self.history_idx = 0
         self.recent_danmu = [None,None]
         self.recent_history = []
-        self.tmp_history = []
+        self.tmp_history = [] 
         self.danmu_queue = []
         self.pool = ThreadPoolExecutor(max_workers=6)
         if self.need_update_global_shields:
@@ -91,8 +91,7 @@ class LyricDanmu(wx.Frame):
         self.p2 = wx.Panel(self, -1, size=(450, 360), pos=(0, 0))
         self.p3 = wx.Panel(self, -1, size=(450, 85), pos=(0, 0))
         self.p4 = wx.Panel(self.p3, -1, size=(345,100), pos=(105,2))
-
-        # P0 弹幕面板
+        """ P0 弹幕输入面板 """
         # 前缀选择
         self.cbbComPre = wx.ComboBox(self.p0, -1, pos=(15, 13), size=(60, -1), choices=["【", "", "", "", ""], style=wx.CB_DROPDOWN, value="")
         self.cbbComPre.Bind(wx.EVT_TEXT, self.CountText)
@@ -108,8 +107,89 @@ class LyricDanmu(wx.Frame):
         # 同传配置拓展按钮
         self.btnExt = wx.Button(self.p0, -1, "▼", pos=(400, 9), size=(32, 32))
         self.btnExt.Bind(wx.EVT_BUTTON, self.ToggleConfigUI)
-
-        # P3 配置主面板
+        """ P1 歌词主面板 """
+        # 直播间选择
+        self.btnRoom2 = wx.Button(self.p1, -1, "选择直播间", pos=(15, 9), size=(87, 32))
+        self.btnRoom2.Bind(wx.EVT_BUTTON,self.ShowRoomSelectFrame)
+        # 歌词搜索
+        if self.default_src=="wy":
+            self.tcSearch = wx.TextCtrl(self.p1, -1, "", pos=(111, 10), size=(196, 30), style=wx.TE_PROCESS_ENTER, name="wy")
+            self.btnSearch = wx.Button(self.p1, -1, "网易云 ↩", pos=(315, 9), size=(62, 32), name="wy")
+            self.btnSearch2 = wx.Button(self.p1, -1, "QQ", pos=(382, 9), size=(49, 32), name="qq")
+        else:
+            self.tcSearch = wx.TextCtrl(self.p1, -1, "", pos=(111, 10), size=(196, 30), style=wx.TE_PROCESS_ENTER, name="qq")
+            self.btnSearch = wx.Button(self.p1, -1, "QQ ↩", pos=(315, 9), size=(62, 32), name="qq")
+            self.btnSearch2 = wx.Button(self.p1, -1, "网易云", pos=(382, 9), size=(49, 32), name="wy")
+        self.tcSearch.Bind(wx.EVT_TEXT_ENTER, self.SearchLyric)
+        self.btnSearch.Bind(wx.EVT_BUTTON, self.SearchLyric)
+        self.btnSearch2.Bind(wx.EVT_BUTTON, self.SearchLyric)
+        # 歌词静态文本
+        self.lblLyrics = []
+        self.lblTimelines = []
+        for i in range(11):
+            timeline_content=wx.StaticText(self.p1, -1, "", pos=(0, 140 + 20 * i), size=(35, 19), style=wx.ALIGN_CENTER | wx.ST_NO_AUTORESIZE)
+            lyric_content = wx.StaticText(self.p1, -1, "", pos=(35, 140 + 20 * i), size=(375, 19), style=wx.ALIGN_CENTER | wx.ST_NO_AUTORESIZE)
+            timeline_content.SetForegroundColour("gray")
+            self.lblLyrics.append(lyric_content)
+            self.lblTimelines.append(timeline_content)
+        self.lblLyrics[4].SetForegroundColour("blue")
+        self.lblTimelines[4].SetForegroundColour("blue")
+        # 歌词弹幕配置
+        txtLycMod = wx.StaticText(self.p1, -1, "模式", pos=(15, 54))
+        txtLycPre = wx.StaticText(self.p1, -1, "前缀", pos=(15, 84))
+        txtLycSuf = wx.StaticText(self.p1, -1, "后缀", pos=(15, 114))
+        self.cbbLycMod = wx.ComboBox(self.p1, -1, pos=(45, 50), size=(57, -1), choices=["原版", "中文", "双语"], style=wx.CB_READONLY, value="中文")
+        self.cbbLycPre = wx.ComboBox(self.p1, -1, pos=(45, 80), size=(57, -1), choices=self.prefixs, style=wx.CB_DROPDOWN, value=self.prefix)
+        self.cbbLycSuf = wx.ComboBox(self.p1, -1, pos=(45, 110), size=(57, -1), choices=self.suffixs, style=wx.CB_DROPDOWN, value=self.suffix)
+        self.cbbLycMod.Bind(wx.EVT_COMBOBOX, self.SetLycMod)
+        # 歌词调整/发送按钮
+        self.btnLycImpIn = wx.Button(self.p1, -1, "导入歌词", pos=(110, 49), size=(62, 42))
+        self.btnCopyAll = wx.Button(self.p1, -1, "复制全文", pos=(110, 94), size=(62, 42))
+        self.btnClearQueue = wx.Button(self.p1, -1, "清空队列", pos=(178, 49), size=(62, 42))
+        self.btnCopyLine = wx.Button(self.p1, -1, "复制此句", pos=(178, 94), size=(62, 42))
+        self.btnPrev = wx.Button(self.p1, -1, "▲", pos=(246, 49), size=(62, 42))
+        self.btnNext = wx.Button(self.p1, -1, "▼", pos=(246, 94), size=(62, 42))
+        self.btnSend = wx.Button(self.p1, -1, "手动发送", pos=(315, 49), size=(62, 42)) #116
+        self.btnCustomText = wx.Button(self.p1, -1, "预设", pos=(382, 49), size=(49, 42))
+        self.btnAutoSend = wx.Button(self.p1, -1, "自动 ▶", pos=(315, 94), size=(62, 42))
+        self.btnStopAuto = wx.Button(self.p1, -1, "停止 □", pos=(382, 94), size=(49, 42))
+        self.btnLycImpIn.Bind(wx.EVT_BUTTON, self.ToggleImportUI)
+        self.btnClearQueue.Bind(wx.EVT_BUTTON, self.ClearQueue)
+        self.btnCopyLine.Bind(wx.EVT_BUTTON, self.CopyLyricLine)
+        self.btnCopyAll.Bind(wx.EVT_BUTTON, self.CopyLyricAll)
+        self.btnPrev.Bind(wx.EVT_BUTTON, self.PrevLyric)
+        self.btnNext.Bind(wx.EVT_BUTTON, self.NextLyric)
+        self.btnSend.Bind(wx.EVT_BUTTON, self.OnSendLrcBtn)
+        self.btnCustomText.Bind(wx.EVT_BUTTON, self.ShowCustomTextFrame)
+        self.btnAutoSend.Bind(wx.EVT_BUTTON, self.OnAutoSendLrcBtn)
+        self.btnStopAuto.Bind(wx.EVT_BUTTON, self.OnStopBtn)
+        # 歌词进度滑块
+        self.sldLrc = wx.Slider(self.p1, -1, 0, 0, 10, pos=(415, 155), size=(30, 195), style=wx.SL_VERTICAL)
+        self.sldLrc.Bind(wx.EVT_SLIDER, self.OnLyricLineChange)
+        self.lblCurLine = wx.StaticText(self.p1, -1, "", pos=(420, 137))
+        self.lblMaxLine = wx.StaticText(self.p1, -1, "", pos=(420, 347))
+        self.sldLrc.Show(False)
+        """ P2 歌词导入面板 """
+        # 歌词导入部分
+        self.btnLycImpOut = wx.Button(self.p2, -1, "◀   返  回    ", pos=(15, 9), size=(96, 32))
+        self.cbbImport = wx.ComboBox(self.p2, -1, pos=(271, 13), size=(60, -1), choices=["单语", "双语"], style=wx.CB_READONLY, value="单语")
+        self.btnImport = wx.Button(self.p2, -1, "导入歌词", pos=(345, 9), size=(87, 32))
+        self.btnLycImpOut.Bind(wx.EVT_BUTTON, self.ToggleImportUI)
+        self.btnImport.Bind(wx.EVT_BUTTON, self.ImportLyric)
+        self.cbbImport.Bind(wx.EVT_COMBOBOX, self.SynImpLycMod)
+        # 歌词保存部分
+        self.tcImport = wx.TextCtrl(self.p2, -1, "", pos=(15, 49), size=(416, 180), style=wx.TE_MULTILINE)
+        lblSongName = wx.StaticText(self.p2, -1, "歌名", pos=(15, 244))
+        self.tcSongName = wx.TextCtrl(self.p2, -1, "", pos=(45, 240), size=(200, 27))
+        lblArtists = wx.StaticText(self.p2, -1, "作者", pos=(263, 244))
+        self.tcArtists = wx.TextCtrl(self.p2, -1, "", pos=(291, 240), size=(140, 27))
+        lblTagDesc = wx.StaticText(self.p2, -1, "添加其他标签便于检索，使用分号或换行进行分割。", pos=(15, 272), size=(322,-1))
+        self.tcTags = wx.TextCtrl(self.p2, -1, "", pos=(15, 292), size=(322, 65), style=wx.TE_MULTILINE)
+        self.cbbImport2 = wx.ComboBox(self.p2, -1, pos=(346, 292), size=(85, -1), choices=["单语", "双语"], style=wx.CB_READONLY, value="单语")
+        self.btnSaveToLocal = wx.Button(self.p2, -1, "保存至本地", pos=(345, 326), size=(87, 32))
+        self.cbbImport2.Bind(wx.EVT_COMBOBOX, self.SynImpLycMod)
+        self.btnSaveToLocal.Bind(wx.EVT_BUTTON,self.SaveToLocal)
+        """ P3 配置主面板 """
         # 直播间选择
         self.btnRoom1 = wx.Button(self.p3, -1, "选择直播间", pos=(15, 3), size=(87, 32))
         self.btnRoom1.Bind(wx.EVT_BUTTON, self.ShowRoomSelectFrame)
@@ -135,8 +215,13 @@ class LyricDanmu(wx.Frame):
         # 屏蔽词管理按钮
         self.btnShieldCfg=wx.Button(self.p3,-1,"屏蔽词管理",pos=(235, 40), size=(87, 32))
         self.btnShieldCfg.Bind(wx.EVT_BUTTON,self.ShowShieldConfigFrame)
-
-        # 多人联动设置
+        # 歌词面板展开按钮
+        self.btnExtLrc = wx.Button(self.p3, -1, "收起歌词" if self.init_show_lyric else "歌词面板", pos=(345, 3), size=(87, 32))
+        self.btnExtLrc.Bind(wx.EVT_BUTTON, self.ToggleLyricUI)
+        # 置顶按钮
+        self.btnTop = wx.Button(self.p3, -1, "取消置顶", pos=(345, 40), size=(87, 32))
+        self.btnTop.Bind(wx.EVT_BUTTON, self.TogglePinUI)
+        """ P4 多人联动面板 """
         wx.StaticText(self.p4, -1, "1", pos=(15, 10))
         wx.StaticText(self.p4, -1, "2", pos=(90, 10))
         wx.StaticText(self.p4, -1, "3", pos=(165, 10))
@@ -160,101 +245,7 @@ class LyricDanmu(wx.Frame):
         self.cbbClbMod.Bind(wx.EVT_COMBOBOX, self.SetColaborMode)
         self.btnExitClbCfg = wx.Button(self.p4, -1, "◀  返  回  ", pos=(250, 37), size=(72, 27))
         self.btnExitClbCfg.Bind(wx.EVT_BUTTON, self.ExitColaborPart)
-
-        # 歌词面板展开按钮
-        self.btnExtLrc = wx.Button(self.p3, -1, "收起歌词" if self.init_show_lyric else "歌词面板", pos=(345, 3), size=(87, 32))
-        self.btnExtLrc.Bind(wx.EVT_BUTTON, self.ToggleLyricUI)
-        # 置顶按钮
-        self.btnTop = wx.Button(self.p3, -1, "取消置顶", pos=(345, 40), size=(87, 32))
-        self.btnTop.Bind(wx.EVT_BUTTON, self.TogglePinUI)
-
-        # P1 歌词主面板
-        # 直播间选择
-        self.btnRoom2 = wx.Button(self.p1, -1, "选择直播间", pos=(15, 9), size=(87, 32))
-        self.btnRoom2.Bind(wx.EVT_BUTTON,self.ShowRoomSelectFrame)
-        # 歌词搜索
-        if self.default_src=="wy":
-            self.tcSearch = wx.TextCtrl(self.p1, -1, "", pos=(111, 10), size=(196, 30), style=wx.TE_PROCESS_ENTER, name="wy")
-            self.btnSearch = wx.Button(self.p1, -1, "网易云 ↩", pos=(315, 9), size=(62, 32), name="wy")
-            self.btnSearch2 = wx.Button(self.p1, -1, "QQ", pos=(382, 9), size=(49, 32), name="qq")
-        else:
-            self.tcSearch = wx.TextCtrl(self.p1, -1, "", pos=(111, 10), size=(196, 30), style=wx.TE_PROCESS_ENTER, name="qq")
-            self.btnSearch = wx.Button(self.p1, -1, "QQ ↩", pos=(315, 9), size=(62, 32), name="qq")
-            self.btnSearch2 = wx.Button(self.p1, -1, "网易云", pos=(382, 9), size=(49, 32), name="wy")
-        self.tcSearch.Bind(wx.EVT_TEXT_ENTER, self.SearchLyric)
-        self.btnSearch.Bind(wx.EVT_BUTTON, self.SearchLyric)
-        self.btnSearch2.Bind(wx.EVT_BUTTON, self.SearchLyric)
-
-        # 歌词静态文本
-        self.lblLyrics = []
-        self.lblTimelines = []
-        for i in range(11):
-            timeline_content=wx.StaticText(self.p1, -1, "", pos=(0, 140 + 20 * i), size=(35, 19), style=wx.ALIGN_CENTER | wx.ST_NO_AUTORESIZE)
-            lyric_content = wx.StaticText(self.p1, -1, "", pos=(35, 140 + 20 * i), size=(375, 19), style=wx.ALIGN_CENTER | wx.ST_NO_AUTORESIZE)
-            timeline_content.SetForegroundColour("gray")
-            self.lblLyrics.append(lyric_content)
-            self.lblTimelines.append(timeline_content)
-        self.lblLyrics[4].SetForegroundColour("blue")
-        self.lblTimelines[4].SetForegroundColour("blue")
-
-        # 歌词弹幕配置
-        txtLycMod = wx.StaticText(self.p1, -1, "模式", pos=(15, 54))
-        txtLycPre = wx.StaticText(self.p1, -1, "前缀", pos=(15, 84))
-        txtLycSuf = wx.StaticText(self.p1, -1, "后缀", pos=(15, 114))
-        self.cbbLycMod = wx.ComboBox(self.p1, -1, pos=(45, 50), size=(57, -1), choices=["原版", "中文", "双语"], style=wx.CB_READONLY, value="中文")
-        self.cbbLycPre = wx.ComboBox(self.p1, -1, pos=(45, 80), size=(57, -1), choices=self.prefixs, style=wx.CB_DROPDOWN, value=self.prefix)
-        self.cbbLycSuf = wx.ComboBox(self.p1, -1, pos=(45, 110), size=(57, -1), choices=self.suffixs, style=wx.CB_DROPDOWN, value=self.suffix)
-        self.cbbLycMod.Bind(wx.EVT_COMBOBOX, self.SetLycMod)
-
-        # 歌词调整/发送按钮
-        self.btnLycImpIn = wx.Button(self.p1, -1, "导入歌词", pos=(110, 49), size=(62, 42))
-        self.btnCopyAll = wx.Button(self.p1, -1, "复制全文", pos=(110, 94), size=(62, 42))
-        self.btnClearQueue = wx.Button(self.p1, -1, "清空队列", pos=(178, 49), size=(62, 42))
-        self.btnCopyLine = wx.Button(self.p1, -1, "复制此句", pos=(178, 94), size=(62, 42))
-        self.btnPrev = wx.Button(self.p1, -1, "▲", pos=(246, 49), size=(62, 42))
-        self.btnNext = wx.Button(self.p1, -1, "▼", pos=(246, 94), size=(62, 42))
-        self.btnSend = wx.Button(self.p1, -1, "手动发送", pos=(315, 49), size=(62, 42)) #116
-        self.btnCustomText = wx.Button(self.p1, -1, "预设", pos=(382, 49), size=(49, 42))
-        self.btnAutoSend = wx.Button(self.p1, -1, "自动 ▶", pos=(315, 94), size=(62, 42))
-        self.btnStopAuto = wx.Button(self.p1, -1, "停止 □", pos=(382, 94), size=(49, 42))
-        self.btnLycImpIn.Bind(wx.EVT_BUTTON, self.ToggleImportUI)
-        self.btnClearQueue.Bind(wx.EVT_BUTTON, self.ClearQueue)
-        self.btnCopyLine.Bind(wx.EVT_BUTTON, self.CopyLyricLine)
-        self.btnCopyAll.Bind(wx.EVT_BUTTON, self.CopyLyricAll)
-        self.btnPrev.Bind(wx.EVT_BUTTON, self.PrevLyric)
-        self.btnNext.Bind(wx.EVT_BUTTON, self.NextLyric)
-        self.btnSend.Bind(wx.EVT_BUTTON, self.OnSendLrcBtn)
-        self.btnCustomText.Bind(wx.EVT_BUTTON, self.ShowCustomTextFrame)
-        self.btnAutoSend.Bind(wx.EVT_BUTTON, self.OnAutoSendLrcBtn)
-        self.btnStopAuto.Bind(wx.EVT_BUTTON, self.OnStopBtn)
-
-        # 歌词进度滑块
-        self.sldLrc = wx.Slider(self.p1, -1, 0, 0, 10, pos=(415, 155), size=(30, 195), style=wx.SL_VERTICAL)
-        self.sldLrc.Bind(wx.EVT_SLIDER, self.OnLyricLineChange)
-        self.lblCurLine = wx.StaticText(self.p1, -1, "", pos=(420, 137))
-        self.lblMaxLine = wx.StaticText(self.p1, -1, "", pos=(420, 347))
-        self.sldLrc.Show(False)
-
-        # P2 歌词导入面板
-        self.btnLycImpOut = wx.Button(self.p2, -1, "◀   返  回    ", pos=(15, 9), size=(96, 32))
-        self.cbbImport = wx.ComboBox(self.p2, -1, pos=(271, 13), size=(60, -1), choices=["单语", "双语"], style=wx.CB_READONLY, value="单语")
-        self.btnImport = wx.Button(self.p2, -1, "导入歌词", pos=(345, 9), size=(87, 32))
-        self.btnLycImpOut.Bind(wx.EVT_BUTTON, self.ToggleImportUI)
-        self.btnImport.Bind(wx.EVT_BUTTON, self.ImportLyric)
-        self.cbbImport.Bind(wx.EVT_COMBOBOX, self.SynImpLycMod)
-        # 歌词保存框
-        self.tcImport = wx.TextCtrl(self.p2, -1, "", pos=(15, 49), size=(416, 180), style=wx.TE_MULTILINE)
-        lblSongName = wx.StaticText(self.p2, -1, "歌名", pos=(15, 244))
-        self.tcSongName = wx.TextCtrl(self.p2, -1, "", pos=(45, 240), size=(200, 27))
-        lblArtists = wx.StaticText(self.p2, -1, "作者", pos=(263, 244))
-        self.tcArtists = wx.TextCtrl(self.p2, -1, "", pos=(291, 240), size=(140, 27))
-        lblTagDesc = wx.StaticText(self.p2, -1, "添加其他标签便于检索，使用分号或换行进行分割。", pos=(15, 272), size=(322,-1))
-        self.tcTags = wx.TextCtrl(self.p2, -1, "", pos=(15, 292), size=(322, 65), style=wx.TE_MULTILINE)
-        self.cbbImport2 = wx.ComboBox(self.p2, -1, pos=(346, 292), size=(85, -1), choices=["单语", "双语"], style=wx.CB_READONLY, value="单语")
-        self.btnSaveToLocal = wx.Button(self.p2, -1, "保存至本地", pos=(345, 326), size=(87, 32))
-        self.cbbImport2.Bind(wx.EVT_COMBOBOX, self.SynImpLycMod)
-        self.btnSaveToLocal.Bind(wx.EVT_BUTTON,self.SaveToLocal)
-        #
+        # MAC系统界面调整
         if self.platform=="mac":
             setFont(self,13)
             for obj in self.p1.Children:
@@ -265,7 +256,7 @@ class LyricDanmu(wx.Frame):
             for i in range(11):
                 setFont(self.lblTimelines[i],12)
                 setFont(self.lblLyrics[i],13)
-        #
+        # 焦点与显示
         self.tcSearch.SetFocus() if self.init_show_lyric else self.tcComment.SetFocus()
         self.p0.Show(True)
         self.p1.Show(True)
@@ -293,6 +284,22 @@ class LyricDanmu(wx.Frame):
         self.shieldConfigFrame.Show(True)
         self.shieldConfigFrame.Raise()
 
+    def ShowGeneralConfigFrame(self,event):
+        if self.generalConfigFrame:
+            self.generalConfigFrame.Raise()
+        else:
+            self.generalConfigFrame=GeneralConfigFrame(self)
+
+    def ShowRecordFrame(self,event):
+        self.recordFrame.Show()
+        self.recordFrame.Restore()
+        self.recordFrame.Raise()
+
+    def ShowColorFrame(self,event):
+        if self.colorFrame is not None:
+            self.colorFrame.Destroy()
+        self.colorFrame=ColorFrame(self)
+
     def ShowColaborPart(self,event):
         self.p4.Show(True)
         self.btnColaborCfg.Show(False)
@@ -311,7 +318,215 @@ class LyricDanmu(wx.Frame):
         self.btnShieldCfg.Show(True)
         self.btnExtLrc.Show(True)
         self.btnTop.Show(True)
-    
+
+    def TogglePinUI(self, event):
+        self.show_pin = not self.show_pin
+        self.ToggleWindowStyle(wx.STAY_ON_TOP)
+        self.btnTop.SetLabel("取消置顶" if self.show_pin else "置顶窗口")
+
+    def ToggleLyricUI(self, event):
+        self.show_lyric = not self.show_lyric
+        self.btnExtLrc.SetLabel("收起歌词" if self.show_lyric else "歌词面板")
+        if self.show_lyric: self.tcSearch.SetFocus()
+        else: self.tcComment.SetFocus()
+        self.ResizeUI()
+
+    def ToggleConfigUI(self, event):
+        self.tcComment.SetFocus()
+        self.show_config = not self.show_config
+        self.btnExt.SetLabel("▲" if self.show_config else "▼")
+        self.ResizeUI()
+
+    def ToggleImportUI(self, event):
+        self.show_import=not self.show_import
+        self.ResizeUI()
+
+    def ResizeUI(self):
+        w,h=self.p0.GetSize()
+        h1=self.p1.GetSize()[1]
+        h3=self.p3.GetSize()[1]
+        if self.show_lyric:
+            h+=h1
+            self.p0.SetPosition((0,h1))
+            if self.show_import:
+                self.p2.Show(True)
+                self.p1.Show(False)
+            else:
+                self.p1.Show(True)
+                self.p2.Show(False)
+        else:
+            self.p0.SetPosition((0, 0))
+            self.p1.Show(False)
+            self.p2.Show(False)
+        if self.show_config:
+            self.p3.SetPosition((0, h))
+            self.p3.Show(True)
+            h+=h3
+        else:
+            self.p3.Show(False)
+        self.SetSize((w, h+25))# 考虑标题栏高度
+
+
+    def ThreadOfGetDanmuConfig(self):
+        UIChange(self.btnRoom1,enabled=False)
+        UIChange(self.btnRoom2,enabled=False)
+        UIChange(self.btnDmCfg1,enabled=False)
+        UIChange(self.btnDmCfg2,enabled=False)
+        if self.GetCurrentDanmuConfig():
+            self.GetUsableDanmuConfig()
+            UIChange(self.btnDmCfg1,color=getRgbColor(self.cur_color),enabled=True)
+            UIChange(self.btnDmCfg2,label=BILI_MODES[str(self.cur_mode)],enabled=True)
+        else:
+            self.roomid = None
+            self.room_name = None
+            self.GetRoomShields()
+            UIChange(self.btnRoom1,label="选择直播间")
+            UIChange(self.btnRoom2,label="选择直播间")
+        UIChange(self.btnRoom1,enabled=True)
+        UIChange(self.btnRoom2,enabled=True)
+
+    def ThreadOfSetDanmuConfig(self,color,mode):
+        try:
+            data=self.blApi.set_danmu_config(self.roomid,color,mode,self.cur_acc)
+            if data["code"]!=0:
+                return showInfoDialog("设置失败，请重试", "保存弹幕配置出错")
+            if color is not None:
+                self.cur_color=int(color,16)
+                UIChange(self.btnDmCfg1,color=getRgbColor(self.cur_color))
+            else:
+                self.cur_mode=mode
+                UIChange(self.btnDmCfg2,label=BILI_MODES[mode])
+        except requests.exceptions.ConnectionError:
+            return showInfoDialog("网络异常，请重试", "保存弹幕配置出错")
+        except requests.exceptions.ReadTimeout:
+            return showInfoDialog("获取超时，请重试", "保存弹幕配置出错")
+        except Exception:
+            return showInfoDialog("解析错误，请重试", "保存弹幕配置出错")
+        return True
+
+    def ThreadOfSend(self):
+        last_time = 0
+        while self.running:
+            try:
+                wx.MilliSleep(FETCH_INTERVAL_S)
+                if len(self.danmu_queue) == 0:
+                    continue
+                danmu = self.danmu_queue.pop(0)
+                interval_s = 0.001 * self.send_interval_ms + last_time - time.time()
+                if interval_s > 0:
+                    wx.MilliSleep(int(1000 * interval_s))
+                if self.enable_new_send_type: #新版机制
+                    task = [self.pool.submit(self.SendDanmu, danmu[0], danmu[1])]
+                    for i in as_completed(task):    pass
+                else: #旧版机制
+                    self.pool.submit(self.SendDanmu, danmu[0], danmu[1])
+                last_time = time.time()
+                UIChange(self.btnClearQueue,label="清空 [%d]" % len(self.danmu_queue))  #
+            except RuntimeError:    pass
+            except Exception as e:
+                return showInfoDialog("弹幕发送线程出错，请重启并将问题反馈给作者\n" + str(e), "发生错误")
+
+    def ThreadOfAutoSend(self):
+        self.cur_t=self.timelines[self.oid]
+        next_t=self.timelines[self.oid+1]
+        self.timeline_base=time.time()-self.cur_t
+        while self.auto_sending and next_t>=0:
+            if self.auto_pausing:
+                wx.MilliSleep(48)
+                continue
+            if self.cur_t>= next_t:
+                self.NextLyric(None)
+                if self.has_trans and self.lyc_mod == 2 and self.llist[self.lid-1][2]!=self.llist[self.lid][2]:
+                    self.SendLyric(3)
+                self.SendLyric(4)
+                next_t=self.timelines[self.oid+1]
+            UIChange(self.btnSend,label=getTimeLineStr(self.cur_t))
+            self.cur_t = time.time()-self.timeline_base
+            wx.MilliSleep(48)
+        self.OnStopBtn(None)
+
+    def ThreadOfUpdateGlobalShields(self):
+        if os.path.exists("tmp.tmp"):   return
+        with open("tmp.tmp","w",encoding="utf-8") as f:  f.write("")
+        UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="获取更新中…")
+        try:
+            code=""
+            data=self.jdApi.get_latest_bili_live_shield_words(timeout=(5,10))
+            so=re.search(r"# <DATA BEGIN>([\s\S]*?)# <DATA END>",data)
+            code=so.group(1).replace("and not measure(x.group(3),4)","") #简化某条特殊规则
+        except:
+            UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="无法获取更新")
+        try:
+            if code=="":    return
+            # 写入内存
+            scope = {"words":[],"rules":{}}
+            code1="from BiliLiveShieldWords import get_len,measure,fill,r_pos\n"+code
+            exec(code1,scope)
+            for word in scope["words"]:
+                generate_rule(word,scope["rules"])
+            self.global_shields=scope["rules"]
+            # 写入文件
+            with open("shields_global.dat", "wb") as f:
+                f.write(bytes(code,encoding="utf-8"))
+                f.write(bytes("modified_time=%d"%int(time.time()),encoding="utf-8"))
+                f.write(bytes("  # 最近一次更新时间：%s"%getTime(fmt="%m-%d %H:%M"),encoding="utf-8"))
+            UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="词库更新完毕")
+        except:
+            UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="云端数据有误")
+        finally:
+            try:    os.remove("tmp.tmp")
+            except: pass
+
+    def ThreadOfShowMsgDlg(self,content,title):
+        if self.show_msg_dlg:   return
+        self.show_msg_dlg=True
+        showInfoDialog(content,title)
+        wx.MilliSleep(3000)
+        self.show_msg_dlg=False
+
+
+    def OnAutoSendLrcBtn(self,event):
+        if self.init_lock or not self.has_timeline:
+            return
+        if self.auto_sending:
+            if self.auto_pausing:
+                resume_t=time.time()
+                self.timeline_base+=resume_t-self.pause_t
+                self.auto_pausing=False
+                self.btnAutoSend.SetLabel("暂停 ⏸")
+            else:
+                self.pause_t=time.time()
+                self.auto_pausing=True
+                self.btnAutoSend.SetLabel("继续 ▶")
+            return
+        if self.roomid is None:
+            return showInfoDialog("未指定直播间", "提示")
+        if not self.NextLyric(None):
+            return
+        if self.has_trans and self.lyc_mod == 2 and self.llist[self.lid-1][2]!=self.llist[self.lid][2]:
+            self.SendLyric(3)
+        self.SendLyric(4)
+        self.sldLrc.Disable()
+        self.btnPrev.SetLabel("推迟半秒△")
+        self.btnNext.SetLabel("提早半秒▽")
+        self.btnStopAuto.SetLabel("停止 ■")
+        self.btnAutoSend.SetLabel("暂停 ⏸")
+        self.auto_sending=True
+        self.auto_pausing=False
+        self.pool.submit(self.ThreadOfAutoSend)
+
+    def OnStopBtn(self,event):
+        if self.init_lock:
+            return
+        self.auto_sending=False
+        self.auto_pausing=False
+        self.btnPrev.SetLabel("▲")
+        self.btnNext.SetLabel("▼")
+        self.btnStopAuto.SetLabel("停止 □")
+        self.btnSend.SetLabel("手动发送")
+        self.btnAutoSend.SetLabel("自动 ▶")
+        self.sldLrc.Enable()
+ 
     def OnClbPreChange(self,event):
         tcPre=event.GetEventObject()
         index=int(tcPre.GetName())
@@ -330,11 +545,265 @@ class LyricDanmu(wx.Frame):
             self.cbbComPre.SetSelection(self.pre_idx)
         self.CountText(None)
 
-    def ShowGeneralConfigFrame(self,event):
-        if self.generalConfigFrame:
-            self.generalConfigFrame.Raise()
+    def SynImpLycMod(self,event):
+        mode=event.GetEventObject().GetSelection()
+        self.cbbImport.SetSelection(mode)
+        self.cbbImport2.SetSelection(mode)
+
+    def OnLyricLineChange(self, event):
+        self.oid = self.sldLrc.GetValue()
+        self.lblCurLine.SetLabel(str(self.oid))
+        self.lid = self.olist[self.oid]
+        if self.has_trans and self.lyc_mod > 0:
+            self.lid += 1
+        wx.CallAfter(pub.sendMessage,"lyric")
+
+    def ImportLyric(self, event):
+        lyric = self.tcImport.GetValue().strip()
+        if lyric == "":
+            return showInfoDialog("歌词不能为空", "歌词导入失败")
+        if lyric.count("\n") <= 4 or len(lyric) <= 50:
+            return showInfoDialog("歌词内容过短", "歌词导入失败")
+        has_trans = self.cbbImport.GetSelection() == 1
+        ldata={
+            "src": "local",
+            "has_trans": has_trans,
+            "lyric": lyric,
+            "name": "",
+        }
+        self.RecvLyric(ldata)
+
+    def OnKeyDown(self, event):
+        keycode = event.GetKeyCode()
+        if keycode == 315: # ↑键
+            if len(self.recent_history)==0: return
+            if self.history_state:
+                if self.history_idx+1<len(self.tmp_history):
+                    self.history_idx+=1
+                self.tcComment.SetValue(self.tmp_history[self.history_idx])
+                self.tcComment.SetInsertionPointEnd()
+            else:
+                self.tmp_history=self.recent_history[:]
+                self.history_idx=0
+                self.tcComment.SetValue(self.tmp_history[0])
+                self.tcComment.SetInsertionPointEnd()
+                self.history_state=True
+            return
+        if keycode == 317: # ↓键
+            if not self.history_state:  return
+            self.history_idx-=1
+            if self.history_idx>=0:
+                self.tcComment.SetValue(self.tmp_history[self.history_idx])
+                self.tcComment.SetInsertionPointEnd()
+            else:
+                self.tcComment.Clear()
+                self.history_state=False
+            return
+        if keycode == 9:  # Tab键
+            if self.colabor_mode == 0 or not self.ckbTabMod.GetValue():
+                return
+            if event.GetModifiers()==wx.MOD_SHIFT:
+                self.pre_idx = self.pre_idx - 1 if self.pre_idx > 0 else self.colabor_mode
+            else:
+                self.pre_idx = self.pre_idx + 1 if self.pre_idx < self.colabor_mode else 0
+            self.cbbComPre.SetSelection(self.pre_idx)
+            self.CountText(None)
+            return
+        if event.GetModifiers()==wx.MOD_ALT:
+            if 49 <= keycode and keycode <= 53:  # 12345
+                self.pre_idx = keycode - 49
+                self.cbbComPre.SetSelection(self.pre_idx)
+            return
+        event.Skip()
+
+    def CountText(self, event):
+        comment = self.cbbComPre.GetValue() + self.tcComment.GetValue()
+        label = "%02d" % len(comment) + (" ↩" if len(comment) <= 50 else " ×")
+        self.btnComment.SetLabel(label)
+
+    def SetLycMod(self, event):
+        self.lyc_mod = self.cbbLycMod.GetSelection()
+        if not self.init_lock:
+            self.lid = self.olist[self.oid+self.lyric_offset]+int(self.has_trans and self.lyc_mod>0)
+        self.RefreshLyric()
+
+    def CopyLyricLine(self, event):
+        if self.init_lock:  return
+        pyperclip.copy(self.lblLyrics[4].GetLabel())
+
+    def CopyLyricAll(self, event):
+        if self.init_lock:  return
+        if self.has_timeline:
+            dlg = wx.MessageDialog(None, "是否复制歌词时间轴？", "提示", wx.YES_NO|wx.NO_DEFAULT)
+            pyperclip.copy(self.lyric_raw_tl if dlg.ShowModal()==wx.ID_YES else self.lyric_raw)
+            dlg.Destroy()
         else:
-            self.generalConfigFrame=GeneralConfigFrame(self)
+            pyperclip.copy(self.lyric_raw)
+
+    def ClearQueue(self,event):
+        self.danmu_queue.clear()
+        UIChange(self.btnClearQueue,label="清空 [0]")
+
+    def PrevLyric(self, event):
+        if self.init_lock:  return
+        # 自动模式下，延缓进度
+        if self.auto_sending and event is not None:
+            self.timeline_base+=0.5
+            self.cur_t-=0.5
+            UIChange(self.btnSend,label=getTimeLineStr(self.cur_t))
+            return
+        # 手动模式下，上一句
+        if self.oid <= 0:
+            return False
+        self.sldLrc.SetValue(self.oid - 1)
+        self.OnLyricLineChange(None)
+        return True
+
+    def NextLyric(self, event):
+        if self.init_lock:  return
+        # 自动模式下，提早进度
+        if self.auto_sending and event is not None:
+            self.timeline_base-=0.5
+            self.cur_t+=0.5
+            UIChange(self.btnSend,label=getTimeLineStr(self.cur_t))
+            return
+        # 手动模式下，下一句
+        if self.oid + 2 >= self.omax:
+            return False
+        self.sldLrc.SetValue(self.oid + 1)
+        self.OnLyricLineChange(None)
+        return True
+
+    def OnSendLrcBtn(self, event):
+        if self.init_lock or self.auto_sending: return
+        if self.roomid is None:
+            return showInfoDialog("未指定直播间", "提示")
+        if not self.NextLyric(None):    return
+        if self.has_trans and self.lyc_mod == 2 and self.llist[self.lid-1][2]!=self.llist[self.lid][2]:
+            self.SendLyric(3)
+        self.SendLyric(4)
+
+    def OnClose(self, event):
+        self.running = False
+        self.SaveConfig()
+        self.SaveData()
+        if os.path.exists("tmp.tmp"):
+            try:    os.remove("tmp.tmp")
+            except: pass
+        self.Destroy()
+
+    def ChangeDanmuPosition(self,event):
+        mode_num=len(self.modes)
+        if mode_num==1: return
+        trans_dict={'1':'4','4':'1'} if mode_num==2 else {'1':'4','4':'5','5':'1'}
+        self.pool.submit(self.ThreadOfSetDanmuConfig,None,trans_dict[str(self.cur_mode)])
+
+    def OnMove(self,event):
+        if self.colorFrame is not None:
+            self.colorFrame.Show(False)
+
+    def OnFocus(self,event):
+        panel=event.GetEventObject().GetParent()
+        if self.colorFrame is not None and panel!=self.colorFrame.panel:
+            self.colorFrame.Show(False)
+    
+    def SetColaborMode(self,event):
+        self.colabor_mode=self.cbbClbMod.GetSelection()
+
+    def SearchLyric(self, event):
+        src=event.GetEventObject().GetName()
+        words = self.tcSearch.GetValue().strip().replace("\\","")
+        if words in ["","*"]:   return
+        if self.songSearchFrame:
+            self.songSearchFrame.Destroy()
+        merge_mark_ids={}
+        for k,v in self.wy_marks.items():
+            merge_mark_ids["W"+k]=v
+        for k,v in self.qq_marks.items():
+            merge_mark_ids["Q"+k]=v
+        if len(words)==1:
+            mark_ids = self.SearchByOneCharTag(words, merge_mark_ids)
+            local_names = self.SearchByOneCharTag(words, self.locals)
+        else:
+            mark_ids = self.SearchByTag(words, merge_mark_ids)
+            local_names = self.SearchByTag(words, self.locals)
+        self.songSearchFrame = SongSearchFrame(self, src, words, mark_ids, local_names)
+
+    def SendComment(self, event):
+        pre = self.cbbComPre.GetValue()
+        msg = self.tcComment.GetValue().strip()
+        self.tcComment.SetFocus()
+        if msg == "":
+            return
+        if self.roomid is None:
+            return showInfoDialog("未指定直播间", "提示")
+        comment = pre + msg
+        if len(comment) > 50:
+            return showInfoDialog("弹幕内容过长", "弹幕发送失败")
+        comment = self.DealWithCustomShields(comment)
+        comment = deal(comment,self.global_shields)
+        suf = "】" if comment.count("【") > comment.count("】") else ""
+        self.SendSplitDanmu(comment,pre,suf)
+        self.tcComment.Clear()
+        self.AddHistory(msg)
+        self.history_state=False
+
+    def SaveToLocal(self,event):
+        lyric=self.tcImport.GetValue().strip()
+        if lyric == "":
+            return showInfoDialog("歌词不能为空", "歌词保存失败")
+        if lyric.count("\n") <= 4 or len(lyric) <= 50:
+            return showInfoDialog("歌词内容过短", "歌词保存失败")
+        name=self.tcSongName.GetValue().strip()
+        if name=="":
+            return showInfoDialog("歌名不能为空", "歌词保存失败")
+        artists=self.tcArtists.GetValue().strip()
+        tags=self.tcTags.GetValue().strip()
+        has_trans=self.cbbImport2.GetSelection()==1
+        self.CreateLyricFile(name,artists,tags,lyric,has_trans)
+
+
+    def DefaultConfig(self):
+        self.rooms={}
+        self.wy_marks = {}
+        self.qq_marks = {}
+        self.locals = {}
+        self.custom_shields = {}
+        self.global_shields = {}
+        self.room_shields = {}
+        self.custom_texts = []
+        self.max_len = 30
+        self.prefix = "【♪"
+        self.suffix = "】"
+        self.prefixs = ["【♪","【♬","【❀","【❄️","【★"]
+        self.suffixs = ["","】"]
+        self.enable_new_send_type=True
+        self.send_interval_ms = 750
+        self.timeout_s = 5
+        self.default_src = "wy"
+        self.search_num = 18
+        self.page_limit = 6
+        self.lyric_offset = 0
+        self.enable_lyric_merge = True
+        self.lyric_merge_threshold_s = 5.0
+        self.add_song_name = False
+        self.init_show_lyric = True
+        self.no_proxy = True
+        self.account_names=["",""]
+        self.cookies=["",""]
+
+    def SetRoomid(self,roomid,name):
+        if name != "":
+            self.room_name=name
+            self.btnRoom1.SetLabel(name)
+            self.btnRoom2.SetLabel(name)
+        if roomid==self.roomid:
+            return
+        if self.auto_sending:
+            self.OnStopBtn(None)
+        self.roomid=roomid
+        self.GetRoomShields(roomid)
+        self.pool.submit(self.ThreadOfGetDanmuConfig)
 
     def GetCurrentDanmuConfig(self):
         try:
@@ -373,56 +842,6 @@ class LyricDanmu(wx.Frame):
             return showInfoDialog("获取超时，请重试", "获取弹幕配置出错")
         except Exception:
             return showInfoDialog("解析错误，请重试", "获取弹幕配置出错")
-        return True
-
-    def SetRoomid(self,roomid,name):
-        if name != "":
-            self.room_name=name
-            self.btnRoom1.SetLabel(name)
-            self.btnRoom2.SetLabel(name)
-        if roomid==self.roomid:
-            return
-        if self.auto_sending:
-            self.OnStopBtn(None)
-        self.roomid=roomid
-        self.GetRoomShields(roomid)
-        self.pool.submit(self.ThreadOfGetDanmuConfig)
-
-    def ThreadOfGetDanmuConfig(self):
-        UIChange(self.btnRoom1,enabled=False)
-        UIChange(self.btnRoom2,enabled=False)
-        UIChange(self.btnDmCfg1,enabled=False)
-        UIChange(self.btnDmCfg2,enabled=False)
-        if self.GetCurrentDanmuConfig():
-            self.GetUsableDanmuConfig()
-            UIChange(self.btnDmCfg1,color=getRgbColor(self.cur_color),enabled=True)
-            UIChange(self.btnDmCfg2,label=BILI_MODES[str(self.cur_mode)],enabled=True)
-        else:
-            self.roomid = None
-            self.room_name = None
-            self.GetRoomShields()
-            UIChange(self.btnRoom1,label="选择直播间")
-            UIChange(self.btnRoom2,label="选择直播间")
-        UIChange(self.btnRoom1,enabled=True)
-        UIChange(self.btnRoom2,enabled=True)
-    
-    def ThreadOfSetDanmuConfig(self,color,mode):
-        try:
-            data=self.blApi.set_danmu_config(self.roomid,color,mode,self.cur_acc)
-            if data["code"]!=0:
-                return showInfoDialog("设置失败，请重试", "保存弹幕配置出错")
-            if color is not None:
-                self.cur_color=int(color,16)
-                UIChange(self.btnDmCfg1,color=getRgbColor(self.cur_color))
-            else:
-                self.cur_mode=mode
-                UIChange(self.btnDmCfg2,label=BILI_MODES[mode])
-        except requests.exceptions.ConnectionError:
-            return showInfoDialog("网络异常，请重试", "保存弹幕配置出错")
-        except requests.exceptions.ReadTimeout:
-            return showInfoDialog("获取超时，请重试", "保存弹幕配置出错")
-        except Exception:
-            return showInfoDialog("解析错误，请重试", "保存弹幕配置出错")
         return True
 
     def SendDanmu(self, roomid, msg, try_times=2):
@@ -479,66 +898,166 @@ class LyricDanmu(wx.Frame):
         except Exception as e:
             return self.CallRecord("▲发送失败⋙ %s\n(具体信息：%s)"%(msg,str(e)))
 
-    def OnAutoSendLrcBtn(self,event):
-        if self.init_lock or not self.has_timeline:
-            return
-        if self.auto_sending:
-            if self.auto_pausing:
-                resume_t=time.time()
-                self.timeline_base+=resume_t-self.pause_t
-                self.auto_pausing=False
-                self.btnAutoSend.SetLabel("暂停 ⏸")
+    def SendLyric(self, line):
+        pre = self.cbbLycPre.GetValue()
+        suf = self.cbbLycSuf.GetValue()
+        msg = self.llist[self.lid+line-4][2]
+        message = pre + msg
+        if self.shield_changed:
+            message = self.DealWithCustomShields(message)
+            message = deal(message,self.global_shields)
+        self.SendSplitDanmu(message,pre,suf)
+        self.AddHistory(msg)
+
+    def SendSplitDanmu(self, msg, pre, suf):
+        if len(msg) > self.max_len:
+            for k, v in COMPRESS_RULES.items():
+                msg = re.sub(k, v, msg)
+        if len(msg) <= self.max_len:
+            if len(msg+suf) <= self.max_len:
+                self.danmu_queue.append([self.roomid,msg+suf])
             else:
-                self.pause_t=time.time()
-                self.auto_pausing=True
-                self.btnAutoSend.SetLabel("继续 ▶")
+                self.danmu_queue.append([self.roomid,msg])
+            UIChange(self.btnClearQueue,label="清空 [%d]"%len(self.danmu_queue))#
             return
-        if self.roomid is None:
-            return showInfoDialog("未指定直播间", "提示")
-        if not self.NextLyric(None):
-            return
-        if self.has_trans and self.lyc_mod == 2 and self.llist[self.lid-1][2]!=self.llist[self.lid][2]:
-            self.SendLyric(3)
-        self.SendLyric(4)
-        self.sldLrc.Disable()
-        self.btnPrev.SetLabel("推迟半秒△")
-        self.btnNext.SetLabel("提早半秒▽")
-        self.btnStopAuto.SetLabel("停止 ■")
-        self.btnAutoSend.SetLabel("暂停 ⏸")
-        self.auto_sending=True
-        self.auto_pausing=False
-        self.pool.submit(self.ThreadOfAutoSend)
+        spaceIdx = []
+        cutIdx = self.max_len
+        for i in range(len(msg)):
+            if msg[i] in " 　/":
+                spaceIdx.append(i)
+                spaceIdx.append(i + 1)
+            elif msg[i] in "（“(「":
+                spaceIdx.append(i)
+            elif msg[i] in "，：！？）”…,:!?)」~":
+                spaceIdx.append(i + 1)
+        if len(spaceIdx) > 0:
+            for idx in spaceIdx:
+                if idx <= self.max_len: cutIdx = idx
+        if 1 + len(msg[cutIdx:]) + len(pre) > self.max_len:
+            cutIdx = self.max_len
+        self.danmu_queue.append([self.roomid,msg[:cutIdx]])
+        UIChange(self.btnClearQueue,label="清空 [%d]"%len(self.danmu_queue))#
+        if msg[cutIdx:] in [")","）","」","】","\"","”"]:  return
+        self.SendSplitDanmu(pre + "…" + msg[cutIdx:],pre,suf)
 
-    def OnStopBtn(self,event):
-        if self.init_lock:
-            return
-        self.auto_sending=False
-        self.auto_pausing=False
-        self.btnPrev.SetLabel("▲")
-        self.btnNext.SetLabel("▼")
-        self.btnStopAuto.SetLabel("停止 □")
-        self.btnSend.SetLabel("手动发送")
-        self.btnAutoSend.SetLabel("自动 ▶")
-        self.sldLrc.Enable()
 
-    def ThreadOfAutoSend(self):
-        self.cur_t=self.timelines[self.oid]
-        next_t=self.timelines[self.oid+1]
-        self.timeline_base=time.time()-self.cur_t
-        while self.auto_sending and next_t>=0:
-            if self.auto_pausing:
-                wx.MilliSleep(48)
-                continue
-            if self.cur_t>= next_t:
-                self.NextLyric(None)
-                if self.has_trans and self.lyc_mod == 2 and self.llist[self.lid-1][2]!=self.llist[self.lid][2]:
-                    self.SendLyric(3)
-                self.SendLyric(4)
-                next_t=self.timelines[self.oid+1]
-            UIChange(self.btnSend,label=getTimeLineStr(self.cur_t))
-            self.cur_t = time.time()-self.timeline_base
-            wx.MilliSleep(48)
-        self.OnStopBtn(None)
+    def Mark(self,src,song_id,tags):
+        if src=="wy": self.wy_marks[song_id]=tags
+        else: self.qq_marks[song_id]=tags
+
+    def Unmark(self,src,song_id):
+        if src=="wy": self.wy_marks.pop(song_id,None)
+        else: self.qq_marks.pop(song_id,None)
+
+    def SearchByOneCharTag(self, char, collection):
+        res = []
+        for song_id in collection:
+            tags = collection[song_id].split(";")
+            for tag in tags:
+                if tag.lower().strip()==char:
+                    res.append(song_id)
+                    break
+        return res
+
+    def SearchByTag(self, words, collection):
+        suggestions = []
+        pattern=getFuzzyMatchingPattern(words)
+        regex = re.compile(pattern)
+        for song_id in collection:
+            sug = []
+            tags = collection[song_id].split(";")
+            for tag in tags:
+                match = regex.search(tag.lstrip())
+                if match:
+                    sug.append((len(match.group()), match.start()))
+            if len(sug) > 0:
+                sug = sorted(sug)
+                suggestions.append((sug[0][0], sug[0][1], song_id))
+        return [x for _, _, x in sorted(suggestions)]
+
+    def GetRoomShields(self,roomid=None):
+        room_shields={}
+        if roomid is None:  roomid="none"
+        for k,v in self.custom_shields.items():
+            if v[2]!="" and roomid not in re.split("[,;，；]",v[2]): continue
+            room_shields[k]=v[:2]
+        self.room_shields=room_shields
+
+    def DealWithCustomShields(self,msg):
+        for k,v in self.room_shields.items():
+            if v[0]==0 and re.search(r"\\[1-9]",k) is not None:
+                msg=self.MultiDotBlock(k,msg)
+            else:
+                try:
+                    msg=re.sub("(?i)"+" ?".join(k),v[1].replace("`","\u0592"),msg)
+                except Exception as e:
+                    print("[DealWithCustomShields Error]",k,e)
+                    pass
+        return msg
+
+    def MultiDotBlock(self,pattern,msg):
+        origin_msg=msg
+        try:
+            pattern=re.sub(r"\\(?![1-9])","",pattern)
+            groups=re.split(r"\\[1-9]",pattern)
+            fills=[int(i) for i in re.findall(r"\\([1-9])",pattern)]
+            n=len(fills)
+            pat="(?i)" + "".join(["("+groups[i]+".*?)" for i in range(n)]) + "(%s)"%groups[n]
+            repl="lambda x: (" + "+".join(["fill(x.group(1),%d)"%(len(groups[0])+int(fills[0]))] +
+                ["x.group(%d)"%(i+1) for i in range(1,n+1)]) + ") if " + \
+                " and ".join(["measure(x.group(%d),%d)"%(i+1,len(groups[i])+int(fills[i])) for i in range(n)]) + \
+                " else x.group()"
+            return substitute(pat,eval(repl),msg)
+        except Exception as e:
+            print("[regex fail]",e)
+            return origin_msg
+
+    def AddHistory(self,message):
+        self.recent_history.insert(0,message)
+        if len(self.recent_history)>10:
+            self.recent_history.pop()
+
+    def UpdateRecord(self,msg):
+        tcRecord=self.recordFrame.tcRecord
+        from_,to_=tcRecord.GetSelection()
+        tcRecord.AppendText(msg+"\n")
+        if self.recordFrame.IsActive and from_!=to_:
+            tcRecord.SetSelection(from_,to_)
+
+    def ShieldLog(self,string):
+        try:
+            path="logs/SHIELDED_%s.log"%getTime(fmt="%y_%m")
+            with open(path,"a",encoding="utf-8") as f:
+                f.write("%s｜%s\n"%(getTime(fmt="%m-%d %H:%M"),string))
+        except Exception as e:
+            print("[Logger: Log Error]",e)
+    
+    def LoginCheck(self,res):
+        if res["code"]==-101 or "登录" in res["message"]:
+            self.OnStopBtn(None)
+            return showInfoDialog("账号配置不可用，请修改Cookie配置\n"+
+                "方法一：点击“应用设置”按钮，右键“账号切换”处的按钮进行修改\n"+
+                "方法二：关闭工具后，打开工具目录下的config.txt，修改cookie项", "错误")
+        return True
+     
+    def CallRecord(self,msg):
+        wx.CallAfter(pub.sendMessage,"record",msg=msg)
+        return False
+    
+    def SaveAccountInfo(self,acc_no,acc_name,cookie):
+        self.account_names[acc_no]=acc_name
+        self.cookies[acc_no]=self.blApi.update_cookie(cookie,acc_no)
+        if acc_no==self.cur_acc:
+            self.SetTitle("LyricDanmu %s - %s"%(LD_VERSION,acc_name))
+    
+    def SwitchAccount(self,acc_no):
+        acc_name=self.account_names[acc_no]
+        if acc_no==self.cur_acc:    return
+        self.cur_acc=acc_no
+        self.SetTitle("LyricDanmu %s - %s"%(LD_VERSION,acc_name))
+        if self.roomid is not None:
+            self.pool.submit(self.ThreadOfGetDanmuConfig)
+
 
     def GetLyricData(self,lrcO):
         listO = []
@@ -717,12 +1236,6 @@ class LyricDanmu(wx.Frame):
             self.btnAutoSend.Disable()
             self.btnStopAuto.Disable()
 
-    def SetLycMod(self, event):
-        self.lyc_mod = self.cbbLycMod.GetSelection()
-        if not self.init_lock:
-            self.lid = self.olist[self.oid+self.lyric_offset]+int(self.has_trans and self.lyc_mod>0)
-        self.RefreshLyric()
-
     def RefreshLyric(self):
         if self.init_lock:  return
         offset=int(self.has_trans and self.lyc_mod>0) - 4 
@@ -735,198 +1248,6 @@ class LyricDanmu(wx.Frame):
                 self.lblTimelines[i].SetLabel("")
                 self.lblLyrics[i].SetLabel("")
 
-    def CopyLyricLine(self, event):
-        if self.init_lock:  return
-        pyperclip.copy(self.lblLyrics[4].GetLabel())
-
-    def CopyLyricAll(self, event):
-        if self.init_lock:  return
-        if self.has_timeline:
-            dlg = wx.MessageDialog(None, "是否复制歌词时间轴？", "提示", wx.YES_NO|wx.NO_DEFAULT)
-            pyperclip.copy(self.lyric_raw_tl if dlg.ShowModal()==wx.ID_YES else self.lyric_raw)
-            dlg.Destroy()
-        else:
-            pyperclip.copy(self.lyric_raw)
-
-    def ClearQueue(self,event):
-        self.danmu_queue.clear()
-        UIChange(self.btnClearQueue,label="清空 [0]")
-
-    def PrevLyric(self, event):
-        if self.init_lock:  return
-        # 自动模式下，延缓进度
-        if self.auto_sending and event is not None:
-            self.timeline_base+=0.5
-            self.cur_t-=0.5
-            UIChange(self.btnSend,label=getTimeLineStr(self.cur_t))
-            return
-        # 手动模式下，上一句
-        if self.oid <= 0:
-            return False
-        self.sldLrc.SetValue(self.oid - 1)
-        self.OnLyricLineChange(None)
-        return True
-
-    def NextLyric(self, event):
-        if self.init_lock:  return
-        # 自动模式下，提早进度
-        if self.auto_sending and event is not None:
-            self.timeline_base-=0.5
-            self.cur_t+=0.5
-            UIChange(self.btnSend,label=getTimeLineStr(self.cur_t))
-            return
-        # 手动模式下，下一句
-        if self.oid + 2 >= self.omax:
-            return False
-        self.sldLrc.SetValue(self.oid + 1)
-        self.OnLyricLineChange(None)
-        return True
-
-    def OnLyricLineChange(self, event):
-        self.oid = self.sldLrc.GetValue()
-        self.lblCurLine.SetLabel(str(self.oid))
-        self.lid = self.olist[self.oid]
-        if self.has_trans and self.lyc_mod > 0:
-            self.lid += 1
-        wx.CallAfter(pub.sendMessage,"lyric")
-
-    def OnSendLrcBtn(self, event):
-        if self.init_lock or self.auto_sending: return
-        if self.roomid is None:
-            return showInfoDialog("未指定直播间", "提示")
-        if not self.NextLyric(None):    return
-        if self.has_trans and self.lyc_mod == 2 and self.llist[self.lid-1][2]!=self.llist[self.lid][2]:
-            self.SendLyric(3)
-        self.SendLyric(4)
-
-    def SendLyric(self, line):
-        pre = self.cbbLycPre.GetValue()
-        suf = self.cbbLycSuf.GetValue()
-        msg = self.llist[self.lid+line-4][2]
-        message = pre + msg
-        if self.shield_changed:
-            message = self.DealWithCustomShields(message)
-            message = deal(message,self.global_shields)
-        self.SendSplitDanmu(message,pre,suf)
-        self.AddHistory(msg)
-
-    def SendSplitDanmu(self, msg, pre, suf):
-        if len(msg) > self.max_len:
-            for k, v in COMPRESS_RULES.items():
-                msg = re.sub(k, v, msg)
-        if len(msg) <= self.max_len:
-            if len(msg+suf) <= self.max_len:
-                self.danmu_queue.append([self.roomid,msg+suf])
-            else:
-                self.danmu_queue.append([self.roomid,msg])
-            UIChange(self.btnClearQueue,label="清空 [%d]"%len(self.danmu_queue))#
-            return
-        spaceIdx = []
-        cutIdx = self.max_len
-        for i in range(len(msg)):
-            if msg[i] in " 　/":
-                spaceIdx.append(i)
-                spaceIdx.append(i + 1)
-            elif msg[i] in "（“(「":
-                spaceIdx.append(i)
-            elif msg[i] in "，：！？）”…,:!?)」~":
-                spaceIdx.append(i + 1)
-        if len(spaceIdx) > 0:
-            for idx in spaceIdx:
-                if idx <= self.max_len: cutIdx = idx
-        if 1 + len(msg[cutIdx:]) + len(pre) > self.max_len:
-            cutIdx = self.max_len
-        self.danmu_queue.append([self.roomid,msg[:cutIdx]])
-        UIChange(self.btnClearQueue,label="清空 [%d]"%len(self.danmu_queue))#
-        if msg[cutIdx:] in [")","）","」","】","\"","”"]:  return
-        self.SendSplitDanmu(pre + "…" + msg[cutIdx:],pre,suf)
-
-    def ImportLyric(self, event):
-        lyric = self.tcImport.GetValue().strip()
-        if lyric == "":
-            return showInfoDialog("歌词不能为空", "歌词导入失败")
-        if lyric.count("\n") <= 4 or len(lyric) <= 50:
-            return showInfoDialog("歌词内容过短", "歌词导入失败")
-        has_trans = self.cbbImport.GetSelection() == 1
-        ldata={
-            "src": "local",
-            "has_trans": has_trans,
-            "lyric": lyric,
-            "name": "",
-        }
-        self.RecvLyric(ldata)
-
-    def SearchLyric(self, event):
-        src=event.GetEventObject().GetName()
-        words = self.tcSearch.GetValue().strip().replace("\\","")
-        if words in ["","*"]:   return
-        if self.songSearchFrame:
-            self.songSearchFrame.Destroy()
-        merge_mark_ids={}
-        for k,v in self.wy_marks.items():
-            merge_mark_ids["W"+k]=v
-        for k,v in self.qq_marks.items():
-            merge_mark_ids["Q"+k]=v
-        if len(words)==1:
-            mark_ids = self.SearchByOneCharTag(words, merge_mark_ids)
-            local_names = self.SearchByOneCharTag(words, self.locals)
-        else:
-            mark_ids = self.SearchByTag(words, merge_mark_ids)
-            local_names = self.SearchByTag(words, self.locals)
-        self.songSearchFrame = SongSearchFrame(self, src, words, mark_ids, local_names)
-
-    def SendComment(self, event):
-        pre = self.cbbComPre.GetValue()
-        msg = self.tcComment.GetValue().strip()
-        self.tcComment.SetFocus()
-        if msg == "":
-            return
-        if self.roomid is None:
-            return showInfoDialog("未指定直播间", "提示")
-        comment = pre + msg
-        if len(comment) > 50:
-            return showInfoDialog("弹幕内容过长", "弹幕发送失败")
-        comment = self.DealWithCustomShields(comment)
-        comment = deal(comment,self.global_shields)
-        suf = "】" if comment.count("【") > comment.count("】") else ""
-        self.SendSplitDanmu(comment,pre,suf)
-        self.tcComment.Clear()
-        self.AddHistory(msg)
-        self.history_state=False
-
-    def SynImpLycMod(self,event):
-        mode=event.GetEventObject().GetSelection()
-        self.cbbImport.SetSelection(mode)
-        self.cbbImport2.SetSelection(mode)
-
-    def DefaultConfig(self):
-        self.rooms={}
-        self.wy_marks = {}
-        self.qq_marks = {}
-        self.locals = {}
-        self.custom_shields = {}
-        self.global_shields = {}
-        self.room_shields = {}
-        self.custom_texts = []
-        self.max_len = 30
-        self.prefix = "【♪"
-        self.suffix = "】"
-        self.prefixs = ["【♪","【♬","【❀","【❄️","【★"]
-        self.suffixs = ["","】"]
-        self.enable_new_send_type=True
-        self.send_interval_ms = 750
-        self.timeout_s = 5
-        self.default_src = "wy"
-        self.search_num = 18
-        self.page_limit = 6
-        self.lyric_offset = 0
-        self.enable_lyric_merge = True
-        self.lyric_merge_threshold_s = 5.0
-        self.add_song_name = False
-        self.init_show_lyric = True
-        self.no_proxy = True
-        self.account_names=["",""]
-        self.cookies=["",""]
 
     def CheckFile(self):
         if not os.path.exists("config.txt"):
@@ -1126,153 +1447,6 @@ class LyricDanmu(wx.Frame):
             except Exception as e:
                 print("ReadLocalSongs(2):",filepath,type(e),str(e))
 
-    def TogglePinUI(self, event):
-        self.show_pin = not self.show_pin
-        self.ToggleWindowStyle(wx.STAY_ON_TOP)
-        self.btnTop.SetLabel("取消置顶" if self.show_pin else "置顶窗口")
-
-    def ToggleLyricUI(self, event):
-        self.show_lyric = not self.show_lyric
-        self.btnExtLrc.SetLabel("收起歌词" if self.show_lyric else "歌词面板")
-        if self.show_lyric:
-            self.tcSearch.SetFocus()
-        else:
-            self.tcComment.SetFocus()
-        self.ResizeUI()
-
-    def ToggleConfigUI(self, event):
-        self.tcComment.SetFocus()
-        self.show_config = not self.show_config
-        self.btnExt.SetLabel("▲" if self.show_config else "▼")
-        self.ResizeUI()
-
-    def ToggleImportUI(self, event):
-        self.show_import=not self.show_import
-        self.ResizeUI()
-
-    def ResizeUI(self):
-        W,H=self.p0.GetSize()
-        h1=self.p1.GetSize()[1]
-        h3=self.p3.GetSize()[1]
-        if self.show_lyric:
-            H+=h1
-            self.p0.SetPosition((0,h1))
-            if self.show_import:
-                self.p2.Show(True)
-                self.p1.Show(False)
-            else:
-                self.p1.Show(True)
-                self.p2.Show(False)
-        else:
-            self.p0.SetPosition((0, 0))
-            self.p1.Show(False)
-            self.p2.Show(False)
-        if self.show_config:
-            self.p3.SetPosition((0, H))
-            self.p3.Show(True)
-            H+=h3
-        else:
-            self.p3.Show(False)
-        self.SetSize((W, H+25))# 考虑标题栏高度
-
-    def OnKeyDown(self, event):
-        keycode = event.GetKeyCode()
-        if keycode == 315: # ↑键
-            if len(self.recent_history)==0: return
-            if self.history_state:
-                if self.history_idx+1<len(self.tmp_history):
-                    self.history_idx+=1
-                self.tcComment.SetValue(self.tmp_history[self.history_idx])
-                self.tcComment.SetInsertionPointEnd()
-            else:
-                self.tmp_history=self.recent_history[:]
-                self.history_idx=0
-                self.tcComment.SetValue(self.tmp_history[0])
-                self.tcComment.SetInsertionPointEnd()
-                self.history_state=True
-            return
-        if keycode == 317: # ↓键
-            if not self.history_state:  return
-            self.history_idx-=1
-            if self.history_idx>=0:
-                self.tcComment.SetValue(self.tmp_history[self.history_idx])
-                self.tcComment.SetInsertionPointEnd()
-            else:
-                self.tcComment.Clear()
-                self.history_state=False
-            return
-        if keycode == 9:  # Tab键
-            if self.colabor_mode == 0 or not self.ckbTabMod.GetValue():
-                return
-            if event.GetModifiers()==wx.MOD_SHIFT:
-                self.pre_idx = self.pre_idx - 1 if self.pre_idx > 0 else self.colabor_mode
-            else:
-                self.pre_idx = self.pre_idx + 1 if self.pre_idx < self.colabor_mode else 0
-            self.cbbComPre.SetSelection(self.pre_idx)
-            self.CountText(None)
-            return
-        if event.GetModifiers()==wx.MOD_ALT:
-            if 49 <= keycode and keycode <= 53:  # 12345
-                self.pre_idx = keycode - 49
-                self.cbbComPre.SetSelection(self.pre_idx)
-            return
-        event.Skip()
-
-    def CountText(self, event):
-        comment = self.cbbComPre.GetValue() + self.tcComment.GetValue()
-        label = "%02d" % len(comment) + (" ↩" if len(comment) <= 50 else " ×")
-        self.btnComment.SetLabel(label)
-
-    def ThreadOfSend(self):
-        last_time = 0
-        while self.running:
-            try:
-                wx.MilliSleep(FETCH_INTERVAL_S)
-                if len(self.danmu_queue) == 0:
-                    continue
-                danmu = self.danmu_queue.pop(0)
-                interval_s = 0.001 * self.send_interval_ms + last_time - time.time()
-                if interval_s > 0:
-                    wx.MilliSleep(int(1000 * interval_s))
-                if self.enable_new_send_type: #新版机制
-                    task = [self.pool.submit(self.SendDanmu, danmu[0], danmu[1])]
-                    for i in as_completed(task):    pass
-                else: #旧版机制
-                    self.pool.submit(self.SendDanmu, danmu[0], danmu[1])
-                last_time = time.time()
-                UIChange(self.btnClearQueue,label="清空 [%d]" % len(self.danmu_queue))  #
-            except RuntimeError:    pass
-            except Exception as e:
-                return showInfoDialog("弹幕发送线程出错，请重启并将问题反馈给作者\n" + str(e), "发生错误")
-
-    def Mark(self,src,song_id,tags):
-        if src=="wy":
-            self.wy_marks[song_id]=tags
-        else:
-            self.qq_marks[song_id]=tags
-
-    def Unmark(self,src,song_id):
-        if src=="wy":
-            if song_id in self.wy_marks.keys():
-                self.wy_marks.pop(song_id)
-        else:
-            if song_id in self.qq_marks.keys():
-                self.qq_marks.pop(song_id)
-
-    def SaveToLocal(self,event):
-        lyric=self.tcImport.GetValue().strip()
-        if lyric == "":
-            return showInfoDialog("歌词不能为空", "歌词保存失败")
-        if lyric.count("\n") <= 4 or len(lyric) <= 50:
-            return showInfoDialog("歌词内容过短", "歌词保存失败")
-        name=self.tcSongName.GetValue().strip()
-        if name=="":
-            return showInfoDialog("歌名不能为空", "歌词保存失败")
-        artists=self.tcArtists.GetValue().strip()
-        tags=self.tcTags.GetValue().strip()
-        has_trans=self.cbbImport2.GetSelection()==1
-        self.CreateLyricFile(name,artists,tags,lyric,has_trans)
-
     def CreateLyricFile(self,name,artists,tags,lyric,has_trans):
         filename=re.sub(r";|；","",name)
         lang="双语" if has_trans else "单语"
@@ -1322,32 +1496,6 @@ class LyricDanmu(wx.Frame):
             print("ShowLocalInfo:",str(e))
             return False
 
-    def SearchByOneCharTag(self, char, collection):
-        res = []
-        for song_id in collection:
-            tags = collection[song_id].split(";")
-            for tag in tags:
-                if tag.lower().strip()==char:
-                    res.append(song_id)
-                    break
-        return res
-
-    def SearchByTag(self, words, collection):
-        suggestions = []
-        pattern=self.WrapUpPattern(words)
-        regex = re.compile(pattern)
-        for song_id in collection:
-            sug = []
-            tags = collection[song_id].split(";")
-            for tag in tags:
-                match = regex.search(tag.lstrip())
-                if match:
-                    sug.append((len(match.group()), match.start()))
-            if len(sug) > 0:
-                sug = sorted(sug)
-                suggestions.append((sug[0][0], sug[0][1], song_id))
-        return [x for _, _, x in sorted(suggestions)]
-
     def SaveConfig(self):
         try:
             with open("config.txt", "w", encoding="utf-8") as f:
@@ -1380,41 +1528,27 @@ class LyricDanmu(wx.Frame):
             print(e)
             pass
 
-    def OnClose(self, event):
-        self.running = False
-        self.SaveConfig()
+    def SaveData(self):
         try:
             with open("rooms.txt", "w", encoding="utf-8") as f:
                 for roomid in self.rooms:
                     f.write("%-15s%s\n" % (roomid, self.rooms[roomid]))
-                f.flush()
-        except Exception as e:
-            print(e)
-            pass
+        except: pass
         try:
             with open("marks_wy.txt", "w", encoding="utf-8") as f:
                 for song_id in self.wy_marks:
                     f.write("%-15s%s\n" % (song_id, self.wy_marks[song_id]))
-                f.flush()
-        except Exception as e:
-            print(e)
-            pass
+        except: pass
         try:
             with open("marks_qq.txt", "w", encoding="utf-8") as f:
                 for song_id in self.qq_marks:
                     f.write("%-15s%s\n" % (song_id, self.qq_marks[song_id]))
-                f.flush()
-        except Exception as e:
-            print(e)
-            pass
+        except: pass
         try:
             with open("shields.txt", "w", encoding="utf-8") as f:
                 for k,v in self.custom_shields.items():
                     f.write("%d %s %s %s\n" % (v[0],k,v[1].replace("\\\\","\\"),v[2]))
-                f.flush()
-        except Exception as e:
-            print(e)
-            pass
+        except: pass
         try:
             with open("custom_texts.txt", "w", encoding="utf-8") as f:
                 f.write("<texts>\n")
@@ -1422,171 +1556,8 @@ class LyricDanmu(wx.Frame):
                     f.write("<text title=\"%s\">\n%s\n</text>\n"%(text["title"],text["content"].strip()))
                 f.write("</texts>")
                 f.flush()
-        except Exception as e:
-            print(e)
-            pass
-        if os.path.exists("tmp.tmp"):
-            try:    os.remove("tmp.tmp")
-            except: pass
-        self.Destroy()
+        except: pass
 
-    def ShowRecordFrame(self,event):
-        self.recordFrame.Show()
-        self.recordFrame.Restore()
-        self.recordFrame.Raise()
-
-    def ShowColorFrame(self,event):
-        if self.colorFrame is not None:
-            self.colorFrame.Destroy()
-        self.colorFrame=ColorFrame(self)
-
-    def ChangeDanmuPosition(self,event):
-        mode_num=len(self.modes)
-        if mode_num==1: return
-        trans_dict={'1':'4','4':'1'} if mode_num==2 else {'1':'4','4':'5','5':'1'}
-        self.pool.submit(self.ThreadOfSetDanmuConfig,None,trans_dict[str(self.cur_mode)])
-
-    def OnMove(self,event):
-        if self.colorFrame is not None:
-            self.colorFrame.Show(False)
-
-    def OnFocus(self,event):
-        panel=event.GetEventObject().GetParent()
-        if self.colorFrame is not None and panel!=self.colorFrame.panel:
-            self.colorFrame.Show(False)
-    
-    def SetColaborMode(self,event):
-        self.colabor_mode=self.cbbClbMod.GetSelection()
-    
-    def GetRoomShields(self,roomid=None):
-        room_shields={}
-        if roomid is None:  roomid="none"
-        for k,v in self.custom_shields.items():
-            if v[2]!="" and roomid not in re.split("[,;，；]",v[2]): continue
-            room_shields[k]=v[:2]
-        self.room_shields=room_shields
-
-    def DealWithCustomShields(self,msg):
-        for k,v in self.room_shields.items():
-            if v[0]==0 and re.search(r"\\[1-9]",k) is not None:
-                msg=self.MultiDotBlock(k,msg)
-            else:
-                try:
-                    msg=re.sub("(?i)"+" ?".join(k),v[1].replace("`","\u0592"),msg)
-                except Exception as e:
-                    print("[DealWithCustomShields Error]",k,e)
-                    pass
-        return msg
-
-    def MultiDotBlock(self,pattern,msg):
-        origin_msg=msg
-        try:
-            pattern=re.sub(r"\\(?![1-9])","",pattern)
-            groups=re.split(r"\\[1-9]",pattern)
-            fills=[int(i) for i in re.findall(r"\\([1-9])",pattern)]
-            n=len(fills)
-            pat="(?i)" + "".join(["("+groups[i]+".*?)" for i in range(n)]) + "(%s)"%groups[n]
-            repl="lambda x: (" + "+".join(["fill(x.group(1),%d)"%(len(groups[0])+int(fills[0]))] +
-                ["x.group(%d)"%(i+1) for i in range(1,n+1)]) + ") if " + \
-                " and ".join(["measure(x.group(%d),%d)"%(i+1,len(groups[i])+int(fills[i])) for i in range(n)]) + \
-                " else x.group()"
-            return substitute(pat,eval(repl),msg)
-        except Exception as e:
-            print("[regex fail]",e)
-            return origin_msg
-    
-    def WrapUpPattern(self,words):
-        words = re.sub(r"\s+", "", words)
-        pattern = "∷".join(words)
-        for k,v in REGEX_CHAR_TRANSFORM_RULES.items():
-            pattern = pattern.replace(k, v)
-        pattern = "(?i)" + pattern.replace("∷", ".*?")
-        return pattern
-
-    def AddHistory(self,message):
-        self.recent_history.insert(0,message)
-        if len(self.recent_history)>10:
-            self.recent_history.pop()
-
-    def UpdateRecord(self,msg):
-        tcRecord=self.recordFrame.tcRecord
-        from_,to_=tcRecord.GetSelection()
-        tcRecord.AppendText(msg+"\n")
-        if self.recordFrame.IsActive and from_!=to_:
-            tcRecord.SetSelection(from_,to_)
-
-    def ShieldLog(self,string):
-        try:
-            path="logs/SHIELDED_%s.log"%getTime(fmt="%y_%m")
-            with open(path,"a",encoding="utf-8") as f:
-                f.write("%s｜%s\n"%(getTime(fmt="%m-%d %H:%M"),string))
-        except Exception as e:
-            print("[Logger: Log Error]",e)
-    
-    def LoginCheck(self,res):
-        if res["code"]==-101 or "登录" in res["message"]:
-            self.OnStopBtn(None)
-            return showInfoDialog("账号配置不可用，请修改Cookie配置\n"+
-                "方法一：点击“应用设置”按钮，右键“账号切换”处的按钮进行修改\n"+
-                "方法二：关闭工具后，打开工具目录下的config.txt，修改cookie项", "错误")
-        return True
-    
-    def ThreadOfUpdateGlobalShields(self):
-        if os.path.exists("tmp.tmp"):   return
-        with open("tmp.tmp","w",encoding="utf-8") as f:  f.write("")
-        UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="获取更新中…")
-        try:
-            code=""
-            data=self.jdApi.get_latest_bili_live_shield_words(timeout=(5,10))
-            so=re.search(r"# <DATA BEGIN>([\s\S]*?)# <DATA END>",data)
-            code=so.group(1).replace("and not measure(x.group(3),4)","") #简化某条特殊规则
-        except:
-            UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="无法获取更新")
-        try:
-            if code=="":    return
-            # 写入内存
-            scope = {"words":[],"rules":{}}
-            code1="from BiliLiveShieldWords import get_len,measure,fill,r_pos\n"+code
-            exec(code1,scope)
-            for word in scope["words"]:
-                generate_rule(word,scope["rules"])
-            self.global_shields=scope["rules"]
-            # 写入文件
-            with open("shields_global.dat", "wb") as f:
-                f.write(bytes(code,encoding="utf-8"))
-                f.write(bytes("modified_time=%d"%int(time.time()),encoding="utf-8"))
-                f.write(bytes("  # 最近一次更新时间：%s"%getTime(fmt="%m-%d %H:%M"),encoding="utf-8"))
-            UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="词库更新完毕")
-        except:
-            UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="云端数据有误")
-        finally:
-            try:    os.remove("tmp.tmp")
-            except: pass
-    
-    def CallRecord(self,msg):
-        wx.CallAfter(pub.sendMessage,"record",msg=msg)
-        return False
-    
-    def ThreadOfShowMsgDlg(self,content,title):
-        if self.show_msg_dlg:   return
-        self.show_msg_dlg=True
-        showInfoDialog(content,title)
-        wx.MilliSleep(3000)
-        self.show_msg_dlg=False
-    
-    def SaveAccountInfo(self,acc_no,acc_name,cookie):
-        self.account_names[acc_no]=acc_name
-        self.cookies[acc_no]=self.blApi.update_cookie(cookie,acc_no)
-        if acc_no==self.cur_acc:
-            self.SetTitle("LyricDanmu %s - %s"%(LD_VERSION,acc_name))
-    
-    def SwitchAccount(self,acc_no):
-        acc_name=self.account_names[acc_no]
-        if acc_no==self.cur_acc:    return
-        self.cur_acc=acc_no
-        self.SetTitle("LyricDanmu %s - %s"%(LD_VERSION,acc_name))
-        if self.roomid is not None:
-            self.pool.submit(self.ThreadOfGetDanmuConfig)
 
 if __name__ == '__main__':
     app = wx.App(False)
