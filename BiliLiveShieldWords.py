@@ -60,7 +60,7 @@ def generate_rule(word:str, rules:dict) -> None:
 def deal(string:str, rules:dict) -> str:
     '''对字符串string按字典rules中的规则进行反屏蔽处理'''
     # 外部请调用这个函数。
-    string=re.sub(r" +"," ",string) # 合并连续半角空格
+    string=re.sub(r" +"," ",string)
     for k, v in rules.items():
         string = substitute(k, v, string)
     return string

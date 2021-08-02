@@ -1,9 +1,6 @@
-import requests
-import re
-import json
-import time
+import requests, re, json, time
 from random import randint
-from typing import Optional,Union,List
+from typing import Union,List
 
 CN_IP=( "110.42", "222.206", "220.180", "180.163", "113.100", #北京 山东 福建 上海 广东
         "125.83", "183.140", "49.78",   "106.230", "223.150") #重庆 浙江 江苏 江西 湖南
@@ -40,7 +37,7 @@ class BiliLiveAPI(BaseAPI):
             self.csrfs.append("")
             self.update_cookie(cookies[i],i)
     
-    def get_danmu_config(self,roomid:int,number=0,timeout=None) -> dict:
+    def get_danmu_config(self,roomid,number=0,timeout=None) -> dict:
         """获取用户在直播间内的可用弹幕颜色、弹幕位置等信息"""
         url="https://api.live.bilibili.com/xlive/web-room/v1/dM/GetDMConfigByGroup"
         params={"room_id":roomid}
@@ -50,7 +47,7 @@ class BiliLiveAPI(BaseAPI):
             return json.loads(res.text)
         except Exception as e:  raise e
     
-    def get_user_info(self,roomid:int,number=0,timeout=None) -> dict:
+    def get_user_info(self,roomid,number=0,timeout=None) -> dict:
         """获取用户在直播间内的当前弹幕颜色、弹幕位置、发言字数限制等信息"""
         url="https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByUser"
         params={"room_id":roomid}
@@ -60,7 +57,7 @@ class BiliLiveAPI(BaseAPI):
             return json.loads(res.text)
         except Exception as e:  raise e
     
-    def set_danmu_config(self,roomid:int,color:Optional[str]=None,mode:Optional[int]=None,number=0,timeout=None) -> dict:
+    def set_danmu_config(self,roomid,color=None,mode=None,number=0,timeout=None) -> dict:
         """设置用户在直播间内的弹幕颜色或弹幕位置
         :（颜色参数为十六进制字符串，颜色和位置不能同时设置）"""
         url="https://api.live.bilibili.com/xlive/web-room/v1/dM/AjaxSetConfig"
@@ -77,7 +74,7 @@ class BiliLiveAPI(BaseAPI):
             return json.loads(res.text)
         except Exception as e:  raise e
     
-    def send_danmu(self,roomid:int,msg:str,number=0,timeout=None) -> dict:
+    def send_danmu(self,roomid,msg,number=0,timeout=None) -> dict:
         """向直播间发送弹幕"""
         url="https://api.live.bilibili.com/msg/send"
         data={
@@ -115,7 +112,7 @@ class NetEaseMusicAPI(BaseAPI):
         """网易云音乐API"""
         super().__init__(timeout)
 
-    def search_songs(self,keyword:str,limit:int=10,timeout=None,changeIP=False) -> dict:
+    def search_songs(self,keyword,limit=10,timeout=None,changeIP=False) -> dict:
         """按关键字搜索歌曲"""
         url="https://music.163.com/api/search/get/web"
         params= {
@@ -130,7 +127,7 @@ class NetEaseMusicAPI(BaseAPI):
             return json.loads(res.text)
         except Exception as e:  raise e
     
-    def get_lyric(self,song_id:int,timeout=None,changeIP=False) -> dict:
+    def get_lyric(self,song_id,timeout=None,changeIP=False) -> dict:
         """根据歌曲ID获取歌词"""
         url="https://music.163.com/api/song/lyric"
         params=  {
@@ -147,7 +144,7 @@ class NetEaseMusicAPI(BaseAPI):
             return json.loads(res.text)
         except Exception as e:  raise e
     
-    def get_song_info(self,song_id:int,timeout=None,changeIP=False) -> dict:
+    def get_song_info(self,song_id,timeout=None,changeIP=False) -> dict:
         """根据歌曲ID获取歌曲信息"""
         url="https://music.163.com/api/song/detail"
         params= {
@@ -162,13 +159,13 @@ class NetEaseMusicAPI(BaseAPI):
         except Exception as e:  raise e
     
 class QQMusicAPI(BaseAPI):
-    """QQ音乐API"""
     def __init__(self,timeout=5):
+        """QQ音乐API"""
         super().__init__(timeout)
         self.headers = dict(self.headers,
             Referer="https://y.qq.com/portal/player.html")
 
-    def search_songs(self,keyword:str,limit:int=10,timeout=None,changeIP=False) -> dict:
+    def search_songs(self,keyword,limit=10,timeout=None,changeIP=False) -> dict:
         """按关键字搜索歌曲"""
         url="https://c.y.qq.com/soso/fcgi-bin/client_search_cp"
         params= {
@@ -183,7 +180,7 @@ class QQMusicAPI(BaseAPI):
             return json.loads(res.text)
         except Exception as e:  raise e
     
-    def get_lyric(self,song_mid:str,timeout=None,changeIP=False) -> dict:
+    def get_lyric(self,song_mid,timeout=None,changeIP=False) -> dict:
         """根据歌曲MID获取歌词"""
         url="https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg"
         params= {
@@ -199,7 +196,7 @@ class QQMusicAPI(BaseAPI):
             return json.loads(res.text)
         except Exception as e:  raise e
     
-    def get_song_info(self,song_id:int,timeout=None,changeIP=False) -> dict:
+    def get_song_info(self,song_id,timeout=None,changeIP=False) -> dict:
         """根据歌曲ID获取歌曲信息"""
         url="https://c.y.qq.com/v8/fcg-bin/fcg_play_single_song.fcg"
         params= {
