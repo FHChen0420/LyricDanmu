@@ -346,8 +346,7 @@ class LyricDanmu(wx.Frame):
             self.max_len=config["length"]
             self.cur_color=config["color"]
             self.cur_mode=config["mode"]
-        except requests.exceptions.ConnectionError as e:
-            print("[A]",e)
+        except requests.exceptions.ConnectionError:
             return showInfoDialog("网络异常，请重试", "获取弹幕配置出错")
         except requests.exceptions.ReadTimeout:
             return showInfoDialog("获取超时，请重试", "获取弹幕配置出错")
@@ -368,8 +367,7 @@ class LyricDanmu(wx.Frame):
                 if mode["status"]==1:
                     self.modes[mode["mode"]]=mode["name"]
             UIChange(self.btnDmCfg2,color="gray" if len(self.modes)==1 else "black")
-        except requests.exceptions.ConnectionError as e:
-            print("[B]",e)
+        except requests.exceptions.ConnectionError:
             return showInfoDialog("网络异常，请重试", "获取弹幕配置出错")
         except requests.exceptions.ReadTimeout:
             return showInfoDialog("获取超时，请重试", "获取弹幕配置出错")
@@ -1578,8 +1576,7 @@ class LyricDanmu(wx.Frame):
     
     def SaveAccountInfo(self,acc_no,acc_name,cookie):
         self.account_names[acc_no]=acc_name
-        self.cookies[acc_no]=cookie
-        self.blApi.update_cookie(cookie,acc_no)
+        self.cookies[acc_no]=self.blApi.update_cookie(cookie,acc_no)
         if acc_no==self.cur_acc:
             self.SetTitle("LyricDanmu %s - %s"%(LD_VERSION,acc_name))
     
