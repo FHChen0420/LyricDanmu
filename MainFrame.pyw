@@ -43,34 +43,86 @@ class LyricDanmu(wx.Frame):
         self.wyApi = NetEaseMusicAPI()
         self.qqApi = QQMusicAPI()
         self.jdApi = JsdelivrAPI()
-        # 运行参数
+        # 界面参数
         self.show_config = not self.init_show_lyric
         self.show_lyric = self.init_show_lyric
         self.show_import = False
         self.show_pin = True
+        self.show_msg_dlg = False
+        # B站配置参数
+        self.cur_acc = 0
         self.roomid = None
         self.room_name = None
-        self.running = True
+        self.colors={}
+        self.modes={}
+        self.cur_color=0
+        self.cur_mode=0
+        # 歌词参数
         self.init_lock = True
+        self.has_trans=False
+        self.has_timeline=False
         self.auto_sending = False
         self.auto_pausing = False
+        self.lyric_raw=""
+        self.lyric_raw_tl=""
+        self.timelines=[]
+        self.llist=[]
+        self.olist=[]
+        self.lyc_mod = 1
+        self.lid=0
+        self.oid=0
+        self.lmax=0
+        self.omax=0
+        self.cur_t=0
+        self.pause_t=0
+        self.timeline_base=0
+        # 其他参数
+        self.recent_danmu = [None,None]
+        self.danmu_queue = []
+        self.recent_history = []
+        self.tmp_history = []
+        self.running = True
         self.shield_changed = False
         self.history_state = False
-        self.show_msg_dlg = False
-        self.cur_acc = 0
-        self.colabor_mode = 0
-        self.lyc_mod = 1
-        self.pre_idx = 0
         self.history_idx = 0
-        self.recent_danmu = [None,None]
-        self.recent_history = []
-        self.tmp_history = [] 
-        self.danmu_queue = []
+        self.colabor_mode = 0
+        self.pre_idx = 0
         self.pool = ThreadPoolExecutor(max_workers=6)
         if self.need_update_global_shields:
-            self.pool.submit(self.ThreadOfUpdateGlobalShields,2000)
+            self.pool.submit(self.ThreadOfUpdateGlobalShields)
         self.pool.submit(self.ThreadOfSend)
+        # 显示界面
         self.ShowFrame(parent)
+
+    def DefaultConfig(self):
+        self.rooms={}
+        self.wy_marks = {}
+        self.qq_marks = {}
+        self.locals = {}
+        self.custom_shields = {}
+        self.global_shields = {}
+        self.room_shields = {}
+        self.custom_texts = []
+        self.max_len = 30
+        self.prefix = "【♪"
+        self.suffix = "】"
+        self.prefixs = ["【♪","【♬","【❀","【❄️","【★"]
+        self.suffixs = ["","】"]
+        self.enable_new_send_type=True
+        self.send_interval_ms = 750
+        self.timeout_s = 5
+        self.default_src = "wy"
+        self.search_num = 18
+        self.page_limit = 6
+        self.lyric_offset = 0
+        self.enable_lyric_merge = True
+        self.lyric_merge_threshold_s = 5.0
+        self.add_song_name = False
+        self.init_show_lyric = True
+        self.no_proxy = True
+        self.account_names=["",""]
+        self.cookies=["",""]
+        self.need_update_global_shields = False
 
     def ShowFrame(self, parent):
         # 窗体
@@ -763,35 +815,6 @@ class LyricDanmu(wx.Frame):
         self.CreateLyricFile(name,artists,tags,lyric,has_trans)
 
 
-    def DefaultConfig(self):
-        self.rooms={}
-        self.wy_marks = {}
-        self.qq_marks = {}
-        self.locals = {}
-        self.custom_shields = {}
-        self.global_shields = {}
-        self.room_shields = {}
-        self.custom_texts = []
-        self.max_len = 30
-        self.prefix = "【♪"
-        self.suffix = "】"
-        self.prefixs = ["【♪","【♬","【❀","【❄️","【★"]
-        self.suffixs = ["","】"]
-        self.enable_new_send_type=True
-        self.send_interval_ms = 750
-        self.timeout_s = 5
-        self.default_src = "wy"
-        self.search_num = 18
-        self.page_limit = 6
-        self.lyric_offset = 0
-        self.enable_lyric_merge = True
-        self.lyric_merge_threshold_s = 5.0
-        self.add_song_name = False
-        self.init_show_lyric = True
-        self.no_proxy = True
-        self.account_names=["",""]
-        self.cookies=["",""]
-
     def SetRoomid(self,roomid,name):
         if name != "":
             self.room_name=name
@@ -1375,7 +1398,6 @@ class LyricDanmu(wx.Frame):
         except Exception:
             showInfoDialog("读取shields.txt失败", "提示")
         try:
-            self.need_update_global_shields=False
             scope = {"modified_time":0,"words":[],"rules":{}}
             with open("shields_global.dat","r",encoding="utf-8") as f:
                 code="from BiliLiveShieldWords import get_len,measure,fill,r_pos\n"+f.read()
