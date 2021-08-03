@@ -37,6 +37,16 @@ class BiliLiveAPI(BaseAPI):
             self.csrfs.append("")
             self.update_cookie(cookies[i],i)
     
+    def get_room_info(self,roomid,timeout=None) -> dict:
+        """获取直播间标题、简介等信息"""
+        url="https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom"
+        params={"room_id":roomid}
+        if timeout is None: timeout=self.timeout
+        try:
+            res=requests.get(url=url,headers=self.headers,params=params,timeout=timeout)
+            return json.loads(res.text)
+        except Exception as e:  raise e
+
     def get_danmu_config(self,roomid,number=0,timeout=None) -> dict:
         """获取用户在直播间内的可用弹幕颜色、弹幕位置等信息"""
         url="https://api.live.bilibili.com/xlive/web-room/v1/dM/GetDMConfigByGroup"
