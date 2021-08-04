@@ -102,7 +102,7 @@ class CustomTextFrame(wx.Frame):
         if self.shield_changed:
             message = parent.DealWithCustomShields(message)
             message = deal(message,parent.global_shields)
-        parent.SendSplitDanmu(message,pre,suf)
+        parent.SendSplitDanmu(message,pre,suf,2)
         parent.AddHistory(msg)
     
     def ShowEditPanel(self,event):

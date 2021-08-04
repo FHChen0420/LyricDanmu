@@ -88,11 +88,11 @@ class LyricDanmu(wx.Frame):
         self.colabor_mode = 0
         self.pre_idx = 0
         self.pool = ThreadPoolExecutor(max_workers=6)
+        # 显示界面
+        self.ShowFrame(parent)
         if self.need_update_global_shields:
             self.pool.submit(self.ThreadOfUpdateGlobalShields)
         self.pool.submit(self.ThreadOfSend)
-        # 显示界面
-        self.ShowFrame(parent)
 
     def DefaultConfig(self):
         self.rooms={}
@@ -103,6 +103,8 @@ class LyricDanmu(wx.Frame):
         self.global_shields = {}
         self.room_shields = {}
         self.custom_texts = []
+        self.danmu_log_dir = {}
+        self.translate_stat = {}
         self.max_len = 30
         self.prefix = "【♪"
         self.suffix = "】"
@@ -468,10 +470,10 @@ class LyricDanmu(wx.Frame):
                 if interval_s > 0:
                     wx.MilliSleep(int(1000 * interval_s))
                 if self.enable_new_send_type: #新版机制
-                    task = [self.pool.submit(self.SendDanmu, danmu[0], danmu[1])]
+                    task = [self.pool.submit(self.SendDanmu, danmu[0], danmu[1], danmu[2])]
                     for i in as_completed(task):    pass
                 else: #旧版机制
-                    self.pool.submit(self.SendDanmu, danmu[0], danmu[1])
+                    self.pool.submit(self.SendDanmu, danmu[0], danmu[1], danmu[2])
                 last_time = time.time()
                 UIChange(self.btnClearQueue,label="清空 [%d]" % len(self.danmu_queue))  #
             except RuntimeError:    pass
@@ -500,10 +502,13 @@ class LyricDanmu(wx.Frame):
     def ThreadOfUpdateGlobalShields(self):
         if os.path.exists("tmp.tmp"):   return
         with open("tmp.tmp","w",encoding="utf-8") as f:  f.write("")
-        UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="获取更新中…")
+        try:
+            UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="获取更新中…")
+        except Exception as e:
+            print(type(e),e)
         try:
             code=""
-            data=self.jdApi.get_latest_bili_live_shield_words(timeout=(5,10))
+            data=self.jdApi.get_latest_bili_live_shield_words(timeout=(6,10))
             so=re.search(r"# <DATA BEGIN>([\s\S]*?)# <DATA END>",data)
             code=so.group(1).replace("and not measure(x.group(3),4)","") #简化某条特殊规则
         except:
@@ -795,7 +800,7 @@ class LyricDanmu(wx.Frame):
         comment = self.DealWithCustomShields(comment)
         comment = deal(comment,self.global_shields)
         suf = "】" if comment.count("【") > comment.count("】") else ""
-        self.SendSplitDanmu(comment,pre,suf)
+        self.SendSplitDanmu(comment,pre,suf,0)
         self.tcComment.Clear()
         self.AddHistory(msg)
         self.history_state=False
@@ -820,13 +825,23 @@ class LyricDanmu(wx.Frame):
             self.room_name=name
             self.btnRoom1.SetLabel(name)
             self.btnRoom2.SetLabel(name)
-        if roomid==self.roomid:
-            return
-        if self.auto_sending:
-            self.OnStopBtn(None)
+        if roomid==self.roomid: return
+        if self.auto_sending: self.OnStopBtn(None)
         self.roomid=roomid
         self.GetRoomShields(roomid)
         self.pool.submit(self.ThreadOfGetDanmuConfig)
+
+    def GetLiverName(self,roomid):
+        try:
+            data=self.blApi.get_room_info(roomid)
+            liver_name=data["data"]["anchor_info"]["base_info"]["uname"]
+            liver_name=re.sub(r"(?i)[_\-]*(official|channel).*","",liver_name)
+            for k,v in FILENAME_TRANSFORM_RULES.items():
+                liver_name=liver_name.replace(k,v)
+            return liver_name
+        except Exception as e:
+            print("Error GetLiverName:",type(e),e)
+            return str(roomid)
 
     def GetCurrentDanmuConfig(self):
         try:
@@ -867,7 +882,7 @@ class LyricDanmu(wx.Frame):
             return showInfoDialog("解析错误，请重试", "获取弹幕配置出错")
         return True
 
-    def SendDanmu(self, roomid, msg, try_times=2):
+    def SendDanmu(self, roomid, msg, src=0, try_times=2):
         if msg in self.recent_danmu and len(msg) < self.max_len:
             msg+=("\u0592" if msg+"\u0594" in self.recent_danmu else "\u0594")
         self.recent_danmu.append(msg)
@@ -875,51 +890,53 @@ class LyricDanmu(wx.Frame):
         try:
             data=self.blApi.send_danmu(roomid,msg,self.cur_acc)
             if not self.LoginCheck(data):
-                return self.CallRecord("▲账号无效⋙ "+msg)
+                return self.CallRecord(msg,roomid,src,"7")
             errmsg,code=data["msg"],data["code"]
             if code==10030:
                 if try_times>0:
-                    self.CallRecord("⇩ [频率过快,尝试重发]")
+                    self.CallRecord("",0,-1,"3+")
                     wx.MilliSleep(self.send_interval_ms)
-                    return self.SendDanmu(roomid,msg,try_times-2)
-                return self.CallRecord("▲频率过快⋙ "+msg)
+                    return self.SendDanmu(roomid,msg,src,try_times-2)
+                return self.CallRecord(msg,roomid,src,"3")
             if code==10031:
-                return self.CallRecord("▲重复发送⋙ "+msg)
+                return self.CallRecord(msg,roomid,src,"4")
             if code==11000:
                 if try_times>0:
-                    self.CallRecord("⇩ [弹幕被吞,尝试重发]")
+                    self.CallRecord("",0,-1,"5+")
                     wx.MilliSleep(self.send_interval_ms)
-                    return self.SendDanmu(roomid,msg,try_times-2)
-                return self.CallRecord("▲弹幕被吞⋙ "+msg)
+                    return self.SendDanmu(roomid,msg,src,try_times-2)
+                return self.CallRecord(msg,roomid,src,"5")
             if code!=0:
-                return self.CallRecord("▲发送失败⋙ %s\n(具体信息：%s)"%(msg,data))
+                self.CallRecord(msg,roomid,src,"x")
+                return self.CallRecord("(具体信息：%s)"%data,0,-1,"-")
             if errmsg=="":
-                self.CallRecord(getTime()+"｜"+msg)
+                self.CallRecord(msg,roomid,src,"0")
                 return True
             if errmsg in ["f","fire"]:
-                self.ShieldLog(msg)
-                return self.CallRecord("▲全局屏蔽⋙ "+msg)
+                return self.CallRecord(msg,roomid,src,"1")
             if errmsg=="k":
-                return self.CallRecord("▲房间屏蔽⋙ "+msg)
+                return self.CallRecord(msg,roomid,src,"2")
             if errmsg=="max limit":
                 if try_times>0:
-                    self.CallRecord("⇩ [房间弹幕过密,尝试重发]")
+                    self.CallRecord("",0,-1,"6+")
                     wx.MilliSleep(self.send_interval_ms)
-                    return self.SendDanmu(roomid,msg,try_times-1)
-                return self.CallRecord("▲房间弹幕过密⋙ "+msg)
-            return self.CallRecord("▲"+errmsg+"⋙ "+msg)
+                    return self.SendDanmu(roomid,msg,src,try_times-1)
+                return self.CallRecord(msg,roomid,src,"6")
+            self.CallRecord(msg,roomid,src,"x")
+            return self.CallRecord("(具体信息：%s)"%msg,0,-1,"-")
         except requests.exceptions.ConnectionError as e:
             if "Remote end closed connection without response" in str(e):
                 if try_times>0:
                     wx.MilliSleep(200)
-                    return self.SendDanmu(roomid,msg,try_times-1)
-                return self.CallRecord("▲远程连接异常关闭⋙ "+msg)
+                    return self.SendDanmu(roomid,msg,src,try_times-1)
+                return self.CallRecord(msg,roomid,src,"C")
             self.pool.submit(self.ThreadOfShowMsgDlg,"网络连接出错","弹幕发送失败")
-            return self.CallRecord("▲网络异常⋙ "+msg)
+            return self.CallRecord(msg,roomid,src,"A")
         except requests.exceptions.ReadTimeout:
-            return self.CallRecord("▲请求超时⋙ "+msg)
+            return self.CallRecord(msg,roomid,src,"B")
         except Exception as e:
-            return self.CallRecord("▲发送失败⋙ %s\n(具体信息：%s)"%(msg,str(e)))
+            self.CallRecord(msg,roomid,src,"X")
+            return self.CallRecord("(具体信息：%s)"%str(e),0,-1,"-")
 
     def SendLyric(self, line):
         pre = self.cbbLycPre.GetValue()
@@ -929,18 +946,18 @@ class LyricDanmu(wx.Frame):
         if self.shield_changed:
             message = self.DealWithCustomShields(message)
             message = deal(message,self.global_shields)
-        self.SendSplitDanmu(message,pre,suf)
+        self.SendSplitDanmu(message,pre,suf,1)
         self.AddHistory(msg)
 
-    def SendSplitDanmu(self, msg, pre, suf):
+    def SendSplitDanmu(self, msg, pre, suf, src):
         if len(msg) > self.max_len:
             for k, v in COMPRESS_RULES.items():
                 msg = re.sub(k, v, msg)
         if len(msg) <= self.max_len:
             if len(msg+suf) <= self.max_len:
-                self.danmu_queue.append([self.roomid,msg+suf])
+                self.danmu_queue.append([self.roomid,msg+suf,src])
             else:
-                self.danmu_queue.append([self.roomid,msg])
+                self.danmu_queue.append([self.roomid,msg,src])
             UIChange(self.btnClearQueue,label="清空 [%d]"%len(self.danmu_queue))#
             return
         spaceIdx = []
@@ -958,10 +975,10 @@ class LyricDanmu(wx.Frame):
                 if idx <= self.max_len: cutIdx = idx
         if 1 + len(msg[cutIdx:]) + len(pre) > self.max_len:
             cutIdx = self.max_len
-        self.danmu_queue.append([self.roomid,msg[:cutIdx]])
+        self.danmu_queue.append([self.roomid,msg[:cutIdx],src])
         UIChange(self.btnClearQueue,label="清空 [%d]"%len(self.danmu_queue))#
         if msg[cutIdx:] in [")","）","」","】","\"","”"]:  return
-        self.SendSplitDanmu(pre + "…" + msg[cutIdx:],pre,suf)
+        self.SendSplitDanmu(pre + "…" + msg[cutIdx:],pre,suf,src)
 
 
     def Mark(self,src,song_id,tags):
@@ -1040,20 +1057,38 @@ class LyricDanmu(wx.Frame):
         if len(self.recent_history)>10:
             self.recent_history.pop()
 
-    def UpdateRecord(self,msg):
+    def UpdateRecord(self,msg,roomid,src,res):
         tcRecord=self.recordFrame.tcRecord
         from_,to_=tcRecord.GetSelection()
-        tcRecord.AppendText(msg+"\n")
+        cur_time=time.time()
+        pre=(getTime(cur_time)+"｜") if res=="0" else ERR_INFO[res]
+        tcRecord.AppendText("\n"+pre+msg)
         if self.recordFrame.IsActive and from_!=to_:
             tcRecord.SetSelection(from_,to_)
+        self.LogDanmu(msg,roomid,src,res,cur_time)
 
-    def ShieldLog(self,string):
+    def LogDanmu(self,msg,roomid,src,res,cur_time):
+        if roomid in self.danmu_log_dir.keys():
+            dir_name=self.danmu_log_dir[roomid]
+        else:
+            liver_name=self.GetLiverName(roomid)
+            dir_name="%s_%s"%(roomid,liver_name)
+            self.danmu_log_dir[roomid]=dir_name
+            os.mkdir("logs/danmu/%s"%dir_name)
+        if src<0:  return
         try:
-            path="logs/SHIELDED_%s.log"%getTime(fmt="%y_%m")
+            path="logs/danmu/%s/%s.log"%(dir_name,getTime(cur_time,fmt="%y-%m-%d"))
             with open(path,"a",encoding="utf-8") as f:
-                f.write("%s｜%s\n"%(getTime(fmt="%m-%d %H:%M"),string))
+                f.write("[%s][%d%s]%s\n"%(getTime(cur_time),src,res,msg))
         except Exception as e:
-            print("[Logger: Log Error]",e)
+            print("[Log Error]",type(e),e)
+        if res!="1": return
+        try:
+            path="logs/shielded/SHIELDED_%s.log"%getTime(cur_time,fmt="%y-%m")
+            with open(path,"a",encoding="utf-8") as f:
+                f.write("%s｜%s\n"%(getTime(cur_time,fmt="%m-%d %H:%M"),msg))
+        except Exception as e:
+            print("[Log Error]",type(e),e)
     
     def LoginCheck(self,res):
         if res["code"]==-101 or "登录" in res["message"]:
@@ -1063,8 +1098,8 @@ class LyricDanmu(wx.Frame):
                 "方法二：关闭工具后，打开工具目录下的config.txt，修改cookie项", "错误")
         return True
      
-    def CallRecord(self,msg):
-        wx.CallAfter(pub.sendMessage,"record",msg=msg)
+    def CallRecord(self,msg,roomid,src,res):
+        wx.CallAfter(pub.sendMessage,"record",msg=msg,roomid=roomid,src=src,res=res)
         return False
     
     def SaveAccountInfo(self,acc_no,acc_name,cookie):
@@ -1291,6 +1326,10 @@ class LyricDanmu(wx.Frame):
             os.mkdir("songs")
         if not os.path.exists("logs"):
             os.mkdir("logs")
+        if not os.path.exists("logs/shielded"):
+            os.mkdir("logs/shielded")
+        if not os.path.exists("logs/danmu"):
+            os.mkdir("logs/danmu")
 
     def ReadFile(self):
         try:
@@ -1408,6 +1447,11 @@ class LyricDanmu(wx.Frame):
             self.need_update_global_shields=time.time()-scope["modified_time"]>GLOBAL_SHIELDS_UPDATE_INTERVAL_S
         except Exception:
             showInfoDialog("读取shields_global.dat失败", "提示")
+        # 读取弹幕记录目录名称列表
+        for dir_name in os.listdir("logs/danmu"):
+            if os.path.isfile("logs/danmu/"+dir_name):    continue
+            mo = re.match(r"^(\d+)_.+$",dir_name)
+            if mo: self.danmu_log_dir[mo.group(1)]=mo.group()
         self.ReadCustomTexts()
         self.ReadLocalSongs()
         return True
