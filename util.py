@@ -16,10 +16,14 @@ def getRgbColor(num:int) -> wx.Colour:
     return wx.Colour(r,g,b)
 
 def getTime(ts=None,ms=False,fmt="%H:%M:%S") -> str:
-    """将时间戳ts按fmt格式进行转化，ms表示ts是否为毫秒级时间戳"""
+    """将时间戳ts按fmt格式转化为字符串，ms表示ts是否为毫秒级时间戳"""
     if ts is None:  ts=time.time()
     elif ms:        ts=ts/1000
     return time.strftime(fmt,time.localtime(ts))
+
+def strToTs(string,fmt="%y-%m-%d %H:%M:%S") -> int:
+    """将字符串string按fmt格式转化为秒级时间戳"""
+    return int(time.mktime(time.strptime(string,fmt)))
 
 def getTimeLineStr(seconds,style=0) -> str:
     """将秒数转化为时钟格式
@@ -97,3 +101,37 @@ def getFuzzyMatchingPattern(words:str) -> str:
         pattern = pattern.replace(k, v)
     pattern = "(?i)" + pattern.replace("∷", ".*?")
     return pattern
+
+def updateCsvFile(file_path:str,key_index:int,new_records:dict,max_size:int=1024):
+    """更新csv文件的结尾部分（修改原有记录或新增记录）
+    
+    :param: file_path  CSV文件路径
+    :param: key_index  数据项的键值在CSV文件中的列编号
+    :param: new_records  待更新项的字典，每项为 键值：数据项整行的文本数据
+    :param: max_size  从CSV文件结尾开始，允许向前读取并修改的最大字节数"""
+    try:
+        with open(file_path, "r+b") as f:
+            f.seek(0,2)
+            read_size = block_size = min(max_size, f.tell())
+            f.seek(-block_size,2)
+            if block_size==max_size: read_size = block_size-f.read().index(b'\n')-1
+            f.seek(-read_size,2)
+            content=str(f.read(),encoding="utf-8").strip()
+            f.seek(-read_size,2)
+            f.truncate()
+        old_lines,old_records=[],{}
+        if content!="": old_lines=content.strip().split("\n")
+        for i,v in enumerate(old_lines):
+            line_items=v.strip().split(",")
+            if len(line_items)>key_index:
+                old_records[line_items[key_index]]=v
+            else:   old_records[i]=v
+        with open(file_path, "a", encoding="utf-8") as f:
+            for k,v in old_records.items():
+                if k in new_records.keys():
+                    f.write(new_records[k].strip()+"\n")
+                else: f.write(v.strip()+"\n")
+            for k,v in new_records.items():
+                if k not in old_records.keys():
+                    f.write(v.strip()+"\n")
+    except Exception as e: raise e
