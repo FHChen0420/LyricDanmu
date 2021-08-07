@@ -104,7 +104,7 @@ class LyricDanmu(wx.Frame):
         self.room_shields = {}
         self.custom_texts = []
         self.danmu_log_dir = {}
-        self.translate_stat = {}
+        self.translate_records = {}
         self.max_len = 30
         self.prefix = "【♪"
         self.suffix = "】"
@@ -124,7 +124,10 @@ class LyricDanmu(wx.Frame):
         self.no_proxy = True
         self.account_names=["",""]
         self.cookies=["",""]
-        self.need_update_global_shields = False
+        self.need_update_global_shields = True
+        self.tl_stat_break_min=10
+        self.tl_stat_min_count=20
+        self.tl_stat_min_word_num=200
 
     def ShowFrame(self, parent):
         # 窗体
@@ -744,6 +747,7 @@ class LyricDanmu(wx.Frame):
         self.running = False
         self.SaveConfig()
         self.SaveData()
+        self.SaveTLRecords()
         if os.path.exists("tmp.tmp"):
             try:    os.remove("tmp.tmp")
             except: pass
@@ -831,17 +835,18 @@ class LyricDanmu(wx.Frame):
         self.GetRoomShields(roomid)
         self.pool.submit(self.ThreadOfGetDanmuConfig)
 
-    def GetLiverName(self,roomid):
+    def GetLiveInfo(self,roomid):
         try:
             data=self.blApi.get_room_info(roomid)
+            live_title=data["data"]["room_info"]["title"]
             liver_name=data["data"]["anchor_info"]["base_info"]["uname"]
             liver_name=re.sub(r"(?i)[_\-]*(official|channel).*","",liver_name)
             for k,v in FILENAME_TRANSFORM_RULES.items():
                 liver_name=liver_name.replace(k,v)
-            return liver_name
+            return liver_name,live_title
         except Exception as e:
-            print("Error GetLiverName:",type(e),e)
-            return str(roomid)
+            print("Error GetLiveInfo:",type(e),e)
+            return str(roomid),""
 
     def GetCurrentDanmuConfig(self):
         try:
@@ -968,7 +973,7 @@ class LyricDanmu(wx.Frame):
                 spaceIdx.append(i + 1)
             elif msg[i] in "（“(「":
                 spaceIdx.append(i)
-            elif msg[i] in "，：！？）”…,:!?)」~":
+            elif msg[i] in "，。：！？）”…,:!?)」~":
                 spaceIdx.append(i + 1)
         if len(spaceIdx) > 0:
             for idx in spaceIdx:
@@ -1032,7 +1037,6 @@ class LyricDanmu(wx.Frame):
                     msg=re.sub("(?i)"+" ?".join(k),v[1].replace("`","\u0592"),msg)
                 except Exception as e:
                     print("[DealWithCustomShields Error]",k,e)
-                    pass
         return msg
 
     def MultiDotBlock(self,pattern,msg):
@@ -1060,18 +1064,67 @@ class LyricDanmu(wx.Frame):
     def UpdateRecord(self,msg,roomid,src,res):
         tcRecord=self.recordFrame.tcRecord
         from_,to_=tcRecord.GetSelection()
-        cur_time=time.time()
+        cur_time=int(time.time())
         pre=(getTime(cur_time)+"｜") if res=="0" else ERR_INFO[res]
         tcRecord.AppendText("\n"+pre+msg)
         if self.recordFrame.IsActive and from_!=to_:
             tcRecord.SetSelection(from_,to_)
         self.LogDanmu(msg,roomid,src,res,cur_time)
+    
+    def SaveTLRecords(self):
+        try:
+            with open("logs/recent.dat","w",encoding="utf-8") as f:
+                for k,v in self.translate_records.items():
+                    if v[1] is None:   continue
+                    f.write("%s,%d,%d,%s\n"%(k,v[0],v[1],v[2]))
+        except Exception as e: print("SaveTLRecordsOnClose Error:",type(e),e)
+        for k,v in self.translate_records.items():
+            if v[1] is None:    continue
+            self.StatTLRecords(k,v[0],v[1],v[2])
+    
+    def StatTLRecords(self,roomid,start_time,end_time,live_title):
+        dir_name=self.danmu_log_dir[roomid]
+        liver_name=dir_name.split("_",1)[1]
+        start_date_ts=strToTs(getTime(start_time,fmt="%y-%m-%d 00:00:00"))
+        records,start_ts,last_ts,word_num,danmu_count={},start_time,start_time,0,0
+        for ts in range(start_date_ts,end_time+1,86400):
+            date=getTime(ts,fmt="%y-%m-%d")
+            try:
+                with open("logs/danmu/%s/%s.log"%(dir_name,date),"r",encoding="utf-8") as f:
+                    for line in f:
+                        mo=re.match(r"\[(\d{2}:\d{2}:\d{2})\]\[00\](.*?【.*)",line)
+                        if not mo:  continue
+                        ts=strToTs(getTime(start_time,fmt="%s %s"%(date,mo.group(1))))
+                        if ts<start_time or ts>end_time:    continue
+                        if ts>last_ts+self.tl_stat_break_min*60:
+                            if word_num>=self.tl_stat_min_word_num and danmu_count>=self.tl_stat_min_count:
+                                start_str=getTime(start_ts,fmt="%Y-%m-%d %H:%M:%S")
+                                duration=(last_ts-start_ts)*1.0/60.0
+                                records[start_str]="%s,%s,%s,%.1f,%d,%d,%.1f"%(start_str,live_title,liver_name,duration,word_num,danmu_count,word_num/duration)
+                            start_ts,last_ts,word_num,danmu_count=ts,ts,0,0
+                        else:
+                            content=re.sub("^.*?【|[【】\u0592\u0594]","",mo.group(2).strip())
+                            word_num+=len(content)
+                            danmu_count+=1
+                            last_ts=ts
+            except Exception as e:
+                print("StatTLRecords ReadError:",date,type(e),e)
+        if word_num>=self.tl_stat_min_word_num and danmu_count>=self.tl_stat_min_count:
+            start_str=getTime(start_ts,fmt="%Y-%m-%d %H:%M:%S")
+            duration=(last_ts-start_ts)*1.0/60.0
+            records[start_str]="%s,%s,%s,%.1f,%d,%d,%.1f"%(start_str,live_title,liver_name,duration,word_num,danmu_count,word_num/duration)
+        try: updateCsvFile("logs/同传数据统计.csv",0,records,2048)
+        except UnicodeDecodeError:
+            showInfoDialog("CSV文件被其他软件（如Excel）改动后，保存的编码错误\n请尝试将logs目录下的CSV文件移至他处\n"
+            +"Excel编码解决方法：微软Excel->设置CSV保存编码为UTF-8\nWPS Excel->安装CoolCsv插件","保存同传统计结果出错")
+        except Exception as e:
+            print("StatTLRecords WriteError:",roomid,type(e),e)
 
     def LogDanmu(self,msg,roomid,src,res,cur_time):
         if roomid in self.danmu_log_dir.keys():
             dir_name=self.danmu_log_dir[roomid]
         else:
-            liver_name=self.GetLiverName(roomid)
+            liver_name,_=self.GetLiveInfo(roomid)
             dir_name="%s_%s"%(roomid,liver_name)
             self.danmu_log_dir[roomid]=dir_name
             os.mkdir("logs/danmu/%s"%dir_name)
@@ -1082,6 +1135,12 @@ class LyricDanmu(wx.Frame):
                 f.write("[%s][%d%s]%s\n"%(getTime(cur_time),src,res,msg))
         except Exception as e:
             print("[Log Error]",type(e),e)
+        if src==0 and "【" in msg and res=="0":
+            if roomid in self.translate_records.keys():
+                self.translate_records[roomid][1]=cur_time
+            else:
+                _,live_title=self.GetLiveInfo(roomid)
+                self.translate_records[roomid]=[cur_time,cur_time,live_title]
         if res!="1": return
         try:
             path="logs/shielded/SHIELDED_%s.log"%getTime(cur_time,fmt="%y-%m")
@@ -1089,7 +1148,7 @@ class LyricDanmu(wx.Frame):
                 f.write("%s｜%s\n"%(getTime(cur_time,fmt="%m-%d %H:%M"),msg))
         except Exception as e:
             print("[Log Error]",type(e),e)
-    
+
     def LoginCheck(self,res):
         if res["code"]==-101 or "登录" in res["message"]:
             self.OnStopBtn(None)
@@ -1330,6 +1389,11 @@ class LyricDanmu(wx.Frame):
             os.mkdir("logs/shielded")
         if not os.path.exists("logs/danmu"):
             os.mkdir("logs/danmu")
+        if not os.path.exists("logs/recent.dat"):
+            with open("logs/recent.dat", "w", encoding="utf-8") as f:   f.write("")
+        if not os.path.exists("logs/同传数据统计.csv"):
+            with open("logs/同传数据统计.csv", "w", encoding="utf-8-sig") as f:
+                f.write("同传开始时间,直播标题,主播,同传时长(分),同传字数,同传条数,字/分\n")
 
     def ReadFile(self):
         try:
@@ -1391,6 +1455,12 @@ class LyricDanmu(wx.Frame):
                         self.cookies[0] = v
                     elif k == "cookie2":
                         self.cookies[1] = v
+                    elif k == "同传中断阈值":
+                        self.tl_stat_break_min = min(max(int(v),5),30)
+                    elif k == "最低字数要求":
+                        self.tl_stat_min_word_num = max(int(v),0)
+                    elif k == "最低条数要求":
+                        self.tl_stat_min_count = max(int(v),2)
                 if not send_interval_check:
                     self.send_interval_ms = 750 if self.enable_new_send_type else 1050
         except Exception:
@@ -1447,6 +1517,15 @@ class LyricDanmu(wx.Frame):
             self.need_update_global_shields=time.time()-scope["modified_time"]>GLOBAL_SHIELDS_UPDATE_INTERVAL_S
         except Exception:
             showInfoDialog("读取shields_global.dat失败", "提示")
+        try:
+            cur_time=int(time.time())
+            with open("logs/recent.dat", "r", encoding="utf-8") as f:
+                for line in f:
+                    mo = re.match(r"(\d+),(\d+),(\d+),(.*)", line)
+                    if mo and cur_time-int(mo.group(3))<=self.tl_stat_break_min*60:
+                        self.translate_records[mo.group(1)]=[int(mo.group(2)),None,mo.group(4).strip()]
+        except Exception:
+            showInfoDialog("读取logs/recent.dat失败", "提示")
         # 读取弹幕记录目录名称列表
         for dir_name in os.listdir("logs/danmu"):
             if os.path.isfile("logs/danmu/"+dir_name):    continue
@@ -1581,6 +1660,10 @@ class LyricDanmu(wx.Frame):
                 f.write("默认搜索来源=%s\n" % ("网易云音乐" if self.default_src=="wy" else "QQ音乐"))
                 f.write("歌曲搜索条数=%d\n" % self.search_num)
                 f.write("每页显示条数=%d\n" % self.page_limit)
+                f.write("----------\n#同传统计配置#\n----------\n")
+                f.write("同传中断阈值=%d\n" % self.tl_stat_break_min)
+                f.write("最低字数要求=%d\n" % self.tl_stat_min_word_num)
+                f.write("最低条数要求=%d\n" % self.tl_stat_min_count)
                 f.write("----------\n#其它配置#\n----------\n")
                 f.write("默认展开歌词=%s\n" % self.init_show_lyric)
                 f.write("忽略系统代理=%s\n" % self.no_proxy)
