@@ -105,6 +105,7 @@ class LyricDanmu(wx.Frame):
         self.custom_texts = []
         self.danmu_log_dir = {}
         self.translate_records = {}
+        self.translate_stat = []
         self.max_len = 30
         self.prefix = "【♪"
         self.suffix = "】"
@@ -128,6 +129,7 @@ class LyricDanmu(wx.Frame):
         self.tl_stat_break_min=10
         self.tl_stat_min_count=20
         self.tl_stat_min_word_num=200
+        self.show_stat_on_close=False
 
     def ShowFrame(self, parent):
         # 窗体
@@ -745,9 +747,12 @@ class LyricDanmu(wx.Frame):
 
     def OnClose(self, event):
         self.running = False
+        self.OnStopBtn(None)
+        self.Show(False)
         self.SaveConfig()
         self.SaveData()
         self.SaveTLRecords()
+        self.ShowStatDialog()
         if os.path.exists("tmp.tmp"):
             try:    os.remove("tmp.tmp")
             except: pass
@@ -838,8 +843,8 @@ class LyricDanmu(wx.Frame):
     def GetLiveInfo(self,roomid):
         try:
             data=self.blApi.get_room_info(roomid)
-            live_title=data["data"]["room_info"]["title"]
-            liver_name=data["data"]["anchor_info"]["base_info"]["uname"]
+            live_title=data["data"]["room_info"]["title"].replace(",","，")
+            liver_name=data["data"]["anchor_info"]["base_info"]["uname"].replace(",","，")
             liver_name=re.sub(r"(?i)[_\-]*(official|channel).*","",liver_name)
             for k,v in FILENAME_TRANSFORM_RULES.items():
                 liver_name=liver_name.replace(k,v)
@@ -942,6 +947,17 @@ class LyricDanmu(wx.Frame):
         except Exception as e:
             self.CallRecord(msg,roomid,src,"X")
             return self.CallRecord("(具体信息：%s)"%str(e),"0",-1,"-")
+    
+    def ShowStatDialog(self):
+        stat_len=len(self.translate_stat)
+        if not self.show_stat_on_close or stat_len==0:  return
+        content="" if stat_len==1 else "本次同传共产生了%d条记录：\n"%stat_len
+        for i in self.translate_stat[:3]:
+            data=i.split(",")
+            content+="主播：%s　　开始时间：%s　　持续时间：%s分钟\n弹幕数：%s　　总字数：%s　　平均速度：%s字/分钟\n\n"%\
+                (data[2],data[0][5:-3],data[3],data[5],data[4],data[6])
+        if stat_len>3:  content+="其余记录请在 logs/同传数据统计.csv 中进行查看"
+        showInfoDialog(content,"同传统计数据")
 
     def SendLyric(self, line):
         pre = self.cbbLycPre.GetValue()
@@ -1080,7 +1096,8 @@ class LyricDanmu(wx.Frame):
         except Exception as e: print("SaveTLRecordsOnClose Error:",type(e),e)
         for k,v in self.translate_records.items():
             if v[1] is None:    continue
-            self.StatTLRecords(k,v[0],v[1],v[2])
+            stat_res=self.StatTLRecords(k,v[0],v[1],v[2])
+            self.translate_stat+=list(stat_res.values())
     
     def StatTLRecords(self,roomid,start_time,end_time,live_title):
         dir_name=self.danmu_log_dir[roomid]
@@ -1119,6 +1136,8 @@ class LyricDanmu(wx.Frame):
             +"Excel编码解决方法：微软Excel->设置CSV保存编码为UTF-8\nWPS Excel->安装CoolCsv插件","保存同传统计结果出错")
         except Exception as e:
             print("StatTLRecords WriteError:",roomid,type(e),e)
+        finally:
+            return records
 
     def LogDanmu(self,msg,roomid,src,res,cur_time):
         if roomid=="0": return
@@ -1394,7 +1413,7 @@ class LyricDanmu(wx.Frame):
             with open("logs/recent.dat", "w", encoding="utf-8") as f:   f.write("")
         if not os.path.exists("logs/同传数据统计.csv"):
             with open("logs/同传数据统计.csv", "w", encoding="utf-8-sig") as f:
-                f.write("同传开始时间,直播标题,主播,同传时长(分),同传字数,同传条数,字/分\n")
+                f.write("同传开始时间,直播标题,主播,持续时间(分钟),同传字数,同传条数,速度(字/分钟)\n")
 
     def ReadFile(self):
         try:
@@ -1462,6 +1481,8 @@ class LyricDanmu(wx.Frame):
                         self.tl_stat_min_word_num = max(int(v),0)
                     elif k == "最低条数要求":
                         self.tl_stat_min_count = max(int(v),2)
+                    elif k == "退出时显示统计":
+                        self.show_stat_on_close = True if v.lower()=="true" else False
                 if not send_interval_check:
                     self.send_interval_ms = 750 if self.enable_new_send_type else 1050
         except Exception:
@@ -1665,6 +1686,7 @@ class LyricDanmu(wx.Frame):
                 f.write("同传中断阈值=%d\n" % self.tl_stat_break_min)
                 f.write("最低字数要求=%d\n" % self.tl_stat_min_word_num)
                 f.write("最低条数要求=%d\n" % self.tl_stat_min_count)
+                f.write("退出时显示统计=%s\n" % self.show_stat_on_close)
                 f.write("----------\n#其它配置#\n----------\n")
                 f.write("默认展开歌词=%s\n" % self.init_show_lyric)
                 f.write("忽略系统代理=%s\n" % self.no_proxy)
