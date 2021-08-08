@@ -899,7 +899,7 @@ class LyricDanmu(wx.Frame):
             errmsg,code=data["msg"],data["code"]
             if code==10030:
                 if try_times>0:
-                    self.CallRecord("",0,-1,"3+")
+                    self.CallRecord("","0",-1,"3+")
                     wx.MilliSleep(self.send_interval_ms)
                     return self.SendDanmu(roomid,msg,src,try_times-2)
                 return self.CallRecord(msg,roomid,src,"3")
@@ -907,13 +907,13 @@ class LyricDanmu(wx.Frame):
                 return self.CallRecord(msg,roomid,src,"4")
             if code==11000:
                 if try_times>0:
-                    self.CallRecord("",0,-1,"5+")
+                    self.CallRecord("","0",-1,"5+")
                     wx.MilliSleep(self.send_interval_ms)
                     return self.SendDanmu(roomid,msg,src,try_times-2)
                 return self.CallRecord(msg,roomid,src,"5")
             if code!=0:
                 self.CallRecord(msg,roomid,src,"x")
-                return self.CallRecord("(具体信息：%s)"%data,0,-1,"-")
+                return self.CallRecord("(具体信息：%s)"%data,"0",-1,"-")
             if errmsg=="":
                 self.CallRecord(msg,roomid,src,"0")
                 return True
@@ -923,12 +923,12 @@ class LyricDanmu(wx.Frame):
                 return self.CallRecord(msg,roomid,src,"2")
             if errmsg=="max limit":
                 if try_times>0:
-                    self.CallRecord("",0,-1,"6+")
+                    self.CallRecord("","0",-1,"6+")
                     wx.MilliSleep(self.send_interval_ms)
                     return self.SendDanmu(roomid,msg,src,try_times-1)
                 return self.CallRecord(msg,roomid,src,"6")
             self.CallRecord(msg,roomid,src,"x")
-            return self.CallRecord("(具体信息：%s)"%msg,0,-1,"-")
+            return self.CallRecord("(具体信息：%s)"%msg,"0",-1,"-")
         except requests.exceptions.ConnectionError as e:
             if "Remote end closed connection without response" in str(e):
                 if try_times>0:
@@ -941,7 +941,7 @@ class LyricDanmu(wx.Frame):
             return self.CallRecord(msg,roomid,src,"B")
         except Exception as e:
             self.CallRecord(msg,roomid,src,"X")
-            return self.CallRecord("(具体信息：%s)"%str(e),0,-1,"-")
+            return self.CallRecord("(具体信息：%s)"%str(e),"0",-1,"-")
 
     def SendLyric(self, line):
         pre = self.cbbLycPre.GetValue()
@@ -1121,6 +1121,7 @@ class LyricDanmu(wx.Frame):
             print("StatTLRecords WriteError:",roomid,type(e),e)
 
     def LogDanmu(self,msg,roomid,src,res,cur_time):
+        if roomid=="0": return
         if roomid in self.danmu_log_dir.keys():
             dir_name=self.danmu_log_dir[roomid]
         else:
