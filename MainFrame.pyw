@@ -1109,7 +1109,7 @@ class LyricDanmu(wx.Frame):
             try:
                 with open("logs/danmu/%s/%s.log"%(dir_name,date),"r",encoding="utf-8") as f:
                     for line in f:
-                        mo=re.match(r"\[(\d{2}:\d{2}:\d{2})\]\[00\](.*?【.*)",line)
+                        mo=re.match(r"\[00\]\[(\d{2}:\d{2}:\d{2})\](.*?【.*)",line)
                         if not mo:  continue
                         ts=strToTs(getTime(start_time,fmt="%s %s"%(date,mo.group(1))))
                         if ts<start_time or ts>end_time:    continue
@@ -1140,7 +1140,7 @@ class LyricDanmu(wx.Frame):
             return records
 
     def LogDanmu(self,msg,roomid,src,res,cur_time):
-        if roomid=="0": return
+        if roomid=="0" or src<0: return
         if roomid in self.danmu_log_dir.keys():
             dir_name=self.danmu_log_dir[roomid]
         else:
@@ -1148,11 +1148,10 @@ class LyricDanmu(wx.Frame):
             dir_name="%s_%s"%(roomid,liver_name)
             self.danmu_log_dir[roomid]=dir_name
             os.mkdir("logs/danmu/%s"%dir_name)
-        if src<0:  return
         try:
             path="logs/danmu/%s/%s.log"%(dir_name,getTime(cur_time,fmt="%y-%m-%d"))
             with open(path,"a",encoding="utf-8") as f:
-                f.write("[%s][%d%s]%s\n"%(getTime(cur_time),src,res,msg))
+                f.write("[%d%s][%s]%s\n"%(src,res,getTime(cur_time),msg))
         except Exception as e:
             print("[Log Error]",type(e),e)
         if src==0 and "【" in msg and res=="0":
