@@ -978,8 +978,8 @@ class LyricDanmu(wx.Frame):
         if len(spaceIdx) > 0:
             for idx in spaceIdx:
                 if idx <= self.max_len: cutIdx = idx
-        if 1 + len(msg[cutIdx:]) + len(pre) > self.max_len:
-            cutIdx = self.max_len
+        if cutIdx<self.max_len*0.5 and 1+len(msg[cutIdx:])+len(pre)>self.max_len:
+             cutIdx = self.max_len
         self.danmu_queue.append([self.roomid,msg[:cutIdx],src])
         UIChange(self.btnClearQueue,label="清空 [%d]"%len(self.danmu_queue))#
         if msg[cutIdx:] in [")","）","」","】","\"","”"]:  return
