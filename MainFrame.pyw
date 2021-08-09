@@ -917,12 +917,14 @@ class LyricDanmu(wx.Frame):
                     return self.SendDanmu(roomid,msg,src,try_times-2)
                 return self.CallRecord(msg,roomid,src,"5")
             if code!=0:
+                self.LogDebug("[SendDanmu]"+str(data))
                 self.CallRecord(msg,roomid,src,"x")
                 return self.CallRecord("(具体信息：%s)"%data,"0",-1,"-")
             if errmsg=="":
                 self.CallRecord(msg,roomid,src,"0")
                 return True
             if errmsg in ["f","fire"]:
+                self.LogShielded(msg)
                 return self.CallRecord(msg,roomid,src,"1")
             if errmsg=="k":
                 return self.CallRecord(msg,roomid,src,"2")
@@ -932,8 +934,9 @@ class LyricDanmu(wx.Frame):
                     wx.MilliSleep(self.send_interval_ms)
                     return self.SendDanmu(roomid,msg,src,try_times-1)
                 return self.CallRecord(msg,roomid,src,"6")
+            self.LogDebug("[SendDanmu]"+"errmsg:"+errmsg)
             self.CallRecord(msg,roomid,src,"x")
-            return self.CallRecord("(具体信息：%s)"%msg,"0",-1,"-")
+            return self.CallRecord("(具体信息：%s)"%errmsg,"0",-1,"-")
         except requests.exceptions.ConnectionError as e:
             if "Remote end closed connection without response" in str(e):
                 if try_times>0:
@@ -941,10 +944,12 @@ class LyricDanmu(wx.Frame):
                     return self.SendDanmu(roomid,msg,src,try_times-1)
                 return self.CallRecord(msg,roomid,src,"C")
             self.pool.submit(self.ThreadOfShowMsgDlg,"网络连接出错","弹幕发送失败")
+            self.LogDebug("[SendDanmu]"+str(e))
             return self.CallRecord(msg,roomid,src,"A")
         except requests.exceptions.ReadTimeout:
             return self.CallRecord(msg,roomid,src,"B")
         except Exception as e:
+            self.LogDebug("[SendDanmu]"+str(e))
             self.CallRecord(msg,roomid,src,"X")
             return self.CallRecord("(具体信息：%s)"%str(e),"0",-1,"-")
     
@@ -1160,13 +1165,20 @@ class LyricDanmu(wx.Frame):
             else:
                 _,live_title=self.GetLiveInfo(roomid)
                 self.translate_records[roomid]=[cur_time,cur_time,live_title]
-        if res!="1": return
+    
+    def LogShielded(self,msg):
         try:
-            path="logs/shielded/SHIELDED_%s.log"%getTime(cur_time,fmt="%y-%m")
+            path="logs/shielded/SHIELDED_%s.log"%getTime(fmt="%y-%m")
             with open(path,"a",encoding="utf-8") as f:
-                f.write("%s｜%s\n"%(getTime(cur_time,fmt="%m-%d %H:%M"),msg))
-        except Exception as e:
-            print("[Log Error]",type(e),e)
+                f.write("%s｜%s\n"%(getTime(fmt="%m-%d %H:%M"),msg))
+        except: pass
+
+    def LogDebug(self,msg):
+        try:
+            path="logs/debug/DEBUG_%s.log"%getTime(fmt="%y-%m")
+            with open(path,"a",encoding="utf-8") as f:
+                f.write("%s｜%s\n"%(getTime(fmt="%m-%d %H:%M"),msg))
+        except: pass
 
     def LoginCheck(self,res):
         if res["code"]==-101 or "登录" in res["message"]:
@@ -1408,6 +1420,8 @@ class LyricDanmu(wx.Frame):
             os.mkdir("logs/shielded")
         if not os.path.exists("logs/danmu"):
             os.mkdir("logs/danmu")
+        if not os.path.exists("logs/debug"):
+            os.mkdir("logs/debug")
         if not os.path.exists("logs/recent.dat"):
             with open("logs/recent.dat", "w", encoding="utf-8") as f:   f.write("")
         if not os.path.exists("logs/同传数据统计.csv"):
