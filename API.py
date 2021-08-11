@@ -42,30 +42,24 @@ class BiliLiveAPI(BaseAPI):
         url="https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom"
         params={"room_id":roomid}
         if timeout is None: timeout=self.timeout
-        try:
-            res=requests.get(url=url,headers=self.headers,params=params,timeout=timeout)
-            return json.loads(res.text)
-        except Exception as e:  raise e
+        res=requests.get(url=url,headers=self.headers,params=params,timeout=timeout)
+        return json.loads(res.text)
 
     def get_danmu_config(self,roomid,number=0,timeout=None) -> dict:
         """获取用户在直播间内的可用弹幕颜色、弹幕位置等信息"""
         url="https://api.live.bilibili.com/xlive/web-room/v1/dM/GetDMConfigByGroup"
         params={"room_id":roomid}
         if timeout is None: timeout=self.timeout
-        try:
-            res=self.sessions[number].get(url=url,headers=self.headers,params=params,timeout=timeout)
-            return json.loads(res.text)
-        except Exception as e:  raise e
+        res=self.sessions[number].get(url=url,headers=self.headers,params=params,timeout=timeout)
+        return json.loads(res.text)
     
     def get_user_info(self,roomid,number=0,timeout=None) -> dict:
         """获取用户在直播间内的当前弹幕颜色、弹幕位置、发言字数限制等信息"""
         url="https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByUser"
         params={"room_id":roomid}
         if timeout is None: timeout=self.timeout
-        try: 
-            res=self.sessions[number].get(url=url,headers=self.headers,params=params,timeout=timeout)
-            return json.loads(res.text)
-        except Exception as e:  raise e
+        res=self.sessions[number].get(url=url,headers=self.headers,params=params,timeout=timeout)
+        return json.loads(res.text)
     
     def set_danmu_config(self,roomid,color=None,mode=None,number=0,timeout=None) -> dict:
         """设置用户在直播间内的弹幕颜色或弹幕位置
@@ -79,10 +73,8 @@ class BiliLiveAPI(BaseAPI):
             "csrf": self.csrfs[number],
         }
         if timeout is None: timeout=self.timeout
-        try: 
-            res=self.sessions[number].post(url=url,headers=self.headers,data=data,timeout=timeout)
-            return json.loads(res.text)
-        except Exception as e:  raise e
+        res=self.sessions[number].post(url=url,headers=self.headers,data=data,timeout=timeout)
+        return json.loads(res.text)
     
     def send_danmu(self,roomid,msg,number=0,timeout=None) -> dict:
         """向直播间发送弹幕"""
@@ -99,10 +91,83 @@ class BiliLiveAPI(BaseAPI):
             "csrf": self.csrfs[number],
         }
         if timeout is None: timeout=self.timeout
-        try: 
-            res=self.sessions[number].post(url=url,headers=self.headers,data=data,timeout=timeout)
-            return json.loads(res.text)
-        except Exception as e:  raise e
+        res=self.sessions[number].post(url=url,headers=self.headers,data=data,timeout=timeout)
+        return json.loads(res.text)
+    
+    def get_slient_user_list(self,roomid,number=0,timeout=None):
+        """获取房间被禁言用户列表"""
+        url="https://api.live.bilibili.com/xlive/web-ucenter/v1/banned/GetSilentUserList"
+        params={
+            "room_id": roomid,
+            "ps": 1,
+        }
+        if timeout is None: timeout=self.timeout
+        res=self.sessions[number].get(url=url,headers=self.headers,params=params,timeout=timeout)
+        return json.loads(res.text)
+    
+    def add_slient_user(self,roomid,uid,number=0,timeout=None):
+        """禁言用户"""
+        url="https://api.live.bilibili.com/xlive/web-ucenter/v1/banned/AddSilentUser"
+        data={
+            "room_id": roomid,
+            "tuid": uid,
+            "mobile_app": "web",
+            "csrf_token": self.csrfs[number],
+            "csrf": self.csrfs[number],
+        }
+        if timeout is None: timeout=self.timeout
+        res=self.sessions[number].post(url=url,headers=self.headers,data=data,timeout=timeout)
+        return json.loads(res.text)
+
+    def del_slient_user(self,roomid,silent_id,number=0,timeout=None):
+        """解除用户禁言"""
+        url="https://api.live.bilibili.com/banned_service/v1/Silent/del_room_block_user"
+        data={
+            "roomid": roomid,
+            "id": silent_id,
+            "csrf_token": self.csrfs[number],
+            "csrf": self.csrfs[number],
+        }
+        if timeout is None: timeout=self.timeout
+        res=self.sessions[number].post(url=url,headers=self.headers,data=data,timeout=timeout)
+        return json.loads(res.text)
+    
+    def get_shield_keyword_list(self,roomid,number=0,timeout=None):
+        """获取房间屏蔽词列表"""
+        url="https://api.live.bilibili.com/xlive/web-ucenter/v1/banned/GetShieldKeywordList"
+        params={
+            "room_id": roomid,
+            "ps": 2,
+        }
+        if timeout is None: timeout=self.timeout
+        res=self.sessions[number].get(url=url,headers=self.headers,params=params,timeout=timeout)
+        return json.loads(res.text)
+
+    def add_shield_keyword(self,roomid,keyword,number=0,timeout=None):
+        """添加房间屏蔽词"""
+        url="https://api.live.bilibili.com/xlive/web-ucenter/v1/banned/AddShieldKeyword"
+        data={
+            "room_id": roomid,
+            "keyword": keyword,
+            "csrf_token": self.csrfs[number],
+            "csrf": self.csrfs[number],
+        }
+        if timeout is None: timeout=self.timeout
+        res=self.sessions[number].post(url=url,headers=self.headers,data=data,timeout=timeout)
+        return json.loads(res.text)
+    
+    def del_shield_keyword(self,roomid,keyword,number=0,timeout=None):
+        """删除房间屏蔽词"""
+        url="https://api.live.bilibili.com/xlive/web-ucenter/v1/banned/DelShieldKeyword"
+        data={
+            "room_id": roomid,
+            "keyword": keyword,
+            "csrf_token": self.csrfs[number],
+            "csrf": self.csrfs[number],
+        }
+        if timeout is None: timeout=self.timeout
+        res=self.sessions[number].post(url=url,headers=self.headers,data=data,timeout=timeout)
+        return json.loads(res.text)
     
     def update_cookie(self,cookie:str,number=0) -> str:
         """更新账号Cookie信息
@@ -132,10 +197,8 @@ class NetEaseMusicAPI(BaseAPI):
         }
         if timeout is None: timeout=self.timeout
         headers=self.attach_cn_ip(self.headers) if changeIP else self.headers
-        try:
-            res=requests.get(url=url,headers=headers,params=params,timeout=timeout)
-            return json.loads(res.text)
-        except Exception as e:  raise e
+        res=requests.get(url=url,headers=headers,params=params,timeout=timeout)
+        return json.loads(res.text)
     
     def get_lyric(self,song_id,timeout=None,changeIP=False) -> dict:
         """根据歌曲ID获取歌词"""
@@ -149,10 +212,8 @@ class NetEaseMusicAPI(BaseAPI):
         }
         if timeout is None: timeout=self.timeout
         headers=self.attach_cn_ip(self.headers) if changeIP else self.headers
-        try:
-            res=requests.get(url=url,headers=headers,params=params,timeout=timeout)
-            return json.loads(res.text)
-        except Exception as e:  raise e
+        res=requests.get(url=url,headers=headers,params=params,timeout=timeout)
+        return json.loads(res.text)
     
     def get_song_info(self,song_id,timeout=None,changeIP=False) -> dict:
         """根据歌曲ID获取歌曲信息"""
@@ -163,10 +224,8 @@ class NetEaseMusicAPI(BaseAPI):
         }
         if timeout is None: timeout=self.timeout
         headers=self.attach_cn_ip(self.headers) if changeIP else self.headers
-        try:
-            res=requests.get(url=url,headers=headers,params=params,timeout=timeout)
-            return json.loads(res.text)
-        except Exception as e:  raise e
+        res=requests.get(url=url,headers=headers,params=params,timeout=timeout)
+        return json.loads(res.text)
     
 class QQMusicAPI(BaseAPI):
     def __init__(self,timeout=5):
@@ -185,10 +244,8 @@ class QQMusicAPI(BaseAPI):
         }
         if timeout is None: timeout=self.timeout
         headers=self.attach_cn_ip(self.headers) if changeIP else self.headers
-        try:
-            res=requests.get(url=url,headers=headers,params=params,timeout=timeout)
-            return json.loads(res.text)
-        except Exception as e:  raise e
+        res=requests.get(url=url,headers=headers,params=params,timeout=timeout)
+        return json.loads(res.text)
     
     def get_lyric(self,song_mid,timeout=None,changeIP=False) -> dict:
         """根据歌曲MID获取歌词"""
@@ -201,10 +258,8 @@ class QQMusicAPI(BaseAPI):
         }
         if timeout is None: timeout=self.timeout
         headers=self.attach_cn_ip(self.headers) if changeIP else self.headers
-        try:
-            res=requests.get(url=url,headers=headers,params=params,timeout=timeout)
-            return json.loads(res.text)
-        except Exception as e:  raise e
+        res=requests.get(url=url,headers=headers,params=params,timeout=timeout)
+        return json.loads(res.text)
     
     def get_song_info(self,song_id,timeout=None,changeIP=False) -> dict:
         """根据歌曲ID获取歌曲信息"""
@@ -215,10 +270,8 @@ class QQMusicAPI(BaseAPI):
         }
         if timeout is None: timeout=self.timeout
         headers=self.attach_cn_ip(self.headers) if changeIP else self.headers
-        try:
-            res=requests.get(url=url,headers=headers,params=params,timeout=timeout)
-            return json.loads(res.text)
-        except Exception as e:  raise e
+        res=requests.get(url=url,headers=headers,params=params,timeout=timeout)
+        return json.loads(res.text)
 
 class JsdelivrAPI(BaseAPI):
     def __init__(self, timeout=5):
@@ -229,7 +282,5 @@ class JsdelivrAPI(BaseAPI):
         """获取最新的B站直播屏蔽词处理脚本（Github项目：FHChen0420/bili_live_shield_words）"""
         url="https://cdn.jsdelivr.net/gh/FHChen0420/bili_live_shield_words@main/BiliLiveShieldWords.py"
         if timeout is None: timeout=self.timeout
-        try:
-            res=requests.get(url,headers=self.headers,timeout=timeout)
-            return res.text
-        except Exception as e:  raise e
+        res=requests.get(url,headers=self.headers,timeout=timeout)
+        return res.text
