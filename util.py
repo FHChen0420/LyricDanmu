@@ -41,12 +41,10 @@ def setWxUIAttr(obj:wx.Control,label=None,color:Optional[wx.Colour]=None,enabled
         if label is not None:   obj.SetLabel(label)
         if enabled is not None: obj.Enable(enabled)
     except RuntimeError: pass
-    except Exception as e:  raise e
 
 def UIChange(obj:wx.Control,label=None,color:Optional[wx.Colour]=None,enabled=None):
     """主线程调用函数来设置wxUI部件的显示文本、前景色、是否启用"""
-    try: wx.CallAfter(pub.sendMessage,"ui_change",obj=obj,label=label,color=color,enabled=enabled)
-    except Exception as e:  raise e
+    wx.CallAfter(pub.sendMessage,"ui_change",obj=obj,label=label,color=color,enabled=enabled)
 
 def setFont(obj:wx.Control,size,bold=False,name=None):
     """设置wxUI部件的字体大小、是否加粗、字体名称"""
@@ -57,13 +55,11 @@ def setFont(obj:wx.Control,size,bold=False,name=None):
         else:
             obj.SetFont(wx.Font(size,wx.FONTFAMILY_DEFAULT,wx.FONTSTYLE_NORMAL,weight,faceName=name))
     except RuntimeError: pass
-    except Exception as e:  raise e
 
 def getNodeValue(parentNode,childName) -> str:
     """获取DOM父节点parentNode下名为childName的子节点的值"""
     try:    return parentNode.getElementsByTagName(childName)[0].childNodes[0].nodeValue.strip()
     except IndexError:  return ""
-    except Exception as e:  raise e
 
 def splitTnL(lrc_line:str) -> list:
     """对lrc格式的歌词行进行处理，分离时间轴与歌词内容
@@ -109,29 +105,27 @@ def updateCsvFile(file_path:str,key_index:int,new_records:dict,max_size:int=1024
     :param: key_index  数据项的键值在CSV文件中的列编号
     :param: new_records  待更新项的字典，每项为 键值：数据项整行的文本数据
     :param: max_size  从CSV文件结尾开始，允许向前读取并修改的最大字节数"""
-    try:
-        with open(file_path, "r+b") as f:
-            f.seek(0,2)
-            read_size = block_size = min(max_size, f.tell())
-            f.seek(-block_size,2)
-            if block_size==max_size: read_size = block_size-f.read().index(b'\n')-1
-            f.seek(-read_size,2)
-            content=str(f.read(),encoding="utf-8").strip()
-            f.seek(-read_size,2)
-            f.truncate()
-        old_lines,old_records=[],{}
-        if content!="": old_lines=content.strip().split("\n")
-        for i,v in enumerate(old_lines):
-            line_items=v.strip().split(",")
-            if len(line_items)>key_index:
-                old_records[line_items[key_index]]=v
-            else:   old_records[i]=v
-        with open(file_path, "a", encoding="utf-8") as f:
-            for k,v in old_records.items():
-                if k in new_records.keys():
-                    f.write(new_records[k].strip()+"\n")
-                else: f.write(v.strip()+"\n")
-            for k,v in new_records.items():
-                if k not in old_records.keys():
-                    f.write(v.strip()+"\n")
-    except Exception as e: raise e
+    with open(file_path, "r+b") as f:
+        f.seek(0,2)
+        read_size = block_size = min(max_size, f.tell())
+        f.seek(-block_size,2)
+        if block_size==max_size: read_size = block_size-f.read().index(b'\n')-1
+        f.seek(-read_size,2)
+        content=str(f.read(),encoding="utf-8").strip()
+        f.seek(-read_size,2)
+        f.truncate()
+    old_lines,old_records=[],{}
+    if content!="": old_lines=content.strip().split("\n")
+    for i,v in enumerate(old_lines):
+        line_items=v.strip().split(",")
+        if len(line_items)>key_index:
+            old_records[line_items[key_index]]=v
+        else:   old_records[i]=v
+    with open(file_path, "a", encoding="utf-8") as f:
+        for k,v in old_records.items():
+            if k in new_records.keys():
+                f.write(new_records[k].strip()+"\n")
+            else: f.write(v.strip()+"\n")
+        for k,v in new_records.items():
+            if k not in old_records.keys():
+                f.write(v.strip()+"\n")
