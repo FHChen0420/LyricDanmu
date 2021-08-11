@@ -1,4 +1,5 @@
 # coding: utf-8
+from BiliLiveAntiSpam import BiliLiveAntiSpam
 import wx
 import requests
 import time
@@ -17,6 +18,7 @@ from GeneralConfigFrame import GeneralConfigFrame
 from RecordFrame import RecordFrame
 from ShieldConfigFrame import ShieldConfigFrame
 from CustomTextFrame import CustomTextFrame
+from spamcheck import SpamChecker
 from BiliLiveShieldWords import *
 from API import *
 from constant import *
@@ -38,6 +40,7 @@ class LyricDanmu(wx.Frame):
         pub.subscribe(self.UpdateRecord,"record")
         pub.subscribe(self.RefreshLyric,"lyric")
         pub.subscribe(setWxUIAttr,"ui_change")
+        pub.subscribe(self.DealWithSpam,"spam")
         # API
         self.blApi = BiliLiveAPI(self.cookies,self.timeout_s)
         self.wyApi = NetEaseMusicAPI()
@@ -88,11 +91,15 @@ class LyricDanmu(wx.Frame):
         self.colabor_mode = 0
         self.pre_idx = 0
         self.pool = ThreadPoolExecutor(max_workers=6)
+        # SpamChecker
+        self.spamChecker=SpamChecker(DEFAULT_AD_LINK_REGEX,DEFAULT_AD_UNAME_REGEX)
         # 显示界面
         self.ShowFrame(parent)
         if self.need_update_global_shields:
             self.pool.submit(self.ThreadOfUpdateGlobalShields)
         self.pool.submit(self.ThreadOfSend)
+        for roomid in ["10688114"]:
+            self.pool.submit(BiliLiveAntiSpam,roomid,self.spamChecker)
 
     def DefaultConfig(self):
         self.rooms={}
@@ -545,6 +552,14 @@ class LyricDanmu(wx.Frame):
         showInfoDialog(content,title)
         wx.MilliSleep(3000)
         self.show_msg_dlg=False
+    
+    def ThreadOfAdminMuteUser(self,roomid,uid):
+        try: self.blApi.add_slient_user(roomid,uid)
+        except: pass
+
+    def ThreadOfAdminAddRoomShield(self,roomid,keyword):
+        try: self.blApi.add_shield_keyword(roomid,keyword)
+        except: pass
 
 
     def OnAutoSendLrcBtn(self,event):
@@ -748,6 +763,7 @@ class LyricDanmu(wx.Frame):
     def OnClose(self, event):
         self.running = False
         self.OnStopBtn(None)
+        pub.sendMessage("close_ws")
         self.Show(False)
         self.SaveConfig()
         self.SaveData()
@@ -756,6 +772,7 @@ class LyricDanmu(wx.Frame):
         if os.path.exists("tmp.tmp"):
             try:    os.remove("tmp.tmp")
             except: pass
+        self.pool.shutdown(wait=True)
         self.Destroy()
 
     def ChangeDanmuPosition(self,event):
@@ -1081,6 +1098,10 @@ class LyricDanmu(wx.Frame):
         self.recent_history.insert(0,message)
         if len(self.recent_history)>10:
             self.recent_history.pop()
+
+    def DealWithSpam(self,roomid,uid,signature):
+        self.pool.submit(self.ThreadOfAdminAddRoomShield,roomid,signature)
+        self.pool.submit(self.ThreadOfAdminMuteUser,roomid,uid)
 
     def UpdateRecord(self,msg,roomid,src,res):
         tcRecord=self.recordFrame.tcRecord
