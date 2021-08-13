@@ -1524,8 +1524,9 @@ class LyricDanmu(wx.Frame):
                         self.show_stat_on_close = True if v.lower()=="true" else False
                     elif k == "管理房间列表":
                         for i in v.strip().split(","):
-                            if int(i.strip())>0:
-                                self.admin_rooms.append(i)
+                            try:
+                                if int(i.strip())>0: self.admin_rooms.append(i)
+                            except: pass
                     elif k == "自动屏蔽广告链接":
                         self.auto_shield_ad = True if v.lower()=="true" else False
                     elif k == "自动封禁广告用户":
