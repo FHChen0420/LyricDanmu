@@ -90,7 +90,7 @@ class LyricDanmu(wx.Frame):
         self.history_idx = 0
         self.colabor_mode = 0
         self.pre_idx = 0
-        self.pool = ThreadPoolExecutor(max_workers=6)
+        self.pool = ThreadPoolExecutor(max_workers=6+len(self.admin_rooms))
         # SpamChecker
         self.spamChecker=SpamChecker(DEFAULT_AD_LINK_REGEX,DEFAULT_AD_UNAME_REGEX)
         # 显示界面
@@ -98,7 +98,7 @@ class LyricDanmu(wx.Frame):
         if self.need_update_global_shields:
             self.pool.submit(self.ThreadOfUpdateGlobalShields)
         self.pool.submit(self.ThreadOfSend)
-        for roomid in ["10688114"]:
+        for roomid in self.admin_rooms:
             self.pool.submit(BiliLiveAntiSpam,roomid,self.spamChecker)
 
     def DefaultConfig(self):
@@ -113,6 +113,9 @@ class LyricDanmu(wx.Frame):
         self.danmu_log_dir = {}
         self.translate_records = {}
         self.translate_stat = []
+        self.admin_rooms = []
+        self.auto_shield_ad = False
+        self.auto_mute_ad = False
         self.max_len = 30
         self.prefix = "【♪"
         self.suffix = "】"
@@ -1100,8 +1103,10 @@ class LyricDanmu(wx.Frame):
             self.recent_history.pop()
 
     def DealWithSpam(self,roomid,uid,signature):
-        self.pool.submit(self.ThreadOfAdminAddRoomShield,roomid,signature)
-        self.pool.submit(self.ThreadOfAdminMuteUser,roomid,uid)
+        if self.auto_shield_ad:
+            self.pool.submit(self.ThreadOfAdminAddRoomShield,roomid,signature)
+        if self.auto_mute_ad:
+            self.pool.submit(self.ThreadOfAdminMuteUser,roomid,uid)
 
     def UpdateRecord(self,msg,roomid,src,res):
         tcRecord=self.recordFrame.tcRecord
@@ -1517,6 +1522,14 @@ class LyricDanmu(wx.Frame):
                         self.tl_stat_min_count = max(int(v),2)
                     elif k == "退出时显示统计":
                         self.show_stat_on_close = True if v.lower()=="true" else False
+                    elif k == "管理房间列表":
+                        for i in v.strip().split(","):
+                            if int(i.strip())>0:
+                                self.admin_rooms.append(i)
+                    elif k == "自动屏蔽广告链接":
+                        self.auto_shield_ad = True if v.lower()=="true" else False
+                    elif k == "自动封禁广告用户":
+                        self.auto_mute_ad = True if v.lower()=="true" else False
                 if not send_interval_check:
                     self.send_interval_ms = 750 if self.enable_new_send_type else 1050
         except Exception:
@@ -1721,6 +1734,10 @@ class LyricDanmu(wx.Frame):
                 f.write("最低字数要求=%d\n" % self.tl_stat_min_word_num)
                 f.write("最低条数要求=%d\n" % self.tl_stat_min_count)
                 f.write("退出时显示统计=%s\n" % self.show_stat_on_close)
+                f.write("----------\n#房管功能配置#\n----------\n")
+                f.write("管理房间列表=%s\n" % ",".join(self.admin_rooms))
+                f.write("自动屏蔽广告链接=%s\n" % self.auto_shield_ad)
+                f.write("自动封禁广告用户=%s\n" % self.auto_mute_ad)
                 f.write("----------\n#其它配置#\n----------\n")
                 f.write("默认展开歌词=%s\n" % self.init_show_lyric)
                 f.write("忽略系统代理=%s\n" % self.no_proxy)
