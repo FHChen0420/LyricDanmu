@@ -698,7 +698,7 @@ class LyricDanmu(wx.Frame):
 
     def CountText(self, event):
         comment = self.cbbComPre.GetValue() + self.tcComment.GetValue()
-        label = "%02d" % len(comment) + (" ↩" if len(comment) <= 50 else " ×")
+        label = "%02d" % len(comment) + (" ↩" if len(comment) <= self.max_len*5/2 else " ×")
         self.btnComment.SetLabel(label)
         event.Skip()
 
@@ -839,7 +839,7 @@ class LyricDanmu(wx.Frame):
         if self.roomid is None:
             return showInfoDialog("未指定直播间", "提示")
         comment = pre + msg
-        if len(comment) > 50:
+        if len(comment) > self.max_len*5/2:
             return showInfoDialog("弹幕内容过长", "弹幕发送失败")
         comment = self.DealWithCustomShields(comment)
         comment = deal(comment,self.global_shields)
