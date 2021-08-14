@@ -7,6 +7,21 @@ def isEmpty(string) -> bool:
     """判断字符串是否为空"""
     return string is None or string.strip()==""
 
+def wxCopy(string):
+    """将文本内容粘贴到剪切板"""
+    text_data=wx.TextDataObject(string)
+    if wx.TheClipboard.Open():
+        wx.TheClipboard.SetData(text_data)
+        wx.TheClipboard.Close()
+
+def wxPaste() -> Optional[str]:
+    """从剪切板获取文本内容"""
+    text_data=wx.TextDataObject()
+    if wx.TheClipboard.Open():
+        success = wx.TheClipboard.GetData(text_data)
+        wx.TheClipboard.Close()
+    return text_data.GetText() if success else None
+
 def getRgbColor(num:int) -> wx.Colour:
     """根据整数生成对应的wxUI颜色"""
     num=int(num)

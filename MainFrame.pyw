@@ -5,7 +5,6 @@ import requests
 import time
 import re
 import os
-import pyperclip
 from concurrent.futures import ThreadPoolExecutor,as_completed
 from pubsub import pub
 import xml.dom.minidom
@@ -170,6 +169,7 @@ class LyricDanmu(wx.Frame):
         self.tcComment.Bind(wx.EVT_TEXT_ENTER, self.SendComment)
         self.tcComment.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)
         self.tcComment.Bind(wx.EVT_TEXT, self.CountText)
+        self.tcComment.Bind(wx.EVT_TEXT_PASTE, self.OnCommentPaste)
         # 弹幕发送按钮
         self.btnComment = wx.Button(self.p0, -1, "00 ↩", pos=(345, 9), size=(47, 32))
         self.btnComment.Bind(wx.EVT_BUTTON, self.SendComment)
@@ -700,6 +700,7 @@ class LyricDanmu(wx.Frame):
         comment = self.cbbComPre.GetValue() + self.tcComment.GetValue()
         label = "%02d" % len(comment) + (" ↩" if len(comment) <= 50 else " ×")
         self.btnComment.SetLabel(label)
+        event.Skip()
 
     def SetLycMod(self, event):
         self.lyc_mod = self.cbbLycMod.GetSelection()
@@ -709,16 +710,16 @@ class LyricDanmu(wx.Frame):
 
     def CopyLyricLine(self, event):
         if self.init_lock:  return
-        pyperclip.copy(self.lblLyrics[4].GetLabel())
+        wxCopy(self.lblLyrics[4].GetLabel())
 
     def CopyLyricAll(self, event):
         if self.init_lock:  return
         if self.has_timeline:
             dlg = wx.MessageDialog(None, "是否复制歌词时间轴？", "提示", wx.YES_NO|wx.NO_DEFAULT)
-            pyperclip.copy(self.lyric_raw_tl if dlg.ShowModal()==wx.ID_YES else self.lyric_raw)
+            wxCopy(self.lyric_raw_tl if dlg.ShowModal()==wx.ID_YES else self.lyric_raw)
             dlg.Destroy()
         else:
-            pyperclip.copy(self.lyric_raw)
+            wxCopy(self.lyric_raw)
 
     def ClearQueue(self,event):
         self.danmu_queue.clear()
@@ -792,6 +793,20 @@ class LyricDanmu(wx.Frame):
         panel=event.GetEventObject().GetParent()
         if self.colorFrame is not None and panel!=self.colorFrame.panel:
             self.colorFrame.Show(False)
+
+    def OnCommentPaste(self,event):
+        paste_text=wxPaste()
+        if paste_text is None:  return
+        if "\n" in paste_text or "\r" in paste_text:
+            _from,_to=self.tcComment.GetSelection()
+            old_text=self.tcComment.GetValue()
+            paste_text=re.sub("\s+"," ",paste_text)
+            new_text=old_text[:_from]+paste_text+old_text[_to:]
+            new_pos=_from+len(paste_text)
+            self.tcComment.SetValue(new_text)
+            self.tcComment.SetSelection(new_pos,new_pos)
+        else:
+            event.Skip()
     
     def SetColaborMode(self,event):
         self.colabor_mode=self.cbbClbMod.GetSelection()

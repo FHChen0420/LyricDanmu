@@ -1,12 +1,11 @@
 import wx
 import re
 import requests
-import pyperclip
 import xml.dom.minidom
 from math import ceil
 from langconv import Converter
 from SongMarkFrame import SongMarkFrame
-from util import UIChange,setFont,getNodeValue,isEmpty,showInfoDialog
+from util import UIChange,setFont,getNodeValue,isEmpty,showInfoDialog,wxCopy
 from constant import CN_LYRIC_PREPROCESS_RULES,LYRIC_IGNORE_RULES
 
 class SongSearchFrame(wx.Frame):
@@ -491,12 +490,12 @@ class SongSearchFrame(wx.Frame):
             self.btnPageNum.SetLabel("%d/%d" % (self.cur_page + 1, self.page_num))
 
     def CopyName(self, event):
-        pyperclip.copy(event.GetEventObject().GetName())
+        wxCopy(event.GetEventObject().GetName())
         self.txtMsg.SetForegroundColour("SEA GREEN")
         self.txtMsg.SetLabel("已复制歌名")
 
     def CopyRecommond(self, event):
-        pyperclip.copy(self.recommond)
+        wxCopy(self.recommond)
         self.txtMsg.SetForegroundColour("SEA GREEN")
         self.txtMsg.SetLabel("已复制搜索建议")
 
