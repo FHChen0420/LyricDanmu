@@ -481,7 +481,7 @@ class LyricDanmu(wx.Frame):
         last_time = 0
         while self.running:
             try:
-                wx.MilliSleep(FETCH_INTERVAL_S)
+                wx.MilliSleep(FETCH_INTERVAL_MS)
                 if len(self.danmu_queue) == 0:
                     continue
                 danmu = self.danmu_queue.pop(0)
