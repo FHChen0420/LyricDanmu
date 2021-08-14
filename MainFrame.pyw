@@ -79,6 +79,7 @@ class LyricDanmu(wx.Frame):
         self.pause_t=0
         self.timeline_base=0
         # 其他参数
+        self.tmp_clipboard=""
         self.recent_danmu = [None,None]
         self.danmu_queue = []
         self.recent_history = []
@@ -169,7 +170,8 @@ class LyricDanmu(wx.Frame):
         self.tcComment.Bind(wx.EVT_TEXT_ENTER, self.SendComment)
         self.tcComment.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)
         self.tcComment.Bind(wx.EVT_TEXT, self.CountText)
-        self.tcComment.Bind(wx.EVT_TEXT_PASTE, self.OnCommentPaste)
+        self.tcComment.Bind(wx.EVT_TEXT, self.FetchFromTmpClipboard)
+        self.tcComment.Bind(wx.EVT_TEXT_PASTE, self.OnPasteComment)
         # 弹幕发送按钮
         self.btnComment = wx.Button(self.p0, -1, "00 ↩", pos=(345, 9), size=(47, 32))
         self.btnComment.Bind(wx.EVT_BUTTON, self.SendComment)
@@ -190,6 +192,8 @@ class LyricDanmu(wx.Frame):
             self.btnSearch = wx.Button(self.p1, -1, "QQ ↩", pos=(315, 9), size=(62, 32), name="qq")
             self.btnSearch2 = wx.Button(self.p1, -1, "网易云", pos=(382, 9), size=(49, 32), name="wy")
         self.tcSearch.Bind(wx.EVT_TEXT_ENTER, self.SearchLyric)
+        self.tcSearch.Bind(wx.EVT_TEXT, self.FetchFromTmpClipboard)
+        self.tcSearch.Bind(wx.EVT_TEXT_PASTE, self.OnPasteSearch)
         self.btnSearch.Bind(wx.EVT_BUTTON, self.SearchLyric)
         self.btnSearch2.Bind(wx.EVT_BUTTON, self.SearchLyric)
         # 歌词静态文本
@@ -794,19 +798,32 @@ class LyricDanmu(wx.Frame):
         if self.colorFrame is not None and panel!=self.colorFrame.panel:
             self.colorFrame.Show(False)
 
-    def OnCommentPaste(self,event):
-        paste_text=wxPaste()
-        if paste_text is None:  return
-        if "\n" in paste_text or "\r" in paste_text:
-            _from,_to=self.tcComment.GetSelection()
-            old_text=self.tcComment.GetValue()
-            paste_text=re.sub("\s+"," ",paste_text)
-            new_text=old_text[:_from]+paste_text+old_text[_to:]
-            new_pos=_from+len(paste_text)
-            self.tcComment.SetValue(new_text)
-            self.tcComment.SetSelection(new_pos,new_pos)
+    def OnPasteComment(self,event):
+        text=wxPaste()
+        if text is None:  return
+        if "\n" in text or "\r" in text:
+            wxCopy(re.sub("\s+"," ",text))
+            self.tmp_clipboard=text
         else:
-            event.Skip()
+            self.tmp_clipboard=""
+        event.Skip()
+    
+    def OnPasteSearch(self,event):
+        text=wxPaste()
+        if text is None:  return
+        mo=re.match("歌曲名：(.*?)，歌手名：",text)
+        if mo is not None:
+            wxCopy(re.sub(r"\(.*?\)|（.*?）","",mo.group(1)))
+            self.tmp_clipboard=text
+        else:
+            self.tmp_clipboard=""
+        event.Skip()
+    
+    def FetchFromTmpClipboard(self,event):
+        if self.tmp_clipboard!="":
+            wxCopy(self.tmp_clipboard)
+            self.tmp_clipboard=""
+        event.Skip()
     
     def SetColaborMode(self,event):
         self.colabor_mode=self.cbbClbMod.GetSelection()
