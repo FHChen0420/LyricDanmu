@@ -88,7 +88,15 @@ class BiliLiveAntiSpam():
                 uid,uname,ts,msg,formal=info[2][0],info[2][1],info[0][4]/1000,info[1],info[2][5]>=10000
                 level,signature=self.checker.check({"uname":uname,"content":msg.replace(" ","")})
                 if level==2 and not formal:
-                    pub.sendMessage("spam",roomid=self.roomid,uid=uid,signature=signature)
+                    info={
+                        "roomid": self.roomid,
+                        "uid": uid,
+                        "uname": uname,
+                        "signature": signature,
+                        "msg": msg,
+                        "ts": ts,
+                    }
+                    pub.sendMessage("spam",info=info)
             except RuntimeError:
                 return
             except Exception as e:

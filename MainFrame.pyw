@@ -560,13 +560,27 @@ class LyricDanmu(wx.Frame):
         wx.MilliSleep(3000)
         self.show_msg_dlg=False
     
-    def ThreadOfAdminMuteUser(self,roomid,uid):
-        try: self.blApi.add_slient_user(roomid,uid)
-        except: pass
+    def ThreadOfAdminMuteUser(self,roomid,uid,uname):
+        try:
+            msg="【封禁】房间号：%s，用户名：%s，UID：%s，操作结果："%(roomid,uname,uid)
+            data=self.blApi.add_slient_user(roomid,uid)
+            if data["code"]==0: msg+="成功"
+            else: msg+=data["message"]
+        except requests.exceptions.ConnectionError: msg+="网络异常"
+        except requests.exceptions.ReadTimeout: msg+="请求超时"
+        except Exception: msg+="解析错误"
+        finally: self.LogSpam(msg)
 
     def ThreadOfAdminAddRoomShield(self,roomid,keyword):
-        try: self.blApi.add_shield_keyword(roomid,keyword)
-        except: pass
+        try:
+            msg="【屏蔽】房间号：%s，关键词：%s，操作结果："%(roomid,keyword)
+            data=self.blApi.add_shield_keyword(roomid,keyword)
+            if data["code"]==0: msg+="成功"
+            else: msg+=data["message"]
+        except requests.exceptions.ConnectionError: msg+="网络异常"
+        except requests.exceptions.ReadTimeout: msg+="请求超时"
+        except Exception: msg+="解析错误"
+        finally: self.LogSpam(msg)
 
 
     def OnAutoSendLrcBtn(self,event):
@@ -1134,11 +1148,13 @@ class LyricDanmu(wx.Frame):
         if len(self.recent_history)>10:
             self.recent_history.pop()
 
-    def DealWithSpam(self,roomid,uid,signature):
+    def DealWithSpam(self,info):
+        msg="【检测】房间号：%s，用户名：%s，UID：%s，发言：%s"%(info["roomid"],info["uname"],info["uid"],info["msg"])
+        self.pool.submit(self.LogSpam,msg,info["ts"])
         if self.auto_shield_ad:
-            self.pool.submit(self.ThreadOfAdminAddRoomShield,roomid,signature)
+            self.pool.submit(self.ThreadOfAdminAddRoomShield,info["roomid"],info["signature"])
         if self.auto_mute_ad:
-            self.pool.submit(self.ThreadOfAdminMuteUser,roomid,uid)
+            self.pool.submit(self.ThreadOfAdminMuteUser,info["roomid"],info["uid"],info["uname"])
 
     def UpdateRecord(self,msg,roomid,src,res):
         tcRecord=self.recordFrame.tcRecord
@@ -1229,6 +1245,13 @@ class LyricDanmu(wx.Frame):
             path="logs/shielded/SHIELDED_%s.log"%getTime(fmt="%y-%m")
             with open(path,"a",encoding="utf-8") as f:
                 f.write("%s｜%s\n"%(getTime(fmt="%m-%d %H:%M"),msg))
+        except: pass
+
+    def LogSpam(self,msg,ts=None):
+        try:
+            path="logs/antiSpam/ANTISPAM_%s.log"%getTime(ts,fmt="%y-%m")
+            with open(path,"a",encoding="utf-8") as f:
+                f.write("%s｜%s\n"%(getTime(ts,fmt="%m-%d %H:%M:%S"),msg))
         except: pass
 
     def LogDebug(self,msg):
@@ -1456,6 +1479,9 @@ class LyricDanmu(wx.Frame):
 
 
     def CheckFile(self):
+        dirs=("songs","logs","logs/danmu","logs/debug","logs/shielded","logs/antiSpam")
+        for dir in dirs:
+            if not os.path.exists(dir): os.mkdir(dir)
         if not os.path.exists("config.txt"):
             self.SaveConfig()
         if not os.path.exists("rooms.txt"):
@@ -1470,16 +1496,6 @@ class LyricDanmu(wx.Frame):
             with open("shields_global.dat", "w", encoding="utf-8") as f:    f.write("")
         if not os.path.exists("custom_texts.txt"):
             with open("custom_texts.txt", "w", encoding="utf-8") as f:  f.write(DEFAULT_CUSTOM_TEXT)
-        if not os.path.exists("songs"):
-            os.mkdir("songs")
-        if not os.path.exists("logs"):
-            os.mkdir("logs")
-        if not os.path.exists("logs/shielded"):
-            os.mkdir("logs/shielded")
-        if not os.path.exists("logs/danmu"):
-            os.mkdir("logs/danmu")
-        if not os.path.exists("logs/debug"):
-            os.mkdir("logs/debug")
         if not os.path.exists("logs/recent.dat"):
             with open("logs/recent.dat", "w", encoding="utf-8") as f:   f.write("")
         if not os.path.exists("logs/同传数据统计.csv"):
