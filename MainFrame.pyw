@@ -109,7 +109,7 @@ class LyricDanmu(wx.Frame):
         self.qq_marks = {}
         self.locals = {}
         self.custom_shields = {}
-        self.global_shields = {}
+        self.global_shields = []
         self.room_shields = {}
         self.custom_texts = []
         self.danmu_log_dir = {}
@@ -537,12 +537,14 @@ class LyricDanmu(wx.Frame):
         try:
             if code=="":    return
             # 写入内存
-            scope = {"words":[],"rules":{}}
+            scope,deal_list = {"words":[],"rules":{}},[]
             code1="from BiliLiveShieldWords import get_len,measure,fill,r_pos\n"+code
             exec(code1,scope)
+            for pat,rep in scope["rules"].items():
+                deal_list.append((re.compile(pat),rep))
             for word in scope["words"]:
-                generate_rule(word,scope["rules"])
-            self.global_shields=scope["rules"]
+                generate_rule(word,deal_list)
+            self.global_shields=deal_list
             # 写入文件
             with open("shields_global.dat", "wb") as f:
                 f.write(bytes(code,encoding="utf-8"))
@@ -1641,13 +1643,15 @@ class LyricDanmu(wx.Frame):
         except Exception:
             showInfoDialog("读取shields.txt失败", "提示")
         try:
-            scope = {"modified_time":0,"words":[],"rules":{}}
+            scope,deal_list = {"modified_time":0,"words":[],"rules":{}},[]
             with open("shields_global.dat","r",encoding="utf-8") as f:
                 code="from BiliLiveShieldWords import get_len,measure,fill,r_pos\n"+f.read()
                 exec(code,scope)
+            for pat,rep in scope["rules"].items():
+                deal_list.append((re.compile(pat),rep))
             for word in scope["words"]:
-                generate_rule(word,scope["rules"])
-            self.global_shields=scope["rules"]
+                generate_rule(word,deal_list)
+            self.global_shields=deal_list
             self.need_update_global_shields=time.time()-scope["modified_time"]>GLOBAL_SHIELDS_UPDATE_INTERVAL_S
         except Exception:
             showInfoDialog("读取shields_global.dat失败", "提示")
