@@ -61,6 +61,8 @@ class LyricDanmu(wx.Frame):
         self.cur_mode=0
         # 歌词参数
         self.init_lock = True
+        self.cur_song_name=""
+        self.last_song_name=""
         self.has_trans=False
         self.has_timeline=False
         self.auto_sending = False
@@ -90,7 +92,7 @@ class LyricDanmu(wx.Frame):
         self.history_idx = 0
         self.colabor_mode = 0
         self.pre_idx = 0
-        self.pool = ThreadPoolExecutor(max_workers=6+len(self.admin_rooms))
+        self.pool = ThreadPoolExecutor(max_workers=8+len(self.admin_rooms))
         # SpamChecker
         self.spamChecker=SpamChecker(DEFAULT_AD_LINK_REGEX,DEFAULT_AD_UNAME_REGEX)
         # 显示界面
@@ -612,6 +614,9 @@ class LyricDanmu(wx.Frame):
         self.auto_sending=True
         self.auto_pausing=False
         self.pool.submit(self.ThreadOfAutoSend)
+        if self.cur_song_name!=self.last_song_name:
+            self.last_song_name=self.cur_song_name
+            self.LogSongName("%8s\t%s"%(self.roomid,self.cur_song_name))
 
     def OnStopBtn(self,event):
         if self.init_lock:
@@ -781,6 +786,9 @@ class LyricDanmu(wx.Frame):
         if self.has_trans and self.lyc_mod == 2 and self.llist[self.lid-1][2]!=self.llist[self.lid][2]:
             self.SendLyric(3)
         self.SendLyric(4)
+        if self.cur_song_name!=self.last_song_name:
+            self.last_song_name=self.cur_song_name
+            self.LogSongName("%8s\t%s"%(self.roomid,self.cur_song_name))
 
     def OnClose(self, event):
         self.running = False
@@ -1253,6 +1261,13 @@ class LyricDanmu(wx.Frame):
             with open(path,"a",encoding="utf-8") as f:
                 f.write("%s｜%s\n"%(getTime(ts,fmt="%m-%d %H:%M:%S"),msg))
         except: pass
+    
+    def LogSongName(self,msg):
+        try:
+            path="logs/lyric/LYRIC_%s.log"%getTime(fmt="%y-%m")
+            with open(path,"a",encoding="utf-8") as f:
+                f.write("%s｜%s\n"%(getTime(fmt="%m-%d %H:%M"),msg))
+        except: pass
 
     def LogDebug(self,msg):
         try:
@@ -1391,6 +1406,7 @@ class LyricDanmu(wx.Frame):
         self.OnStopBtn(None)
         self.sldLrc.Show(True)
         self.has_trans=data["has_trans"]
+        self.cur_song_name=data["name"]
         self.has_timeline=True
         so=re.search(r"\[(\d+):(\d+)(\.\d*)?\]",data["lyric"])
         if so is None:
@@ -1479,7 +1495,7 @@ class LyricDanmu(wx.Frame):
 
 
     def CheckFile(self):
-        dirs=("songs","logs","logs/danmu","logs/debug","logs/shielded","logs/antiSpam")
+        dirs=("songs","logs","logs/danmu","logs/lyric","logs/debug","logs/shielded","logs/antiSpam")
         for dir in dirs:
             if not os.path.exists(dir): os.mkdir(dir)
         if not os.path.exists("config.txt"):
