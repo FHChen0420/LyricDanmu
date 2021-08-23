@@ -538,8 +538,7 @@ class LyricDanmu(wx.Frame):
             if code=="":    return
             # 写入内存
             scope,deal_list = {"words":[],"rules":{}},[]
-            code1="from BiliLiveShieldWords import get_len,measure,fill,r_pos\n"+code
-            exec(code1,scope)
+            exec(code,scope)
             for pat,rep in scope["rules"].items():
                 deal_list.append((re.compile(pat),rep))
             for word in scope["words"]:
@@ -1645,8 +1644,7 @@ class LyricDanmu(wx.Frame):
         try:
             scope,deal_list = {"modified_time":0,"words":[],"rules":{}},[]
             with open("shields_global.dat","r",encoding="utf-8") as f:
-                code="from BiliLiveShieldWords import get_len,measure,fill,r_pos\n"+f.read()
-                exec(code,scope)
+                exec(f.read(),scope)
             for pat,rep in scope["rules"].items():
                 deal_list.append((re.compile(pat),rep))
             for word in scope["words"]:

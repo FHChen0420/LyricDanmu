@@ -7,21 +7,6 @@ def get_len(string:str) -> int:
     '''获取正则表达式串string的字段宽度'''
     return len(re.sub(r"\[.+?\]","~",string))
 
-def measure(string:str, length:int) -> bool:
-    '''判断字符串string中非空格字符数是否小于length'''
-    return get_len(string)-string.count(" ")<length
-
-def fill(string:str, length:int) -> str:
-    '''填补字符串string，使其中的非空格字符数等于length'''
-    dots="\u0592"*(length-get_len(string)+string.count(" "))
-    return string+dots
-
-def r_pos(string:str, targets:str) -> int:
-    '''查找字符串targets中的字符在字符串string中最后一次出现的位置'''
-    r_str=string.replace(" ","")[::-1]
-    for index,char in enumerate(r_str):
-        if char in targets: return len(r_str)-index-1
-
 def substitute(pat:Pattern,rep:Replace,string:str) -> str:
     '''正则替换函数，是re.sub()的一种修改版本'''
     # 目前有个缺点，如果屏蔽字首尾相同或可拆分为更小的重复单元，则可能无法替换干净。
