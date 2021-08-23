@@ -11,6 +11,7 @@ class RecordFrame(wx.Frame):
         self.SetMaxSize((SW//3,SH*4//5))
         self.Bind(wx.EVT_CLOSE,self.OnClose)
         self.tcRecord=wx.TextCtrl(self,-1,"",style=wx.TE_MULTILINE|wx.TE_READONLY)
+        self.tcRecord.Bind(wx.EVT_KILL_FOCUS, self.OnKillFocus)
         menuBar = wx.MenuBar()
         menu = wx.Menu()
         menuBar.Append(menu,"　操作　")
@@ -35,3 +36,7 @@ class RecordFrame(wx.Frame):
             pyperclip.copy(self.tcRecord.GetValue())
         elif eventId==wx.ID_TOP:
             self.ToggleWindowStyle(wx.STAY_ON_TOP)
+    
+    def OnKillFocus(self,event):
+        pos=self.tcRecord.GetLastPosition()
+        self.tcRecord.SetSelection(pos,pos)
