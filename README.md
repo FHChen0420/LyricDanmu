@@ -13,7 +13,7 @@ B站直播歌词/同传弹幕发送工具
 + RecordFrame.py 弹幕发送记录界面
 + ColorFrame.py 弹幕颜色选择框
 + API.py 接口类
-+ BiliLiveShieldWords.py 屏蔽字处理逻辑（不含数据）
++ BiliLiveAntiShield.py 屏蔽字处理
 + util.py 工具函数
 + constant.py 常量
 + langconv.py & zh_wiki.py 繁体转简体逻辑&数据（引用项目：skydark/nstools）

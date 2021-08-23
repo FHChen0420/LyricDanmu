@@ -1,5 +1,4 @@
 import wx
-from BiliLiveShieldWords import deal
 
 class CustomTextFrame(wx.Frame):
     def __init__(self,parent):
@@ -62,7 +61,7 @@ class CustomTextFrame(wx.Frame):
         self.shield_changed = False
         content=data["content"].strip()
         content=self.parent.DealWithCustomShields(content)
-        content=deal(content,self.parent.global_shields)
+        content=self.parent.anti_shield.deal(content)
         self.llist=[line for line in content.split("\n") if line.strip()!=""]
         self.llist.insert(0,"<BEGIN>")
         self.llist.append("<END>")
@@ -101,7 +100,7 @@ class CustomTextFrame(wx.Frame):
         message = pre + msg
         if self.shield_changed:
             message = parent.DealWithCustomShields(message)
-            message = deal(message,parent.global_shields)
+            message = self.parent.anti_shield.deal(message)
         parent.SendSplitDanmu(message,pre,suf,2)
         parent.AddHistory(msg)
     

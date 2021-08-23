@@ -1,14 +1,9 @@
 # coding: utf-8
-from BiliLiveAntiSpam import BiliLiveAntiSpam
-import wx
-import requests
-import time
-import re
-import os
+import re, os, time, platform
+import wx, requests
+import xml.dom.minidom
 from concurrent.futures import ThreadPoolExecutor,as_completed
 from pubsub import pub
-import xml.dom.minidom
-import platform
 
 from SongSearchFrame import SongSearchFrame
 from RoomSelectFrame import RoomSelectFrame
@@ -17,8 +12,9 @@ from GeneralConfigFrame import GeneralConfigFrame
 from RecordFrame import RecordFrame
 from ShieldConfigFrame import ShieldConfigFrame
 from CustomTextFrame import CustomTextFrame
+from BiliLiveAntiShield import BiliLiveAntiShield
+from BiliLiveAntiSpam import BiliLiveAntiSpam
 from spamcheck import SpamChecker
-from BiliLiveShieldWords import *
 from API import *
 from constant import *
 from util import *
@@ -109,7 +105,6 @@ class LyricDanmu(wx.Frame):
         self.qq_marks = {}
         self.locals = {}
         self.custom_shields = {}
-        self.global_shields = []
         self.room_shields = {}
         self.custom_texts = []
         self.danmu_log_dir = {}
@@ -142,6 +137,7 @@ class LyricDanmu(wx.Frame):
         self.tl_stat_min_count=20
         self.tl_stat_min_word_num=200
         self.show_stat_on_close=False
+        self.anti_shield = BiliLiveAntiShield({},[])
 
     def ShowFrame(self, parent):
         # 窗体
@@ -537,13 +533,9 @@ class LyricDanmu(wx.Frame):
         try:
             if code=="":    return
             # 写入内存
-            scope,deal_list = {"words":[],"rules":{}},[]
+            scope = {"words":[],"rules":{}}
             exec(code,scope)
-            for pat,rep in scope["rules"].items():
-                deal_list.append((re.compile(pat),rep))
-            for word in scope["words"]:
-                generate_rule(word,deal_list)
-            self.global_shields=deal_list
+            self.anti_shield=BiliLiveAntiShield(scope["rules"],scope["words"])
             # 写入文件
             with open("shields_global.dat", "wb") as f:
                 f.write(bytes(code,encoding="utf-8"))
@@ -882,7 +874,7 @@ class LyricDanmu(wx.Frame):
         if len(comment) > self.max_len*2.5:
             return showInfoDialog("弹幕内容过长", "弹幕发送失败")
         comment = self.DealWithCustomShields(comment)
-        comment = deal(comment,self.global_shields)
+        comment = self.anti_shield.deal(comment)
         suf = "】" if comment.count("【") > comment.count("】") else ""
         self.SendSplitDanmu(comment,pre,suf,0)
         self.tcComment.Clear()
@@ -1046,7 +1038,7 @@ class LyricDanmu(wx.Frame):
         message = pre + msg
         if self.shield_changed:
             message = self.DealWithCustomShields(message)
-            message = deal(message,self.global_shields)
+            message = self.anti_shield.deal(message)
         self.SendSplitDanmu(message,pre,suf,1)
         self.AddHistory(msg)
 
@@ -1147,7 +1139,7 @@ class LyricDanmu(wx.Frame):
                 ["x.group(%d)"%(i+1) for i in range(1,n+1)]) + ") if " + \
                 " and ".join(["measure(x.group(%d),%d)"%(i+1,len(groups[i])+int(fills[i])) for i in range(n)]) + \
                 " else x.group()"
-            return substitute(pat,eval(repl),msg)
+            return re.sub(pat,eval(repl),msg)
         except Exception as e:
             print("[regex fail]",e)
             return origin_msg
@@ -1429,7 +1421,7 @@ class LyricDanmu(wx.Frame):
             self.lyric_raw = re.sub(k,v,self.lyric_raw)
             self.lyric_raw_tl = re.sub(k,v,self.lyric_raw_tl)
         lyrics = self.DealWithCustomShields(lyrics)
-        lyrics = deal(lyrics,self.global_shields)
+        lyrics = self.anti_shield.deal(lyrics)
         lyric_list=lyrics.split("\r\n")
         for i in range(len(lyric_list)):
             tmpData[i][2]=lyric_list[i]
@@ -1437,7 +1429,7 @@ class LyricDanmu(wx.Frame):
             tl=(tmpData[-1][1]+3) if tmpData[-1][1]>=0 else -1
             tl_str=getTimeLineStr(tl,1) if tl>=0 else ""
             name_info=self.DealWithCustomShields("歌名："+data["name"])
-            name_info=deal(name_info,self.global_shields)
+            name_info=self.anti_shield.deal(name_info)
             tmpData.append(["",tl,"",""])
             tmpData.append([tl_str,tl,name_info,""])
             if self.has_trans:
@@ -1642,14 +1634,10 @@ class LyricDanmu(wx.Frame):
         except Exception:
             showInfoDialog("读取shields.txt失败", "提示")
         try:
-            scope,deal_list = {"modified_time":0,"words":[],"rules":{}},[]
+            scope= {"modified_time":0,"words":[],"rules":{}}
             with open("shields_global.dat","r",encoding="utf-8") as f:
                 exec(f.read(),scope)
-            for pat,rep in scope["rules"].items():
-                deal_list.append((re.compile(pat),rep))
-            for word in scope["words"]:
-                generate_rule(word,deal_list)
-            self.global_shields=deal_list
+            self.anti_shield=BiliLiveAntiShield(scope["rules"],scope["words"])
             self.need_update_global_shields=time.time()-scope["modified_time"]>GLOBAL_SHIELDS_UPDATE_INTERVAL_S
         except Exception:
             showInfoDialog("读取shields_global.dat失败", "提示")
