@@ -723,7 +723,7 @@ class LyricDanmu(wx.Frame):
 
     def CountText(self, event):
         comment = self.cbbComPre.GetValue() + self.tcComment.GetValue()
-        label = "%02d" % len(comment) + (" ↩" if len(comment) <= self.max_len*5/2 else " ×")
+        label = "%02d" % len(comment) + (" ↩" if len(comment) <= self.max_len*2.5 else " ×")
         self.btnComment.SetLabel(label)
         event.Skip()
 
@@ -880,7 +880,7 @@ class LyricDanmu(wx.Frame):
         if self.roomid is None:
             return showInfoDialog("未指定直播间", "提示")
         comment = pre + msg
-        if len(comment) > self.max_len*5/2:
+        if len(comment) > self.max_len*2.5:
             return showInfoDialog("弹幕内容过长", "弹幕发送失败")
         comment = self.DealWithCustomShields(comment)
         comment = deal(comment,self.global_shields)
@@ -1014,13 +1014,13 @@ class LyricDanmu(wx.Frame):
             self.CallRecord(msg,roomid,src,"x")
             return self.CallRecord("(具体信息：%s)"%errmsg,"0",-1,"-")
         except requests.exceptions.ConnectionError as e:
-            if "Remote end closed connection without response" in str(e):
+            self.LogDebug("[SendDanmu]"+str(e))
+            if "Remote end closed connection without response" in str(e) or "(10054," in str(e):
                 if try_times>0:
                     wx.MilliSleep(200)
                     return self.SendDanmu(roomid,msg,src,try_times-1)
                 return self.CallRecord(msg,roomid,src,"C")
             self.pool.submit(self.ThreadOfShowMsgDlg,"网络连接出错","弹幕发送失败")
-            self.LogDebug("[SendDanmu]"+str(e))
             return self.CallRecord(msg,roomid,src,"A")
         except requests.exceptions.ReadTimeout:
             return self.CallRecord(msg,roomid,src,"B")
@@ -1205,7 +1205,7 @@ class LyricDanmu(wx.Frame):
                         if ts>last_ts+self.tl_stat_break_min*60:
                             if word_num>=self.tl_stat_min_word_num and danmu_count>=self.tl_stat_min_count:
                                 start_str=getTime(start_ts,fmt="%Y-%m-%d %H:%M:%S")
-                                duration=(last_ts-start_ts)*1.0/60.0
+                                duration=(last_ts-start_ts)/60
                                 records[start_str]="%s,%s,%s,%.1f,%d,%d,%.1f"%(start_str,live_title,liver_name,duration,word_num,danmu_count,word_num/duration)
                             start_ts,last_ts,word_num,danmu_count=ts,ts,0,0
                         else:
@@ -1217,7 +1217,7 @@ class LyricDanmu(wx.Frame):
                 print("StatTLRecords ReadError:",date,type(e),e)
         if word_num>=self.tl_stat_min_word_num and danmu_count>=self.tl_stat_min_count:
             start_str=getTime(start_ts,fmt="%Y-%m-%d %H:%M:%S")
-            duration=(last_ts-start_ts)*1.0/60.0
+            duration=(last_ts-start_ts)/60
             records[start_str]="%s,%s,%s,%.1f,%d,%d,%.1f"%(start_str,live_title,liver_name,duration,word_num,danmu_count,word_num/duration)
         try: updateCsvFile("logs/同传数据统计.csv",0,records,2048)
         except UnicodeDecodeError:
