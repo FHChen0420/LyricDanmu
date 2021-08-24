@@ -3,6 +3,19 @@ import re
 from typing import Callable, Match, Pattern, Union
 Replace=Union[str,Callable[[Match],str]]
 
+def get_len(string:str) -> int:
+    '''获取正则表达式串string的字段宽度'''
+    return len(re.sub(r"\[.+?\]","~",string))
+
+def measure(string:str,length:int) -> bool:
+    '''判断字符串string中非空格字符数是否小于length'''
+    return get_len(string)-string.count(" ")<length
+
+def fill(string:str,length:int) -> str:
+    '''填补字符串string，使其中的非空格字符数等于length'''
+    dots="\u0592"*(length-get_len(string)+string.count(" "))
+    return string+dots
+
 class BiliLiveAntiShield:
     def __init__(self,rules:dict[str,Replace],words:list[str]):
         '''B站直播弹幕反屏蔽工具
@@ -14,10 +27,6 @@ class BiliLiveAntiShield:
             self.__deal_list.append((re.compile(pat),rep))
         for word in words:
             self.__generate_rule(word)
-    
-    def __get_len(self,string:str):
-        '''获取正则表达式串string的字段宽度'''
-        return len(re.sub(r"\[.+?\]","~",string))
     
     def __substitute(self,pat:Pattern,rep:Replace,string:str) -> str:
         '''正则替换函数，是re.sub()的一种修改版本'''
@@ -47,9 +56,9 @@ class BiliLiveAntiShield:
             return
         fills=[int(i) for i in re.findall(r"#([1-9])",word)]
         pat="(?i)" + "".join(["("+groups[i]+".*?)" for i in range(n)]) + "(%s)"%groups[n]
-        rep="lambda x: (" + "+".join(["fill(x.group(1),%d)"%(self.__get_len(groups[0])+int(fills[0]))] +
+        rep="lambda x: (" + "+".join(["fill(x.group(1),%d)"%(get_len(groups[0])+int(fills[0]))] +
             ["x.group(%d)"%(i+1) for i in range(1,n+1)]) + ") if " + \
-            " and ".join(["measure(x.group(%d),%d)"%(i+1,self.__get_len(groups[i])+int(fills[i])) for i in range(n)]) + \
+            " and ".join(["measure(x.group(%d),%d)"%(i+1,get_len(groups[i])+int(fills[i])) for i in range(n)]) + \
             " else x.group()"
         self.__deal_list.append((re.compile(pat),eval(rep)))
 
