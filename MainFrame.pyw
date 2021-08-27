@@ -86,7 +86,7 @@ class LyricDanmu(wx.Frame):
         self.shield_changed = False
         self.history_state = False
         self.history_idx = 0
-        self.colabor_mode = 0
+        self.colabor_mode = int(self.init_two_prefix)
         self.pre_idx = 0
         self.pool = ThreadPoolExecutor(max_workers=8+len(self.admin_rooms))
         # SpamChecker
@@ -138,6 +138,7 @@ class LyricDanmu(wx.Frame):
         self.tl_stat_min_word_num=200
         self.show_stat_on_close=False
         self.anti_shield = BiliLiveAntiShield({},[])
+        self.init_two_prefix=False
 
     def ShowFrame(self, parent):
         # 窗体
@@ -275,7 +276,7 @@ class LyricDanmu(wx.Frame):
         self.btnDmCfg1.Bind(wx.EVT_BUTTON, self.ShowColorFrame)
         self.btnDmCfg2.Bind(wx.EVT_BUTTON, self.ChangeDanmuPosition)
         # 同传前缀与模式设置
-        self.btnColaborCfg = wx.Button(self.p3, -1, "单人模式", pos=(125, 3), size=(87, 32))
+        self.btnColaborCfg = wx.Button(self.p3, -1, "单人模式+" if self.init_two_prefix else "单人模式", pos=(125, 3), size=(87, 32))
         self.btnColaborCfg.Bind(wx.EVT_BUTTON,self.ShowColaborPart)
         # 常规设置按钮
         self.btnGeneralCfg = wx.Button(self.p3, -1, "应用设置", pos=(235, 3), size=(87, 32))
@@ -311,7 +312,7 @@ class LyricDanmu(wx.Frame):
         wx.StaticText(self.p4,-1,"⍰",pos=(230,40)).SetToolTip(
             "联动模式下使用Tab键切换前缀，切换范围取决于联动人数\n" +
             "也可以直接使用Alt+数字键1~5来切换到指定的前缀\n")
-        self.cbbClbMod = wx.ComboBox(self.p4, pos=(250, 6), size=(72, -1), choices=["单人模式", "双人联动", "三人联动", "四人联动", "五人联动"],style=wx.CB_READONLY)
+        self.cbbClbMod = wx.ComboBox(self.p4, pos=(250, 6), size=(72, -1), style=wx.CB_READONLY, choices=["不切换", "双前缀", "三前缀", "四前缀", "五前缀"])
         self.cbbClbMod.SetSelection(self.colabor_mode)
         self.cbbClbMod.Bind(wx.EVT_COMBOBOX, self.SetColaborMode)
         self.btnExitClbCfg = wx.Button(self.p4, -1, "◀  返  回  ", pos=(250, 37), size=(72, 27))
@@ -381,7 +382,10 @@ class LyricDanmu(wx.Frame):
         self.btnTop.Show(False)
     
     def ExitColaborPart(self,event):
-        self.btnColaborCfg.SetLabel(self.cbbClbMod.GetValue())
+        mode_names=["单人模式","双人联动","三人联动","四人联动","五人联动"]
+        sp_mode=self.colabor_mode==1 and (isEmpty(self.tcPre1.GetValue()) or isEmpty(self.tcPre2.GetValue()))
+        label="单人模式+" if sp_mode else mode_names[self.cbbClbMod.GetSelection()]
+        self.btnColaborCfg.SetLabel(label)
         self.p4.Show(False)
         self.btnColaborCfg.Show(True)
         self.btnGeneralCfg.Show(True)
@@ -716,7 +720,8 @@ class LyricDanmu(wx.Frame):
         comment = self.cbbComPre.GetValue() + self.tcComment.GetValue()
         label = "%02d" % len(comment) + (" ↩" if len(comment) <= self.max_len*2.5 else " ×")
         self.btnComment.SetLabel(label)
-        event.Skip()
+        if event is not None:
+            event.Skip()
 
     def SetLycMod(self, event):
         self.lyc_mod = self.cbbLycMod.GetSelection()
@@ -1588,6 +1593,8 @@ class LyricDanmu(wx.Frame):
                         self.auto_shield_ad = True if v.lower()=="true" else False
                     elif k == "自动封禁广告用户":
                         self.auto_mute_ad = True if v.lower()=="true" else False
+                    elif k == "默认双前缀切换":
+                        self.init_two_prefix = True if v.lower()=="true" else False
                 if not send_interval_check:
                     self.send_interval_ms = 750 if self.enable_new_send_type else 1050
         except Exception:
@@ -1766,9 +1773,11 @@ class LyricDanmu(wx.Frame):
             return False
 
     def SaveConfig(self):
+        def titleLine(title): return "%s\n#%s#\n%s\n"%("-"*15,title,"-"*15)
         try:
             with open("config.txt", "w", encoding="utf-8") as f:
-                f.write("----------\n#弹幕配置#\n----------\n")
+                f.write(titleLine("歌词显示配置"))
+                f.write("默认展开歌词=%s\n" % self.init_show_lyric)
                 f.write("默认歌词前缀=%s\n" % self.prefix)
                 f.write("默认歌词后缀=%s\n" % self.suffix)
                 f.write("歌词前缀备选=%s\n" % ",".join(self.prefixs))
@@ -1777,34 +1786,32 @@ class LyricDanmu(wx.Frame):
                 f.write("启用歌词合并=%s\n" % self.enable_lyric_merge)
                 f.write("歌词合并阈值=%d\n" % int(1000*self.lyric_merge_threshold_s))
                 f.write("曲末显示歌名=%s\n" % self.add_song_name)
-                f.write("新版发送机制=%s\n" % self.enable_new_send_type)
-                f.write("最低发送间隔=%d\n" % self.send_interval_ms)
-                f.write("请求超时阈值=%d\n" % int(1000*self.timeout_s))
-                f.write("----------\n#搜索配置#\n----------\n")
+                f.write(titleLine("歌词搜索配置"))
                 f.write("默认搜索来源=%s\n" % ("网易云音乐" if self.default_src=="wy" else "QQ音乐"))
                 f.write("歌曲搜索条数=%d\n" % self.search_num)
                 f.write("每页显示条数=%d\n" % self.page_limit)
-                f.write("----------\n#同传统计配置#\n----------\n")
+                f.write(titleLine("弹幕发送配置"))
+                f.write("忽略系统代理=%s\n" % self.no_proxy)
+                f.write("新版发送机制=%s\n" % self.enable_new_send_type)
+                f.write("最低发送间隔=%d\n" % self.send_interval_ms)
+                f.write("请求超时阈值=%d\n" % int(1000*self.timeout_s))
+                f.write("默认双前缀切换=%s\n" % self.init_two_prefix)
+                f.write(titleLine("同传统计配置"))
                 f.write("同传中断阈值=%d\n" % self.tl_stat_break_min)
                 f.write("最低字数要求=%d\n" % self.tl_stat_min_word_num)
                 f.write("最低条数要求=%d\n" % self.tl_stat_min_count)
                 f.write("退出时显示统计=%s\n" % self.show_stat_on_close)
-                f.write("----------\n#房管功能配置#\n----------\n")
+                f.write(titleLine("房管功能配置"))
                 f.write("管理房间列表=%s\n" % ",".join(self.admin_rooms))
                 f.write("自动屏蔽广告链接=%s\n" % self.auto_shield_ad)
                 f.write("自动封禁广告用户=%s\n" % self.auto_mute_ad)
-                f.write("----------\n#其它配置#\n----------\n")
-                f.write("默认展开歌词=%s\n" % self.init_show_lyric)
-                f.write("忽略系统代理=%s\n" % self.no_proxy)
-                f.write("----------\n#账号配置#\n----------\n")
+                f.write(titleLine("账号信息配置"))
                 f.write("账号标注=%s\n" % self.account_names[0])
                 f.write("cookie=%s\n" % self.cookies[0])
                 f.write("账号标注2=%s\n" % self.account_names[1])
                 f.write("cookie2=%s\n" % self.cookies[1])
         except Exception as e:
-            print("SaveConfig:")
-            print(e)
-            pass
+            print("SaveConfig:",type(e),e)
 
     def SaveData(self):
         try:

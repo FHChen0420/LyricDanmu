@@ -78,13 +78,15 @@ class GeneralConfigFrame(wx.Frame):
         self.sldTmt.Bind(wx.EVT_SLIDER, self.OnTimeoutChange)
         # 其它设置
         wx.StaticText(panel,-1,"其它设置",pos=(15,294))
-        self.ckbInitLrc = wx.CheckBox(panel,-1,"启动时展开歌词面板", pos=(80,294))
+        self.ckbInitLrc = wx.CheckBox(panel,-1,"默认展开歌词", pos=(80,294))
         self.ckbInitLrc.SetValue(parent.init_show_lyric)
-        self.ckbNoProxy = wx.CheckBox(panel,-1,"不使用系统代理", pos=(80,319))
+        self.ckbTwoPre = wx.CheckBox(panel,-1,"默认双前缀切换", pos=(180,294))
+        self.ckbTwoPre.SetValue(parent.init_two_prefix)
+        self.ckbNoProxy = wx.CheckBox(panel,-1,"禁用系统代理", pos=(80,319))
         self.ckbNoProxy.SetValue(parent.no_proxy)
         wx.StaticText(panel,-1,"⍰",pos=(275,319)).SetToolTip(
-            "科学上网时使用本工具可能会报网络异常错误\n"+
-            "如果遇到此情况请尝试修改该选项")
+            "默认双前缀切换：默认使用\"\"和\"【\"作为评论可选前缀，推荐同传勾选\n"+
+            "禁用系统代理：若科学上网时本工具报网络异常错误，则请尝试勾选")
         # 账号切换
         self.btnAccounts=[]
         wx.StaticText(panel,-1,"账号切换",pos=(15,344))
@@ -191,6 +193,7 @@ class GeneralConfigFrame(wx.Frame):
         parent.enable_lyric_merge=self.ckbLrcMrg.GetValue()
         parent.add_song_name=self.ckbAddSongName.GetValue()
         parent.init_show_lyric=self.ckbInitLrc.GetValue()
+        parent.init_two_prefix=self.ckbTwoPre.GetValue()
         parent.no_proxy=self.ckbNoProxy.GetValue()
         os.environ["NO_PROXY"]="*" if parent.no_proxy else ""
         parent.RefreshLyric()
