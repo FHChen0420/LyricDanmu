@@ -23,7 +23,7 @@ class RoomPlayerChaser:
         async def _getUrl(request):
             print(f'room id {self.roomId}')
             return web.json_response({'url': await _fetchFlvUrl(self.roomId)})
-        self.routes.static('/', './static/')
+        self.routes.static('/', './chaser/static/')
         self.app.add_routes(self.routes)
 
     def serve(self, port):

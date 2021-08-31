@@ -1,5 +1,5 @@
 # coding: utf-8
-import re, os, time, platform
+import re, os, time, platform, asyncio, webbrowser
 import wx, requests
 import xml.dom.minidom
 from concurrent.futures import ThreadPoolExecutor,as_completed
@@ -14,6 +14,8 @@ from ShieldConfigFrame import ShieldConfigFrame
 from CustomTextFrame import CustomTextFrame
 from BiliLiveAntiShield import BiliLiveAntiShield
 from BiliLiveAntiSpam import BiliLiveAntiSpam
+from PlayerFrame import PlayerFrame
+from chaser.live_chaser import RoomPlayerChaser
 from spamcheck import SpamChecker
 from API import *
 from constant import *
@@ -88,10 +90,15 @@ class LyricDanmu(wx.Frame):
         self.history_idx = 0
         self.colabor_mode = int(self.init_two_prefix)
         self.pre_idx = 0
+        self.live_chasing = False
+        # 线程池与事件循环
         self.pool = ThreadPoolExecutor(max_workers=8+len(self.admin_rooms))
-        # SpamChecker
+        self.loop = asyncio.new_event_loop()
+        # 追帧服务
+        self.playerChaser=RoomPlayerChaser("1")
+        # 广告检测
         self.spamChecker=SpamChecker(DEFAULT_AD_LINK_REGEX,DEFAULT_AD_UNAME_REGEX)
-        # 显示界面
+        # 显示界面与启动线程
         self.ShowFrame(parent)
         if self.need_update_global_shields:
             self.pool.submit(self.ThreadOfUpdateGlobalShields)
@@ -151,6 +158,7 @@ class LyricDanmu(wx.Frame):
         self.colorFrame = None
         self.generalConfigFrame = None
         self.customTextFrame = None
+        self.playerFrame = None
         self.shieldConfigFrame = ShieldConfigFrame(self)
         self.roomSelectFrame = RoomSelectFrame(self)
         self.recordFrame = RecordFrame(self)
@@ -290,8 +298,11 @@ class LyricDanmu(wx.Frame):
         # 歌词面板展开按钮
         self.btnExtLrc = wx.Button(self.p3, -1, "收起歌词" if self.init_show_lyric else "歌词面板", pos=(345, 3), size=(87, 32))
         self.btnExtLrc.Bind(wx.EVT_BUTTON, self.ToggleLyricUI)
+        # 追帧按钮
+        self.btnChaser = wx.Button(self.p3, -1, "追帧", pos=(345,40), size=(42,32))
+        self.btnChaser.Bind(wx.EVT_BUTTON, self.ShowPlayer)
         # 置顶按钮
-        self.btnTop = wx.Button(self.p3, -1, "取消置顶", pos=(345, 40), size=(87, 32))
+        self.btnTop = wx.Button(self.p3, -1, "置顶", pos=(390, 40), size=(42, 32))
         self.btnTop.Bind(wx.EVT_BUTTON, self.TogglePinUI)
         """ P4 多人联动面板 """
         wx.StaticText(self.p4, -1, "1", pos=(15, 10))
@@ -381,6 +392,22 @@ class LyricDanmu(wx.Frame):
         self.btnExtLrc.Show(False)
         self.btnTop.Show(False)
     
+    def ShowPlayer(self,event):
+        if not self.live_chasing:
+            if self.roomid is None:
+                return showInfoDialog("未指定直播间", "提示")
+            self.pool.submit(self.RunRoomPlayerChaser,self.roomid,self.loop)
+            self.live_chasing=True
+            self.btnChaser.SetForegroundColour("MEDIUM BLUE")
+        dlg = wx.MessageDialog(None, "[是] 浏览器打开(推荐)　　　[否] 工具自带窗体打开", "选择追帧显示方式", wx.YES_NO|wx.YES_DEFAULT)
+        res = dlg.ShowModal()
+        if res==wx.ID_YES:
+            webbrowser.open("http://127.0.0.1:8080/player.html")
+        elif res==wx.ID_NO:
+            if self.playerFrame: self.playerFrame.Raise()
+            else:   self.playerFrame=PlayerFrame(self)
+        dlg.Destroy()
+    
     def ExitColaborPart(self,event):
         mode_names=["单人模式","双人联动","三人联动","四人联动","五人联动"]
         sp_mode=self.colabor_mode==1 and (isEmpty(self.tcPre1.GetValue()) or isEmpty(self.tcPre2.GetValue()))
@@ -397,7 +424,7 @@ class LyricDanmu(wx.Frame):
     def TogglePinUI(self, event):
         self.show_pin = not self.show_pin
         self.ToggleWindowStyle(wx.STAY_ON_TOP)
-        self.btnTop.SetLabel("取消置顶" if self.show_pin else "置顶窗口")
+        self.btnTop.SetForegroundColour("black" if self.show_pin else "gray")
 
     def ToggleLyricUI(self, event):
         self.show_lyric = not self.show_lyric
@@ -800,6 +827,8 @@ class LyricDanmu(wx.Frame):
         if os.path.exists("tmp.tmp"):
             try:    os.remove("tmp.tmp")
             except: pass
+        if not self.loop.is_closed():
+            self.loop.call_soon_threadsafe(self.loop.stop)
         self.pool.shutdown(wait=True)
         self.Destroy()
 
@@ -909,6 +938,7 @@ class LyricDanmu(wx.Frame):
         if roomid==self.roomid: return
         if self.auto_sending: self.OnStopBtn(None)
         self.roomid=roomid
+        self.playerChaser.roomId=roomid
         self.GetRoomShields(roomid)
         self.pool.submit(self.ThreadOfGetDanmuConfig)
 
@@ -1024,6 +1054,14 @@ class LyricDanmu(wx.Frame):
             self.LogDebug("[SendDanmu]"+str(e))
             self.CallRecord(msg,roomid,src,"X")
             return self.CallRecord("(具体信息：%s)"%str(e),"0",-1,"-")
+    
+    def RunRoomPlayerChaser(self,roomid,loop):
+        asyncio.set_event_loop(loop)
+        self.playerChaser.roomId=roomid
+        if isPortUsed():
+            showInfoDialog("8080端口已被占用,追帧服务启动失败","提示")
+        else:
+            self.playerChaser.serve(8080)
     
     def ShowStatDialog(self):
         stat_len=len(self.translate_stat)
