@@ -1,4 +1,4 @@
-import re, time, wx
+import re, time, wx, socket
 from typing import Optional
 from pubsub import pub
 from constant import REGEX_CHAR_TRANSFORM_RULES
@@ -112,6 +112,16 @@ def getFuzzyMatchingPattern(words:str) -> str:
         pattern = pattern.replace(k, v)
     pattern = "(?i)" + pattern.replace("∷", ".*?")
     return pattern
+
+def isPortUsed(ip:str="127.0.0.1", port:int=8080) -> bool:
+    """检查端口是否已被占用"""
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.connect((ip, port))
+        s.shutdown(socket.SHUT_RDWR)
+        return True
+    except: return False
+    finally:    s.close()
 
 def updateCsvFile(file_path:str,key_index:int,new_records:dict,max_size:int=1024):
     """更新csv文件的结尾部分（修改原有记录或新增记录）
