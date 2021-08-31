@@ -136,6 +136,7 @@ class LyricDanmu(wx.Frame):
         self.lyric_merge_threshold_s = 5.0
         self.add_song_name = False
         self.init_show_lyric = True
+        self.init_show_record = False
         self.no_proxy = True
         self.account_names=["",""]
         self.cookies=["",""]
@@ -162,6 +163,10 @@ class LyricDanmu(wx.Frame):
         self.shieldConfigFrame = ShieldConfigFrame(self)
         self.roomSelectFrame = RoomSelectFrame(self)
         self.recordFrame = RecordFrame(self)
+        if self.init_show_record:
+            pos_x,pos_y=self.Position[0]+self.Size[0]+30,self.Position[1]+30
+            self.recordFrame.SetPosition((pos_x,pos_y))
+            self.recordFrame.Show()
         self.p0 = wx.Panel(self, -1, size=(450, 50), pos=(0, 0))
         self.p1 = wx.Panel(self, -1, size=(450, 360), pos=(0, 0))
         self.p2 = wx.Panel(self, -1, size=(450, 360), pos=(0, 0))
@@ -1573,15 +1578,15 @@ class LyricDanmu(wx.Frame):
                     elif k == "歌词高亮显示":
                         self.lyric_offset = 0 if "待发送" not in v else 1
                     elif k == "启用歌词合并":
-                        self.enable_lyric_merge = True if v.lower()=="true" else False
+                        self.enable_lyric_merge = v.lower()=="true"
                     elif k == "歌词合并阈值":
                         merge_th = int(v)
                         if 3000 <= merge_th <= 8000:
                             self.lyric_merge_threshold_s=0.001*merge_th
                     elif k == "曲末显示歌名":
-                        self.add_song_name = True if v.lower()=="true" else False
+                        self.add_song_name = v.lower()=="true"
                     elif k == "新版发送机制":
-                        self.enable_new_send_type = True if v.lower()=="true" else False
+                        self.enable_new_send_type = v.lower()=="true"
                     elif k == "最低发送间隔":
                         interval = int(v)
                         if 500 <= interval <= 1500:
@@ -1604,9 +1609,9 @@ class LyricDanmu(wx.Frame):
                         if 5 <= page_limit <= 8:
                             self.page_limit=page_limit
                     elif k == "默认展开歌词":
-                        self.init_show_lyric = True if v.lower()=="true" else False
+                        self.init_show_lyric = v.lower()=="true"
                     elif k == "忽略系统代理":
-                        self.no_proxy = True if v.lower()=="true" else False
+                        self.no_proxy = v.lower()=="true"
                     elif k == "账号标注":
                         self.account_names[0] = "账号1" if v=="" else v
                     elif k == "账号标注2":
@@ -1622,18 +1627,20 @@ class LyricDanmu(wx.Frame):
                     elif k == "最低条数要求":
                         self.tl_stat_min_count = max(int(v),2)
                     elif k == "退出时显示统计":
-                        self.show_stat_on_close = True if v.lower()=="true" else False
+                        self.show_stat_on_close = v.lower()=="true"
                     # elif k == "管理房间列表":
                     #     for i in v.strip().split(","):
                     #         try:
                     #             if int(i.strip())>0: self.admin_rooms.append(i)
                     #         except: pass
                     # elif k == "自动屏蔽广告链接":
-                    #     self.auto_shield_ad = True if v.lower()=="true" else False
+                    #     self.auto_shield_ad = v.lower()=="true"
                     # elif k == "自动封禁广告用户":
-                    #     self.auto_mute_ad = True if v.lower()=="true" else False
-                    elif k == "默认双前缀切换":
-                        self.init_two_prefix = True if v.lower()=="true" else False
+                    #     self.auto_mute_ad = v.lower()=="true"
+                    elif k == "默认双前缀模式":
+                        self.init_two_prefix = v.lower()=="true"
+                    elif k == "默认打开记录":
+                        self.init_show_record = v.lower()=="true"
                 if not send_interval_check:
                     self.send_interval_ms = 750 if self.enable_new_send_type else 1050
         except Exception:
@@ -1816,7 +1823,6 @@ class LyricDanmu(wx.Frame):
         try:
             with open("config.txt", "w", encoding="utf-8") as f:
                 f.write(titleLine("歌词显示配置"))
-                f.write("默认展开歌词=%s\n" % self.init_show_lyric)
                 f.write("默认歌词前缀=%s\n" % self.prefix)
                 f.write("默认歌词后缀=%s\n" % self.suffix)
                 f.write("歌词前缀备选=%s\n" % ",".join(self.prefixs))
@@ -1834,7 +1840,6 @@ class LyricDanmu(wx.Frame):
                 f.write("新版发送机制=%s\n" % self.enable_new_send_type)
                 f.write("最低发送间隔=%d\n" % self.send_interval_ms)
                 f.write("请求超时阈值=%d\n" % int(1000*self.timeout_s))
-                f.write("默认双前缀切换=%s\n" % self.init_two_prefix)
                 f.write(titleLine("同传统计配置"))
                 f.write("同传中断阈值=%d\n" % self.tl_stat_break_min)
                 f.write("最低字数要求=%d\n" % self.tl_stat_min_word_num)
@@ -1844,6 +1849,10 @@ class LyricDanmu(wx.Frame):
                 # f.write("管理房间列表=%s\n" % ",".join(self.admin_rooms))
                 # f.write("自动屏蔽广告链接=%s\n" % self.auto_shield_ad)
                 # f.write("自动封禁广告用户=%s\n" % self.auto_mute_ad)
+                f.write(titleLine("默认启动配置"))
+                f.write("默认展开歌词=%s\n" % self.init_show_lyric)
+                f.write("默认打开记录=%s\n" % self.init_show_record)
+                f.write("默认双前缀模式=%s\n" % self.init_two_prefix)
                 f.write(titleLine("账号信息配置"))
                 f.write("账号标注=%s\n" % self.account_names[0])
                 f.write("cookie=%s\n" % self.cookies[0])

@@ -77,15 +77,18 @@ class GeneralConfigFrame(wx.Frame):
         self.sldTmt = wx.Slider(panel, -1, int(10 * parent.timeout_s), 20, 100, pos=(70, 264), size=(170, 30),style=wx.SL_HORIZONTAL)
         self.sldTmt.Bind(wx.EVT_SLIDER, self.OnTimeoutChange)
         # 其它设置
-        wx.StaticText(panel,-1,"其它设置",pos=(15,294))
-        self.ckbInitLrc = wx.CheckBox(panel,-1,"默认展开歌词", pos=(80,294))
+        wx.StaticText(panel,-1,"默认开启",pos=(15,294))
+        self.ckbInitLrc = wx.CheckBox(panel,-1,"歌词面板", pos=(80,294))
         self.ckbInitLrc.SetValue(parent.init_show_lyric)
-        self.ckbTwoPre = wx.CheckBox(panel,-1,"默认双前缀切换", pos=(180,294))
+        self.ckbInitRcd = wx.CheckBox(panel,-1,"弹幕记录", pos=(153,294))
+        self.ckbInitRcd.SetValue(parent.init_show_record)
+        self.ckbTwoPre = wx.CheckBox(panel,-1,"双前缀", pos=(226,294))
         self.ckbTwoPre.SetValue(parent.init_two_prefix)
+        wx.StaticText(panel,-1,"其它设置",pos=(15,319))
         self.ckbNoProxy = wx.CheckBox(panel,-1,"禁用系统代理", pos=(80,319))
         self.ckbNoProxy.SetValue(parent.no_proxy)
         wx.StaticText(panel,-1,"⍰",pos=(275,319)).SetToolTip(
-            "默认双前缀切换：默认使用\"\"和\"【\"作为评论可选前缀，推荐同传勾选\n"+
+            "默认双前缀模式：默认使用\"\"和\"【\"作为评论可选前缀，推荐同传勾选\n"+
             "禁用系统代理：若科学上网时本工具报网络异常错误，则请尝试勾选")
         # 账号切换
         self.btnAccounts=[]
@@ -193,6 +196,7 @@ class GeneralConfigFrame(wx.Frame):
         parent.enable_lyric_merge=self.ckbLrcMrg.GetValue()
         parent.add_song_name=self.ckbAddSongName.GetValue()
         parent.init_show_lyric=self.ckbInitLrc.GetValue()
+        parent.init_show_record=self.ckbInitRcd.GetValue()
         parent.init_two_prefix=self.ckbTwoPre.GetValue()
         parent.no_proxy=self.ckbNoProxy.GetValue()
         os.environ["NO_PROXY"]="*" if parent.no_proxy else ""
