@@ -13,10 +13,10 @@ from RecordFrame import RecordFrame
 from ShieldConfigFrame import ShieldConfigFrame
 from CustomTextFrame import CustomTextFrame
 from BiliLiveAntiShield import BiliLiveAntiShield
-from BiliLiveAntiSpam import BiliLiveAntiSpam
 from PlayerFrame import PlayerFrame
 from chaser.live_chaser import RoomPlayerChaser
-from spamcheck import SpamChecker
+# from BiliLiveAntiSpam import BiliLiveAntiSpam
+# from spamcheck import SpamChecker
 from API import *
 from constant import *
 from util import *
@@ -90,21 +90,21 @@ class LyricDanmu(wx.Frame):
         self.history_idx = 0
         self.colabor_mode = int(self.init_two_prefix)
         self.pre_idx = 0
+        # 追帧服务
         self.live_chasing = False
+        self.playerChaser=RoomPlayerChaser("1") if self.platform=="win" else None
         # 线程池与事件循环
         self.pool = ThreadPoolExecutor(max_workers=8+len(self.admin_rooms))
         self.loop = asyncio.new_event_loop()
-        # 追帧服务
-        self.playerChaser=RoomPlayerChaser("1")
-        # 广告检测
-        self.spamChecker=SpamChecker(DEFAULT_AD_LINK_REGEX,DEFAULT_AD_UNAME_REGEX)
         # 显示界面与启动线程
         self.ShowFrame(parent)
         if self.need_update_global_shields:
             self.pool.submit(self.ThreadOfUpdateGlobalShields)
         self.pool.submit(self.ThreadOfSend)
-        for roomid in self.admin_rooms:
-            self.pool.submit(BiliLiveAntiSpam,roomid,self.spamChecker)
+        # 广告检测(已禁用)
+        # self.spamChecker=SpamChecker(DEFAULT_AD_LINK_REGEX,DEFAULT_AD_UNAME_REGEX)
+        # for roomid in self.admin_rooms:
+        #     self.pool.submit(BiliLiveAntiSpam,roomid,self.spamChecker)
 
     def DefaultConfig(self):
         self.rooms={}
@@ -1531,7 +1531,8 @@ class LyricDanmu(wx.Frame):
 
 
     def CheckFile(self):
-        dirs=("songs","logs","logs/danmu","logs/lyric","logs/debug","logs/shielded","logs/antiSpam")
+        # dirs=("songs","logs","logs/danmu","logs/lyric","logs/debug","logs/shielded","logs/antiSpam")
+        dirs=("songs","logs","logs/danmu","logs/lyric","logs/debug","logs/shielded")
         for dir in dirs:
             if not os.path.exists(dir): os.mkdir(dir)
         if not os.path.exists("config.txt"):
@@ -1622,15 +1623,15 @@ class LyricDanmu(wx.Frame):
                         self.tl_stat_min_count = max(int(v),2)
                     elif k == "退出时显示统计":
                         self.show_stat_on_close = True if v.lower()=="true" else False
-                    elif k == "管理房间列表":
-                        for i in v.strip().split(","):
-                            try:
-                                if int(i.strip())>0: self.admin_rooms.append(i)
-                            except: pass
-                    elif k == "自动屏蔽广告链接":
-                        self.auto_shield_ad = True if v.lower()=="true" else False
-                    elif k == "自动封禁广告用户":
-                        self.auto_mute_ad = True if v.lower()=="true" else False
+                    # elif k == "管理房间列表":
+                    #     for i in v.strip().split(","):
+                    #         try:
+                    #             if int(i.strip())>0: self.admin_rooms.append(i)
+                    #         except: pass
+                    # elif k == "自动屏蔽广告链接":
+                    #     self.auto_shield_ad = True if v.lower()=="true" else False
+                    # elif k == "自动封禁广告用户":
+                    #     self.auto_mute_ad = True if v.lower()=="true" else False
                     elif k == "默认双前缀切换":
                         self.init_two_prefix = True if v.lower()=="true" else False
                 if not send_interval_check:
@@ -1839,10 +1840,10 @@ class LyricDanmu(wx.Frame):
                 f.write("最低字数要求=%d\n" % self.tl_stat_min_word_num)
                 f.write("最低条数要求=%d\n" % self.tl_stat_min_count)
                 f.write("退出时显示统计=%s\n" % self.show_stat_on_close)
-                f.write(titleLine("房管功能配置"))
-                f.write("管理房间列表=%s\n" % ",".join(self.admin_rooms))
-                f.write("自动屏蔽广告链接=%s\n" % self.auto_shield_ad)
-                f.write("自动封禁广告用户=%s\n" % self.auto_mute_ad)
+                # f.write(titleLine("房管功能配置"))
+                # f.write("管理房间列表=%s\n" % ",".join(self.admin_rooms))
+                # f.write("自动屏蔽广告链接=%s\n" % self.auto_shield_ad)
+                # f.write("自动封禁广告用户=%s\n" % self.auto_mute_ad)
                 f.write(titleLine("账号信息配置"))
                 f.write("账号标注=%s\n" % self.account_names[0])
                 f.write("cookie=%s\n" % self.cookies[0])
