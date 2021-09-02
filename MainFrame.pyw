@@ -148,6 +148,8 @@ class LyricDanmu(wx.Frame):
         self.show_stat_on_close=False
         self.anti_shield = BiliLiveAntiShield({},[])
         self.init_two_prefix=False
+        self.enable_rich_record=False
+        self.record_fontsize=9
 
     def ShowFrame(self, parent):
         # 窗体
@@ -933,6 +935,7 @@ class LyricDanmu(wx.Frame):
         suf = "】" if comment.count("【") > comment.count("】") else ""
         self.SendSplitDanmu(comment,pre,suf,0)
         self.tcComment.Clear()
+        self.tcComment.SetSelection(0,0)
         self.AddHistory(msg)
         self.history_state=False
 
@@ -1042,7 +1045,7 @@ class LyricDanmu(wx.Frame):
             if code!=0:
                 self.LogDebug("[SendDanmu]"+str(data))
                 self.CallRecord(msg,roomid,src,"x")
-                return self.CallRecord("(具体信息：%s)"%data,"0",-1,"-")
+                return self.CallRecord("(%s)"%errmsg,"0",-1,"-")
             if errmsg=="":
                 self.CallRecord(msg,roomid,src,"0")
                 return True
@@ -1222,13 +1225,12 @@ class LyricDanmu(wx.Frame):
             self.pool.submit(self.ThreadOfAdminMuteUser,info["roomid"],info["uid"],info["uname"])
 
     def UpdateRecord(self,msg,roomid,src,res):
-        tcRecord=self.recordFrame.tcRecord
-        from_,to_=tcRecord.GetSelection()
         cur_time=int(time.time())
-        pre=(getTime(cur_time)+"｜") if res=="0" else ERR_INFO[res]
-        tcRecord.AppendText("\n"+pre+msg)
-        if self.recordFrame.IsActive and from_!=to_:
-            tcRecord.SetSelection(from_,to_)
+        if res=="0":
+            pre,color=getTime(cur_time)+"｜","black"
+        else:
+            pre,color=ERR_INFO[res][0],ERR_INFO[res][1]
+        self.recordFrame.AppendText("\n"+pre+msg,color)
         self.LogDanmu(msg,roomid,src,res,cur_time)
     
     def SaveTLRecords(self):
@@ -1657,6 +1659,10 @@ class LyricDanmu(wx.Frame):
                         self.init_two_prefix = v.lower()=="true"
                     elif k == "默认打开记录":
                         self.init_show_record = v.lower()=="true"
+                    elif k == "彩色弹幕记录":
+                        self.enable_rich_record = v.lower()=="true"
+                    elif k == "弹幕记录字号":
+                        self.record_fontsize = min(max(int(v),9),14)
                 if not send_interval_check:
                     self.send_interval_ms = 750 if self.enable_new_send_type else 1050
         except Exception:
@@ -1861,6 +1867,9 @@ class LyricDanmu(wx.Frame):
                 f.write("最低字数要求=%d\n" % self.tl_stat_min_word_num)
                 f.write("最低条数要求=%d\n" % self.tl_stat_min_count)
                 f.write("退出时显示统计=%s\n" % self.show_stat_on_close)
+                f.write(titleLine("弹幕记录配置"))
+                f.write("彩色弹幕记录=%s\n" % self.enable_rich_record)
+                f.write("弹幕记录字号=%d\n" % self.record_fontsize)
                 # f.write(titleLine("房管功能配置"))
                 # f.write("管理房间列表=%s\n" % ",".join(self.admin_rooms))
                 # f.write("自动屏蔽广告链接=%s\n" % self.auto_shield_ad)
