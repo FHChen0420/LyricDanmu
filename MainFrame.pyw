@@ -90,6 +90,7 @@ class LyricDanmu(wx.Frame):
         self.history_idx = 0
         self.colabor_mode = int(self.init_two_prefix)
         self.pre_idx = 0
+        self.transparent = 255
         # 追帧服务
         self.live_chasing = False
         self.playerChaser=RoomPlayerChaser("1") if self.platform=="win" else None
@@ -333,6 +334,13 @@ class LyricDanmu(wx.Frame):
         self.cbbClbMod.Bind(wx.EVT_COMBOBOX, self.SetColaborMode)
         self.btnExitClbCfg = wx.Button(self.p4, -1, "◀  返  回  ", pos=(250, 37), size=(72, 27))
         self.btnExitClbCfg.Bind(wx.EVT_BUTTON, self.ExitColaborPart)
+        # HotKey
+        self.hkIncTp=wx.NewIdRef()
+        self.hkDecTp=wx.NewIdRef()
+        self.RegisterHotKey(self.hkIncTp,wx.MOD_ALT,wx.WXK_UP)
+        self.RegisterHotKey(self.hkDecTp,wx.MOD_ALT,wx.WXK_DOWN)
+        self.Bind(wx.EVT_HOTKEY,self.IncreaseTransparent,self.hkIncTp)
+        self.Bind(wx.EVT_HOTKEY,self.DecreaseTransparent,self.hkDecTp)
         # MAC系统界面调整
         if self.platform=="mac":
             setFont(self,13)
@@ -425,6 +433,14 @@ class LyricDanmu(wx.Frame):
         self.btnShieldCfg.Show(True)
         self.btnExtLrc.Show(True)
         self.btnTop.Show(True)
+
+    def IncreaseTransparent(self,event):
+        self.transparent=min(255,self.transparent+20)
+        self.SetTransparent(self.transparent)
+    
+    def DecreaseTransparent(self,event):
+        self.transparent=max(35,self.transparent-20)
+        self.SetTransparent(self.transparent)
 
     def TogglePinUI(self, event):
         self.show_pin = not self.show_pin
