@@ -47,6 +47,7 @@ class LyricDanmu(wx.Frame):
         self.show_import = False
         self.show_pin = True
         self.show_msg_dlg = False
+        self.show_simple = False
         # B站配置参数
         self.cur_acc = 0
         self.roomid = None
@@ -333,10 +334,13 @@ class LyricDanmu(wx.Frame):
         # HotKey
         self.hkIncTp=wx.NewIdRef()
         self.hkDecTp=wx.NewIdRef()
+        self.hkSimple=wx.NewIdRef()
         self.RegisterHotKey(self.hkIncTp,wx.MOD_ALT,wx.WXK_UP)
         self.RegisterHotKey(self.hkDecTp,wx.MOD_ALT,wx.WXK_DOWN)
+        self.RegisterHotKey(self.hkSimple,wx.MOD_ALT,wx.WXK_RIGHT)
         self.Bind(wx.EVT_HOTKEY,self.IncreaseTransparent,self.hkIncTp)
         self.Bind(wx.EVT_HOTKEY,self.DecreaseTransparent,self.hkDecTp)
+        self.Bind(wx.EVT_HOTKEY,self.ToggleSimpleMode,self.hkSimple)
         # MAC系统界面调整
         if self.platform=="mac":
             setFont(self,13)
@@ -431,12 +435,33 @@ class LyricDanmu(wx.Frame):
         self.btnTop.Show(True)
 
     def IncreaseTransparent(self,event):
-        self.transparent=min(255,self.transparent+20)
+        self.transparent=min(255,self.transparent+15)
         self.SetTransparent(self.transparent)
     
     def DecreaseTransparent(self,event):
-        self.transparent=max(35,self.transparent-20)
+        self.transparent=max(30,self.transparent-15)
         self.SetTransparent(self.transparent)
+    
+    def ToggleSimpleMode(self,event):
+        self.show_simple=not self.show_simple
+        self.ToggleWindowStyle(wx.CAPTION)
+        px,py=self.GetPosition()
+        if self.show_simple:
+            self.cbbComPre.SetPosition((0, 0))
+            self.tcComment.SetPosition((60, 0))
+            self.p0.SetPosition((0,0))
+            self.p1.Show(False)
+            self.p2.Show(False)
+            self.SetPosition((px+25,py+35+int(self.show_lyric)*self.p1.GetSize()[1]))
+            self.SetSize(315,30)
+            self.p0.SetBackgroundColour("white")
+        else:
+            self.cbbComPre.SetPosition((15, 13))
+            self.tcComment.SetPosition((82, 10))
+            self.SetPosition((px-25,py-35-int(self.show_lyric)*self.p1.GetSize()[1]))
+            self.p0.SetBackgroundColour(self.p1.GetBackgroundColour())
+            self.ResizeUI()
+            self.tcComment.SetFocus()
 
     def TogglePinUI(self, event):
         self.show_pin = not self.show_pin
