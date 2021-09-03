@@ -27,10 +27,10 @@ class RoomPlayerChaser:
         self.app.add_routes(self.routes)
 
     def serve(self, port):
-        web.run_app(self.app, port=port)
+        web.run_app(self.app, port=port, handle_signals=False)
 
 if __name__ == '__main__':
-    player = RoomPlayerChaser('22671795')
+    player = RoomPlayerChaser('6')
     player.serve(8080)
     
     
