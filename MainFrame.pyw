@@ -93,7 +93,7 @@ class LyricDanmu(wx.Frame):
         self.transparent = 255
         # 追帧服务
         self.live_chasing = False
-        self.playerChaser=RoomPlayerChaser("1") if self.platform=="win" else None
+        self.playerChaser=RoomPlayerChaser("1")
         # 线程池与事件循环
         self.pool = ThreadPoolExecutor(max_workers=8+len(self.admin_rooms))
         self.loop = asyncio.new_event_loop()
