@@ -149,7 +149,7 @@ class LyricDanmu(wx.Frame):
         self.anti_shield = BiliLiveAntiShield({},[])
         self.init_two_prefix=False
         self.enable_rich_record=False
-        self.record_fontsize=9
+        self.record_fontsize=9 if self.platform=="win" else 13
 
     def ShowFrame(self, parent):
         # 窗体
@@ -1662,7 +1662,7 @@ class LyricDanmu(wx.Frame):
                     elif k == "彩色弹幕记录":
                         self.enable_rich_record = v.lower()=="true"
                     elif k == "弹幕记录字号":
-                        self.record_fontsize = min(max(int(v),9),14)
+                        self.record_fontsize = min(max(int(v),9),16)
                 if not send_interval_check:
                     self.send_interval_ms = 750 if self.enable_new_send_type else 1050
         except Exception:
