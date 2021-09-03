@@ -15,8 +15,6 @@ from CustomTextFrame import CustomTextFrame
 from BiliLiveAntiShield import BiliLiveAntiShield
 from PlayerFrame import PlayerFrame
 from chaser.live_chaser import RoomPlayerChaser
-# from BiliLiveAntiSpam import BiliLiveAntiSpam
-# from spamcheck import SpamChecker
 from API import *
 from constant import *
 from util import *
@@ -102,10 +100,6 @@ class LyricDanmu(wx.Frame):
         if self.need_update_global_shields:
             self.pool.submit(self.ThreadOfUpdateGlobalShields)
         self.pool.submit(self.ThreadOfSend)
-        # 广告检测(已禁用)
-        # self.spamChecker=SpamChecker(DEFAULT_AD_LINK_REGEX,DEFAULT_AD_UNAME_REGEX)
-        # for roomid in self.admin_rooms:
-        #     self.pool.submit(BiliLiveAntiSpam,roomid,self.spamChecker)
 
     def DefaultConfig(self):
         self.rooms={}
@@ -841,7 +835,6 @@ class LyricDanmu(wx.Frame):
     def OnClose(self, event):
         self.running = False
         self.OnStopBtn(None)
-        pub.sendMessage("close_ws")
         self.Show(False)
         self.SaveConfig()
         self.SaveData()
@@ -1554,7 +1547,6 @@ class LyricDanmu(wx.Frame):
 
 
     def CheckFile(self):
-        # dirs=("songs","logs","logs/danmu","logs/lyric","logs/debug","logs/shielded","logs/antiSpam")
         dirs=("songs","logs","logs/danmu","logs/lyric","logs/debug","logs/shielded")
         for dir in dirs:
             if not os.path.exists(dir): os.mkdir(dir)
@@ -1646,15 +1638,6 @@ class LyricDanmu(wx.Frame):
                         self.tl_stat_min_count = max(int(v),2)
                     elif k == "退出时显示统计":
                         self.show_stat_on_close = v.lower()=="true"
-                    # elif k == "管理房间列表":
-                    #     for i in v.strip().split(","):
-                    #         try:
-                    #             if int(i.strip())>0: self.admin_rooms.append(i)
-                    #         except: pass
-                    # elif k == "自动屏蔽广告链接":
-                    #     self.auto_shield_ad = v.lower()=="true"
-                    # elif k == "自动封禁广告用户":
-                    #     self.auto_mute_ad = v.lower()=="true"
                     elif k == "默认双前缀模式":
                         self.init_two_prefix = v.lower()=="true"
                     elif k == "默认打开记录":
@@ -1870,10 +1853,6 @@ class LyricDanmu(wx.Frame):
                 f.write(titleLine("弹幕记录配置"))
                 f.write("彩色弹幕记录=%s\n" % self.enable_rich_record)
                 f.write("弹幕记录字号=%d\n" % self.record_fontsize)
-                # f.write(titleLine("房管功能配置"))
-                # f.write("管理房间列表=%s\n" % ",".join(self.admin_rooms))
-                # f.write("自动屏蔽广告链接=%s\n" % self.auto_shield_ad)
-                # f.write("自动封禁广告用户=%s\n" % self.auto_mute_ad)
                 f.write(titleLine("默认启动配置"))
                 f.write("默认展开歌词=%s\n" % self.init_show_lyric)
                 f.write("默认打开记录=%s\n" % self.init_show_record)
