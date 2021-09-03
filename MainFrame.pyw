@@ -1,5 +1,5 @@
 # coding: utf-8
-import re, os, time, platform, asyncio, webbrowser
+import re, os, time, sys, asyncio, webbrowser
 import wx, requests
 import xml.dom.minidom
 from concurrent.futures import ThreadPoolExecutor,as_completed
@@ -25,7 +25,7 @@ class LyricDanmu(wx.Frame):
     def __init__(self, parent):
         """B站直播同传/歌词弹幕发送工具"""
         # 获取操作系统信息
-        self.platform="win" if "Windows" in platform.platform() else "mac"
+        self.platform="win" if sys.platform=="win32" else "mac"
         # 读取文件配置
         self.DefaultConfig()
         self.CheckFile()

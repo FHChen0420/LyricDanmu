@@ -1,4 +1,4 @@
-import re, time, wx, socket
+import re, time, wx, socket, sys, os
 from typing import Optional
 from pubsub import pub
 from constant import REGEX_CHAR_TRANSFORM_RULES
@@ -154,3 +154,11 @@ def updateCsvFile(file_path:str,key_index:int,new_records:dict,max_size:int=1024
         for k,v in new_records.items():
             if k not in old_records.keys():
                 f.write(v.strip()+"\n")
+
+def resource_path(relative_path):
+    '''返回资源绝对路径(针对pyinstaller打包用)'''
+    if getattr(sys, 'frozen', False):
+        tmpdir = getattr(sys, '_MEIPASS', None) 
+        if tmpdir:  return os.path.join(tmpdir, relative_path)
+        else:   return os.path.join(os.getcwd(), relative_path)
+    else:   return os.path.join(os.path.dirname(__file__), relative_path)
