@@ -1,6 +1,8 @@
 ### LyricDanmu
 B站直播歌词/同传弹幕发送工具
 
+开发环境：Python3.9.1
+
 写得不是很规范，注释有空的话会加的
 
 + MainFrame.pyw 主界面
@@ -17,5 +19,5 @@ B站直播歌词/同传弹幕发送工具
 + BiliLiveAntiShield.py 屏蔽字处理
 + util.py 工具函数
 + constant.py 常量
-+ langconv.py & zh_wiki.py 繁体转简体逻辑&数据（Ref：skydark/nstools）
-+ chaser/ B站直播追帧本地服务（Ref: bilibili/flv.js）
++ langconv.py & zh_wiki.py 繁体转简体逻辑&数据（Ref: skydark/nstools）
++ chaser/ B站直播追帧本地服务（By:Sirius   Ref: bilibili/flv.js）
