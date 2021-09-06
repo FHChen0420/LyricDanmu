@@ -1,0 +1,7 @@
+aiohttp==3.7.4.post0
+jsonpath==0.82
+pyinstaller==4.5.1
+Pypubsub==4.0.3
+requests==2.25.1
+websockets==8.1
+wxPython==4.1.1
