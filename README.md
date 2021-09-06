@@ -1,9 +1,9 @@
-### LyricDanmu
+## LyricDanmu
 B站直播歌词/同传弹幕发送工具
 
 开发环境：Python3.9.1
 
-写得不是很规范，注释有空的话会加的
+### 代码列表
 
 + MainFrame.pyw 主界面
 + SongSearchFrame.py 歌词搜索结果界面
@@ -21,3 +21,13 @@ B站直播歌词/同传弹幕发送工具
 + constant.py 常量
 + langconv.py & zh_wiki.py 繁体转简体逻辑&数据（Ref: skydark/nstools）
 + chaser/ B站直播追帧本地服务（By:Sirius   Ref: bilibili/flv.js）
+
+### Pyinstaller打包指令
+
++ Windows(64位)：
+
+    ```pyinstaller -F -w MainFrame.pyw -n LyricDanmu --add-data "./chaser/static/*;./chaser/static" --add-data "./dll/x64/*;."```
+
++ MacOS：
+
+    ```pyinstaller -F -w MainFrame.pyw -n LyricDanmu --add-data ./chaser/static/*:./chaser/static```
