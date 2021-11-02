@@ -90,6 +90,7 @@ class LyricDanmu(wx.Frame):
         self.colabor_mode = int(self.init_two_prefix)
         self.pre_idx = 0
         self.transparent = 255
+        self.danmu_seq=1
         # 追帧服务
         self.live_chasing = False
         self.playerChaser=RoomPlayerChaser("1")
@@ -560,10 +561,10 @@ class LyricDanmu(wx.Frame):
                 if interval_s > 0:
                     wx.MilliSleep(int(1000 * interval_s))
                 if self.enable_new_send_type: #新版机制
-                    task = [self.pool.submit(self.SendDanmu, danmu[0], danmu[1], danmu[2])]
+                    task = [self.pool.submit(self.SendDanmu, danmu[0], danmu[1], danmu[2], danmu[3])]
                     for i in as_completed(task):    pass
                 else: #旧版机制
-                    self.pool.submit(self.SendDanmu, danmu[0], danmu[1], danmu[2])
+                    self.pool.submit(self.SendDanmu, danmu[0], danmu[1], danmu[2], danmu[3])
                 last_time = time.time()
                 UIChange(self.btnClearQueue,label="清空 [%d]" % len(self.danmu_queue))  #
             except RuntimeError:    pass
@@ -1036,7 +1037,7 @@ class LyricDanmu(wx.Frame):
             return showInfoDialog("解析错误，请重试", "获取弹幕配置出错")
         return True
 
-    def SendDanmu(self, roomid, msg, src=0, try_times=2):
+    def SendDanmu(self, roomid, msg, src=0, seq=0, try_times=2):
         if msg in self.recent_danmu and len(msg) < self.max_len:
             msg+=("\u0592" if msg+"\u0594" in self.recent_danmu else "\u0594")
         self.recent_danmu.append(msg)
@@ -1050,7 +1051,7 @@ class LyricDanmu(wx.Frame):
                 if try_times>0:
                     self.CallRecord("","0",-1,"3+")
                     wx.MilliSleep(self.send_interval_ms)
-                    return self.SendDanmu(roomid,msg,src,try_times-2)
+                    return self.SendDanmu(roomid,msg,src,seq,try_times-2)
                 return self.CallRecord(msg,roomid,src,"3")
             if code==10031:
                 return self.CallRecord(msg,roomid,src,"4")
@@ -1058,7 +1059,7 @@ class LyricDanmu(wx.Frame):
                 if try_times>0:
                     self.CallRecord("","0",-1,"5+")
                     wx.MilliSleep(self.send_interval_ms)
-                    return self.SendDanmu(roomid,msg,src,try_times-2)
+                    return self.SendDanmu(roomid,msg,src,seq,try_times-2)
                 return self.CallRecord(msg,roomid,src,"5")
             if code!=0:
                 self.LogDebug("[SendDanmu]"+str(data))
@@ -1069,14 +1070,18 @@ class LyricDanmu(wx.Frame):
                 return True
             if errmsg in ["f","fire"]:
                 self.LogShielded(msg)
-                return self.CallRecord(msg,roomid,src,"1")
+                self.CallRecord(msg,roomid,src,"1")
+                self.CancelFollowingDanmu(seq)
+                return False
             if errmsg=="k":
-                return self.CallRecord(msg,roomid,src,"2")
+                self.CallRecord(msg,roomid,src,"2")
+                self.CancelFollowingDanmu(seq)
+                return False
             if errmsg=="max limit":
                 if try_times>0:
                     self.CallRecord("","0",-1,"6+")
                     wx.MilliSleep(self.send_interval_ms)
-                    return self.SendDanmu(roomid,msg,src,try_times-1)
+                    return self.SendDanmu(roomid,msg,src,seq,try_times-1)
                 return self.CallRecord(msg,roomid,src,"6")
             self.LogDebug("[SendDanmu]"+"errmsg:"+errmsg)
             self.CallRecord(msg,roomid,src,"x")
@@ -1086,7 +1091,7 @@ class LyricDanmu(wx.Frame):
             if "Remote end closed connection without response" in str(e) or "(10054," in str(e):
                 if try_times>0:
                     wx.MilliSleep(200)
-                    return self.SendDanmu(roomid,msg,src,try_times-1)
+                    return self.SendDanmu(roomid,msg,src,seq,try_times-1)
                 return self.CallRecord(msg,roomid,src,"C")
             self.pool.submit(self.ThreadOfShowMsgDlg,"网络连接出错","弹幕发送失败")
             return self.CallRecord(msg,roomid,src,"A")
@@ -1096,6 +1101,12 @@ class LyricDanmu(wx.Frame):
             self.LogDebug("[SendDanmu]"+str(e))
             self.CallRecord(msg,roomid,src,"X")
             return self.CallRecord("(具体信息：%s)"%str(e),"0",-1,"-")
+    
+    def CancelFollowingDanmu(self,seq):
+        if not self.enable_new_send_type:   return
+        while len(self.danmu_queue)>0 and self.danmu_queue[0][3]==seq:
+            danmu=self.danmu_queue.pop(0)
+            self.CallRecord(danmu[1],danmu[0],danmu[2],"Z")
     
     def RunRoomPlayerChaser(self,roomid,loop):
         asyncio.set_event_loop(loop)
@@ -1127,15 +1138,18 @@ class LyricDanmu(wx.Frame):
         self.SendSplitDanmu(message,pre,suf,1)
         self.AddHistory(msg)
 
-    def SendSplitDanmu(self, msg, pre, suf, src):
+    def SendSplitDanmu(self, msg, pre, suf, src, seq=0):
+        if seq==0:
+            seq=self.danmu_seq
+            self.danmu_seq+=1
         if len(msg) > self.max_len:
             for k, v in COMPRESS_RULES.items():
                 msg = re.sub(k, v, msg)
         if len(msg) <= self.max_len:
             if len(msg+suf) <= self.max_len:
-                self.danmu_queue.append([self.roomid,msg+suf,src])
+                self.danmu_queue.append([self.roomid,msg+suf,src,seq])
             else:
-                self.danmu_queue.append([self.roomid,msg,src])
+                self.danmu_queue.append([self.roomid,msg,src,seq])
             UIChange(self.btnClearQueue,label="清空 [%d]"%len(self.danmu_queue))#
             return
         spaceIdx = []
@@ -1153,10 +1167,10 @@ class LyricDanmu(wx.Frame):
                 if idx <= self.max_len: cutIdx = idx
         if cutIdx<self.max_len*0.5 and 1+len(msg[cutIdx:])+len(pre)>self.max_len:
              cutIdx = self.max_len
-        self.danmu_queue.append([self.roomid,msg[:cutIdx],src])
+        self.danmu_queue.append([self.roomid,msg[:cutIdx],src,seq])
         UIChange(self.btnClearQueue,label="清空 [%d]"%len(self.danmu_queue))#
         if msg[cutIdx:] in [")","）","」","】","\"","”"]:  return
-        self.SendSplitDanmu(pre + "…" + msg[cutIdx:],pre,suf,src)
+        self.SendSplitDanmu(pre + "…" + msg[cutIdx:],pre,suf,src,seq)
 
 
     def Mark(self,src,song_id,tags):
