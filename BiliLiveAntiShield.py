@@ -13,7 +13,7 @@ def measure(string:str,length:int) -> bool:
 
 def fill(string:str,length:int) -> str:
     '''填补字符串string，使其中的非空格字符数等于length'''
-    dots="\u0592"*(length-get_len(string)+string.count(" "))
+    dots="󠀠"*(length-get_len(string)+string.count(" "))
     return string+dots
 
 class BiliLiveAntiShield:
@@ -46,12 +46,12 @@ class BiliLiveAntiShield:
     def __generate_rule(self,word:str) -> None:
         '''根据屏蔽词word，生成相应的匹配模式及替换规则，添加到列表deal_list中'''
         # word中，“#”后的数字表示需要间隔多少个字符才不会被屏蔽。
-        # 如果word不含“#”，则默认在第一个字符后添加“\u0592”。
+        # 如果word不含“#”，则默认在第一个字符后添加U+E0020。
         groups=re.split(r"#[1-9]",word)
         n=len(groups)-1
         if n==0:
             pat = "(?i)" + " ?".join(word)
-            rep = lambda x: x.group()[0] + "\u0592" + x.group()[1:]
+            rep = lambda x: x.group()[0] + "󠀠" + x.group()[1:]
             self.__deal_list.append((re.compile(pat),rep))
             return
         fills=[int(i) for i in re.findall(r"#([1-9])",word)]
