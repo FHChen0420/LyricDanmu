@@ -1186,7 +1186,7 @@ class LyricDanmu(wx.Frame):
         for song_id in collection:
             tags = collection[song_id].split(";")
             for tag in tags:
-                if tag.lower().strip()==char:
+                if tag.lower().strip()==char.lower():
                     res.append(song_id)
                     break
         return res
