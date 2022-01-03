@@ -62,34 +62,30 @@ class GeneralConfigFrame(wx.Frame):
         self.sldLrcMrg.Bind(wx.EVT_SLIDER, self.OnLrcMergeThChange)
         # 发送间隔
         wx.StaticText(panel,-1,"发送间隔",pos=(15,214))
-        self.ckbNewItv = wx.CheckBox(panel,-1,"启用新版发送间隔机制", pos=(80,214))
-        self.ckbNewItv.SetValue(parent.enable_new_send_type)
-        wx.StaticText(panel,-1,"⍰",pos=(275,214)).SetToolTip(
-            "新版：上一条弹幕的响应时刻 → 本条弹幕的发送时刻\n"+
-            "旧版：上一条弹幕的发送时刻 → 本条弹幕的发送时刻\n"+
-            "推荐间隔：新版700~850，旧版1000~1100")
-        self.lblItv = wx.StaticText(panel, -1, "%4d ms" % parent.send_interval_ms, pos=(240, 238))
-        self.sldItv = wx.Slider(panel, -1, int(0.1 * parent.send_interval_ms), 50, 150, pos=(70, 238), size=(170, 30),style=wx.SL_HORIZONTAL)
+        self.lblItv = wx.StaticText(panel, -1, "%4d ms" % parent.send_interval_ms, pos=(240, 212))
+        self.sldItv = wx.Slider(panel, -1, int(0.1 * parent.send_interval_ms), 50, 150, pos=(70, 212), size=(170, 30),style=wx.SL_HORIZONTAL)
         self.sldItv.Bind(wx.EVT_SLIDER, self.OnIntervalChange)
         # 超时阈值
-        wx.StaticText(panel,-1,"超时阈值",pos=(15,268))
-        self.lblTmt = wx.StaticText(panel, -1, "%4.1f s" %(parent.timeout_s), pos=(240, 268))
-        self.sldTmt = wx.Slider(panel, -1, int(10 * parent.timeout_s), 20, 100, pos=(70, 264), size=(170, 30),style=wx.SL_HORIZONTAL)
+        wx.StaticText(panel,-1,"超时阈值",pos=(15,240))
+        self.lblTmt = wx.StaticText(panel, -1, "%4.1f s" %(parent.timeout_s), pos=(240, 238))
+        self.sldTmt = wx.Slider(panel, -1, int(10 * parent.timeout_s), 20, 100, pos=(70, 238), size=(170, 30),style=wx.SL_HORIZONTAL)
         self.sldTmt.Bind(wx.EVT_SLIDER, self.OnTimeoutChange)
         # 其它设置
-        wx.StaticText(panel,-1,"默认开启",pos=(15,294))
-        self.ckbInitLrc = wx.CheckBox(panel,-1,"歌词面板", pos=(80,294))
+        wx.StaticText(panel,-1,"默认开启",pos=(15,270))
+        self.ckbInitLrc = wx.CheckBox(panel,-1,"歌词面板", pos=(80,270))
         self.ckbInitLrc.SetValue(parent.init_show_lyric)
-        self.ckbInitRcd = wx.CheckBox(panel,-1,"弹幕记录", pos=(153,294))
+        self.ckbInitRcd = wx.CheckBox(panel,-1,"弹幕记录", pos=(153,270))
         self.ckbInitRcd.SetValue(parent.init_show_record)
-        self.ckbTwoPre = wx.CheckBox(panel,-1,"双前缀", pos=(226,294))
+        self.ckbTwoPre = wx.CheckBox(panel,-1,"双前缀", pos=(226,270))
         self.ckbTwoPre.SetValue(parent.init_two_prefix)
-        wx.StaticText(panel,-1,"其它设置",pos=(15,319))
-        self.ckbNoProxy = wx.CheckBox(panel,-1,"禁用系统代理", pos=(80,319))
+        wx.StaticText(panel,-1,"其它设置",pos=(15,295))
+        self.ckbNoProxy = wx.CheckBox(panel,-1,"禁用系统代理", pos=(80,295))
         self.ckbNoProxy.SetValue(parent.no_proxy)
-        self.ckbRichRcd = wx.CheckBox(panel,-1,"彩色弹幕记录", pos=(180,319))
+        self.ckbRichRcd = wx.CheckBox(panel,-1,"彩色弹幕记录", pos=(180,295))
         self.ckbRichRcd.SetValue(parent.enable_rich_record)
-        wx.StaticText(panel,-1,"⍰",pos=(275,319)).SetToolTip(
+        self.ckbFResendMark = wx.CheckBox(panel,-1,"屏蔽句重发标识", pos=(80,320))
+        self.ckbFResendMark.SetValue(parent.f_resend_mark)
+        wx.StaticText(panel,-1,"⍰",pos=(275,295)).SetToolTip(
             "默认双前缀模式：默认使用\"\"和\"【\"作为评论可选前缀，推荐同传勾选\n"+
             "禁用系统代理：若科学上网时本工具报网络异常错误，则请尝试勾选\n"+
             "彩色弹幕记录：使用富文本格式显示各类弹幕记录(重启后生效)")
@@ -195,7 +191,6 @@ class GeneralConfigFrame(wx.Frame):
             parent.page_limit=page_limit
         except: pass
         parent.lyric_offset=0 if self.rdHlCur.GetValue() else 1
-        parent.enable_new_send_type=self.ckbNewItv.GetValue()
         parent.enable_lyric_merge=self.ckbLrcMrg.GetValue()
         parent.add_song_name=self.ckbAddSongName.GetValue()
         parent.init_show_lyric=self.ckbInitLrc.GetValue()
@@ -203,6 +198,7 @@ class GeneralConfigFrame(wx.Frame):
         parent.init_two_prefix=self.ckbTwoPre.GetValue()
         parent.no_proxy=self.ckbNoProxy.GetValue()
         parent.enable_rich_record=self.ckbRichRcd.GetValue()
+        parent.f_resend_mark=self.ckbFResendMark.GetValue()
         os.environ["NO_PROXY"]="*" if parent.no_proxy else ""
         parent.RefreshLyric()
         if self.parent.customTextFrame:

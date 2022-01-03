@@ -122,7 +122,6 @@ class LyricDanmu(wx.Frame):
         self.suffix = "】"
         self.prefixs = ["【♪","【♬","【❀","【❄️","【★"]
         self.suffixs = ["","】"]
-        self.enable_new_send_type=True
         self.send_interval_ms = 750
         self.timeout_s = 5
         self.default_src = "wy"
@@ -146,6 +145,7 @@ class LyricDanmu(wx.Frame):
         self.init_two_prefix=False
         self.enable_rich_record=False
         self.record_fontsize=9 if self.platform=="win" else 13
+        self.f_resend_mark = True
 
     def ShowFrame(self, parent):
         # 窗体
@@ -560,11 +560,8 @@ class LyricDanmu(wx.Frame):
                 interval_s = 0.001 * self.send_interval_ms + last_time - time.time()
                 if interval_s > 0:
                     wx.MilliSleep(int(1000 * interval_s))
-                if self.enable_new_send_type: #新版机制
-                    task = [self.pool.submit(self.SendDanmu, danmu[0], danmu[1], danmu[2], danmu[3])]
-                    for i in as_completed(task):    pass
-                else: #旧版机制
-                    self.pool.submit(self.SendDanmu, danmu[0], danmu[1], danmu[2], danmu[3])
+                task = [self.pool.submit(self.SendDanmu, danmu[0], danmu[1], danmu[2], danmu[3])]
+                for i in as_completed(task):    pass
                 last_time = time.time()
                 UIChange(self.btnClearQueue,label="清空 [%d]" % len(self.danmu_queue))  #
             except RuntimeError:    pass
@@ -1072,7 +1069,8 @@ class LyricDanmu(wx.Frame):
             if errmsg in ["f","fire"]:
                 self.LogShielded(msg)
                 if not ("[" in msg[:6] and "]" in msg[-3:]) and not brackets:
-                    self.CallRecord("","0",-1,"1+")
+                    if self.f_resend_mark:
+                        self.CallRecord("","0",-1,"1+")
                     newMsgs=self.BracketDanmu(msg)
                     wx.MilliSleep(self.send_interval_ms)
                     res=self.SendDanmu(roomid,newMsgs[0],src,seq,try_times,brackets=True)
@@ -1114,7 +1112,6 @@ class LyricDanmu(wx.Frame):
             return self.CallRecord("(具体信息：%s)"%str(e),"0",-1,"-")
     
     def CancelFollowingDanmu(self,seq):
-        if not self.enable_new_send_type:   return
         while len(self.danmu_queue)>0 and self.danmu_queue[0][3]==seq:
             danmu=self.danmu_queue.pop(0)
             self.CallRecord(danmu[1],danmu[0],danmu[2],"Z")
@@ -1664,15 +1661,10 @@ class LyricDanmu(wx.Frame):
                             self.lyric_merge_threshold_s=0.001*merge_th
                     elif k == "曲末显示歌名":
                         self.add_song_name = v.lower()=="true"
-                    elif k == "新版发送机制":
-                        self.enable_new_send_type = v.lower()=="true"
                     elif k == "最低发送间隔":
                         interval = int(v)
                         if 500 <= interval <= 1500:
                             self.send_interval_ms = interval
-                            send_interval_check=True
-                        else:
-                            send_interval_check=False
                     elif k == "请求超时阈值":
                         tm_out = int(v)
                         if 2000 <= tm_out <= 10000:
@@ -1715,8 +1707,8 @@ class LyricDanmu(wx.Frame):
                         self.enable_rich_record = v.lower()=="true"
                     elif k == "弹幕记录字号":
                         self.record_fontsize = min(max(int(v),9),16)
-                if not send_interval_check:
-                    self.send_interval_ms = 750 if self.enable_new_send_type else 1050
+                    elif k == "屏蔽句重发标识":
+                        self.f_resend_mark = v.lower()=="true"
         except Exception:
             return showInfoDialog("读取config.txt失败", "启动出错")
         try:
@@ -1911,7 +1903,6 @@ class LyricDanmu(wx.Frame):
                 f.write("每页显示条数=%d\n" % self.page_limit)
                 f.write(titleLine("弹幕发送配置"))
                 f.write("忽略系统代理=%s\n" % self.no_proxy)
-                f.write("新版发送机制=%s\n" % self.enable_new_send_type)
                 f.write("最低发送间隔=%d\n" % self.send_interval_ms)
                 f.write("请求超时阈值=%d\n" % int(1000*self.timeout_s))
                 f.write(titleLine("同传统计配置"))
@@ -1922,6 +1913,7 @@ class LyricDanmu(wx.Frame):
                 f.write(titleLine("弹幕记录配置"))
                 f.write("彩色弹幕记录=%s\n" % self.enable_rich_record)
                 f.write("弹幕记录字号=%d\n" % self.record_fontsize)
+                f.write("屏蔽句重发标识=%s\n" % self.f_resend_mark)
                 f.write(titleLine("默认启动配置"))
                 f.write("默认展开歌词=%s\n" % self.init_show_lyric)
                 f.write("默认打开记录=%s\n" % self.init_show_record)
