@@ -1037,7 +1037,7 @@ class LyricDanmu(wx.Frame):
             return showInfoDialog("解析错误，请重试", "获取弹幕配置出错")
         return True
 
-    def SendDanmu(self, roomid, msg, src=0, seq=0, try_times=2):
+    def SendDanmu(self, roomid, msg, src=0, seq=0, try_times=2, brackets=False):
         if msg in self.recent_danmu and len(msg) < self.max_len:
             msg+=("\u0592" if msg+"\u0594" in self.recent_danmu else "\u0594")
         self.recent_danmu.append(msg)
@@ -1070,6 +1070,16 @@ class LyricDanmu(wx.Frame):
                 return True
             if errmsg in ["f","fire"]:
                 self.LogShielded(msg)
+                if not ("[" in msg[:6] and "]" in msg[-3:]) and not brackets:
+                    self.CallRecord("","0",-1,"1+")
+                    newMsgs=self.BracketDanmu(msg)
+                    wx.MilliSleep(self.send_interval_ms)
+                    res=self.SendDanmu(roomid,newMsgs[0],src,seq,try_times,brackets=True)
+                    if len(newMsgs)==2 and res:
+                        wx.MilliSleep(self.send_interval_ms+50)
+                        self.SendDanmu(roomid,newMsgs[1],src,seq,try_times,brackets=True)
+                    return res
+                self.LogKeyShielded(msg)
                 self.CallRecord(msg,roomid,src,"1")
                 self.CancelFollowingDanmu(seq)
                 return False
@@ -1077,7 +1087,7 @@ class LyricDanmu(wx.Frame):
                 self.CallRecord(msg,roomid,src,"2")
                 self.CancelFollowingDanmu(seq)
                 return False
-            if errmsg=="max limit":
+            if "max limit" in errmsg:
                 if try_times>0:
                     self.CallRecord("","0",-1,"6+")
                     wx.MilliSleep(self.send_interval_ms)
@@ -1107,6 +1117,18 @@ class LyricDanmu(wx.Frame):
         while len(self.danmu_queue)>0 and self.danmu_queue[0][3]==seq:
             danmu=self.danmu_queue.pop(0)
             self.CallRecord(danmu[1],danmu[0],danmu[2],"Z")
+    
+    def BracketDanmu(self,msg):
+        mo=re.match("^(.{0,6}【).",msg)
+        pre=mo.group(1) if mo is not None else ""
+        lp=len(pre)
+        if len(msg)+2<=self.max_len:
+            newMsg=pre+"["+msg[lp:]+"]"
+            return [swapBracket(newMsg)]
+        else:
+            newMsg1=pre+"["+msg[lp:self.max_len-lp-2]+"]"
+            newMsg2=pre+"[…"+msg[self.max_len-lp-2:]+"]"
+        return [swapBracket(newMsg1),swapBracket(newMsg2)]
     
     def RunRoomPlayerChaser(self,roomid,loop):
         asyncio.set_event_loop(loop)
@@ -1342,6 +1364,13 @@ class LyricDanmu(wx.Frame):
     def LogShielded(self,msg):
         try:
             path="logs/shielded/SHIELDED_%s.log"%getTime(fmt="%y-%m")
+            with open(path,"a",encoding="utf-8") as f:
+                f.write("%s｜%s\n"%(getTime(fmt="%m-%d %H:%M"),msg))
+        except: pass
+    
+    def LogKeyShielded(self,msg):
+        try:
+            path="logs/shielded/SHIELDED_KEY_%s.log"%getTime(fmt="%y-%m")
             with open(path,"a",encoding="utf-8") as f:
                 f.write("%s｜%s\n"%(getTime(fmt="%m-%d %H:%M"),msg))
         except: pass
