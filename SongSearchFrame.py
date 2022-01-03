@@ -260,7 +260,7 @@ class SongSearchFrame(wx.Frame):
             if "lrc" not in data.keys():
                 return UIChange(obj=txt,color="red",label="无词")
             lrcO = data["lrc"]["lyric"]
-            if isEmpty(lrcO):
+            if isEmpty(lrcO) or "纯音乐，请欣赏" in lrcO or lrcO.count("\n")<=6:
                 return UIChange(obj=txt,color="red",label="无词")
             if re.search(r"\[\d+:\d+(\.\d*)?\]", lrcO) is None:
                 return UIChange(obj=txt,color="SEA GREEN",label="无轴")
@@ -286,7 +286,7 @@ class SongSearchFrame(wx.Frame):
             if data["code"] != 0:
                 return UIChange(obj=txt,color="gray",label="错误")
             lrcO = data["lyric"]
-            if isEmpty(lrcO) or "没有填词的纯音乐" in lrcO:
+            if isEmpty(lrcO) or "没有填词的纯音乐" in lrcO or lrcO.count("\n")<=6:
                 return UIChange(obj=txt,color="red",label="无词")
             if re.search(r"\[\d+:\d+(\.\d*)?\]", lrcO) is None:
                 return UIChange(obj=txt,color="SEA GREEN",label="无轴")
@@ -349,7 +349,7 @@ class SongSearchFrame(wx.Frame):
                 self.txtMsg.SetLabel("目标歌曲无歌词")
                 return
             lrcO = data["lrc"]["lyric"]
-            if isEmpty(lrcO):
+            if isEmpty(lrcO) or "纯音乐，请欣赏" in lrcO or lrcO.count("\n")<=6:
                 self.txtMsg.SetForegroundColour("red")
                 self.txtMsg.SetLabel("目标歌曲无歌词")
                 return
@@ -420,7 +420,7 @@ class SongSearchFrame(wx.Frame):
                 self.txtMsg.SetLabel("获取歌词失败")
                 return
             lrcO = data["lyric"]
-            if isEmpty(lrcO) or "没有填词的纯音乐" in lrcO:
+            if isEmpty(lrcO) or "没有填词的纯音乐" in lrcO or lrcO.count("\n")<=6:
                 self.txtMsg.SetForegroundColour("red")
                 self.txtMsg.SetLabel("目标歌曲无歌词")
                 return
