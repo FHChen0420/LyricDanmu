@@ -602,6 +602,7 @@ class LyricDanmu(wx.Frame):
             data=self.jdApi.get_latest_bili_live_shield_words(timeout=(6,10))
             so=re.search(r"# <DATA BEGIN>([\s\S]*?)# <DATA END>",data)
             code=so.group(1).replace("and not measure(x.group(3),4)","") #简化某条特殊规则
+            code=re.sub(r"# <LD144 IGNORE BEGIN>([\s\S]*?)# <LD144 IGNORE END>","",code) #忽略部分规则
         except:
             UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="无法获取更新")
         try:
