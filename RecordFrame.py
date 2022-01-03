@@ -1,5 +1,5 @@
-import wx
-from util import setFont,wxCopy
+import wx,os,webbrowser
+from util import setFont,wxCopy,getTime,showInfoDialog
 
 class RecordFrame(wx.Frame):
     def __init__(self,parent):
@@ -25,6 +25,14 @@ class RecordFrame(wx.Frame):
         menu.Append(wx.ID_TOP,"置顶窗口","",wx.ITEM_CHECK)
         menu.Append(wx.ID_CLOSE,"关闭窗口\tEsc","")
         menu.Check(wx.ID_TOP,parent.show_pin)
+        menu2 = wx.Menu()
+        menuBar.Append(menu2,"　日志　")
+        menu2.Append(wx.ID_FILE1,"本月屏蔽日志(关键记录)")
+        menu2.Append(wx.ID_FILE2,"本月屏蔽日志(全部记录)")
+        menu2.AppendSeparator()
+        menu2.Append(wx.ID_FILE3,"打开日志文件目录")
+        menu2.AppendSeparator()
+        menu2.Append(wx.ID_NETWORK,"打开屏蔽词收集文档")
         self.SetMenuBar(menuBar)
         self.Bind(wx.EVT_MENU, self.MenuHandler)
 
@@ -41,6 +49,27 @@ class RecordFrame(wx.Frame):
             wxCopy(self.tcRecord.GetValue())
         elif eventId==wx.ID_TOP:
             self.ToggleWindowStyle(wx.STAY_ON_TOP)
+        elif eventId==wx.ID_FILE1:
+            try:
+                path=os.getcwd()+"/logs/shielded/SHIELDED_KEY_%s.log"%getTime(fmt="%y-%m")
+                os.startfile(path)
+            except FileNotFoundError:   showInfoDialog("日志文件不存在","打开日志失败")
+            except Exception as e:  showInfoDialog("%s: %s"%(type(e),e),"打开日志失败")
+        elif eventId==wx.ID_FILE2:
+            try:
+                path=os.getcwd()+"/logs/shielded/SHIELDED_%s.log"%getTime(fmt="%y-%m")
+                os.startfile(path)
+            except FileNotFoundError:   showInfoDialog("日志文件不存在","打开日志失败")
+            except Exception as e:  showInfoDialog("%s: %s"%(type(e),e),"打开日志失败")
+        elif eventId==wx.ID_FILE3:
+            try:
+                path=os.getcwd()+"/logs"
+                os.startfile(path)
+            except FileNotFoundError:   showInfoDialog("日志目录不存在","打开日志目录失败")
+            except Exception as e:  showInfoDialog("%s: %s"%(type(e),e),"打开日志目录失败")
+        elif eventId==wx.ID_NETWORK:
+            webbrowser.open("https://docs.qq.com/sheet/DV2Nqb1NLd2hDeUt6")
+
     
     def AppendText(self,content,color="black"):
         if self.rich:
