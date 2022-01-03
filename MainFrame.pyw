@@ -1318,7 +1318,7 @@ class LyricDanmu(wx.Frame):
                                 records[start_str]="%s,%s,%s,%.1f,%d,%d,%.1f"%(start_str,live_title,liver_name,duration,word_num,danmu_count,word_num/duration)
                             start_ts,last_ts,word_num,danmu_count=ts,ts,0,0
                         else:
-                            content=re.sub("^.*?【|[【】\u0592\u0594]","",mo.group(2).strip())
+                            content=re.sub(r"^.*?【|[\[\]【】󠀠\u0592\u0594]","",mo.group(2).strip())
                             word_num+=len(content)
                             danmu_count+=1
                             last_ts=ts
