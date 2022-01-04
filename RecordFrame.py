@@ -1,4 +1,4 @@
-import wx,os,webbrowser
+import wx,os,webbrowser,subprocess
 from util import setFont,wxCopy,getTime,showInfoDialog
 
 class RecordFrame(wx.Frame):
@@ -52,19 +52,22 @@ class RecordFrame(wx.Frame):
         elif eventId==wx.ID_FILE1:
             try:
                 path=os.getcwd()+"/logs/shielded/SHIELDED_KEY_%s.log"%getTime(fmt="%y-%m")
-                os.startfile(path)
+                if self.Parent.platform=="win": os.startfile(path)
+                else: subprocess.call(["open",path])
             except FileNotFoundError:   showInfoDialog("日志文件不存在","打开日志失败")
             except Exception as e:  showInfoDialog("%s: %s"%(type(e),e),"打开日志失败")
         elif eventId==wx.ID_FILE2:
             try:
                 path=os.getcwd()+"/logs/shielded/SHIELDED_%s.log"%getTime(fmt="%y-%m")
-                os.startfile(path)
+                if self.Parent.platform=="win": os.startfile(path)
+                else: subprocess.call(["open",path])
             except FileNotFoundError:   showInfoDialog("日志文件不存在","打开日志失败")
             except Exception as e:  showInfoDialog("%s: %s"%(type(e),e),"打开日志失败")
         elif eventId==wx.ID_FILE3:
             try:
                 path=os.getcwd()+"/logs"
-                os.startfile(path)
+                if self.Parent.platform=="win": os.startfile(path)
+                else: subprocess.call(["open",path])
             except FileNotFoundError:   showInfoDialog("日志目录不存在","打开日志目录失败")
             except Exception as e:  showInfoDialog("%s: %s"%(type(e),e),"打开日志目录失败")
         elif eventId==wx.ID_NETWORK:
