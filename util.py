@@ -1,7 +1,6 @@
 import re, time, wx, socket, sys, os
 from typing import Optional
 from pubsub import pub
-from constant import REGEX_CHAR_TRANSFORM_RULES
 
 def isEmpty(string) -> bool:
     """判断字符串是否为空"""
@@ -108,14 +107,11 @@ def showInfoDialog(content="",title=""):
     dlg.Destroy()
     return False
 
-def getFuzzyMatchingPattern(words:str) -> str:
-    """获取words的模糊匹配正则表达式字符串"""
-    words = re.sub(r"\s+", "", words)
-    pattern = "∷".join(words)
-    for k,v in REGEX_CHAR_TRANSFORM_RULES.items():
-        pattern = pattern.replace(k, v)
-    pattern = "(?i)" + pattern.replace("∷", ".*?")
-    return pattern
+def transformToRegex(string:str,join:str="") -> str:
+    """将普通字符串string转换为正则字符串，各字符之间以join来连接"""
+    string = re.sub(r"\s+", "", string)
+    pattern = re.sub(r"([+.*?^$|(){}\[\]\\])",r"\\\1","∷".join(string))
+    return pattern.replace("∷", join)
 
 def isPortUsed(ip:str="127.0.0.1", port:int=8080) -> bool:
     """检查端口是否已被占用"""

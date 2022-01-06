@@ -1213,7 +1213,7 @@ class LyricDanmu(wx.Frame):
 
     def SearchByTag(self, words, collection):
         suggestions = []
-        pattern=getFuzzyMatchingPattern(words)
+        pattern = "(?i)"+transformToRegex(words,".*?")
         regex = re.compile(pattern)
         for song_id in collection:
             sug = []
