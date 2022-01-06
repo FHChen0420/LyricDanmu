@@ -1,69 +1,56 @@
 # coding:utf-8
 import re
-from typing import Callable, Match, Pattern, Union
+from typing import Callable, Match, Pattern, Union, Tuple, List, Dict
 Replace=Union[str,Callable[[Match],str]]
 
-def get_len(string:str) -> int:
-    '''获取正则表达式串string的字段宽度'''
-    return len(re.sub(r"\[.+?\]","~",string))
-
-def measure(string:str,length:int) -> bool:
-    '''判断字符串string中非空格字符数是否小于length'''
-    return get_len(string)-string.count(" ")<length
-
-def fill(string:str,length:int) -> str:
-    '''填补字符串string，使其中的非空格字符数等于length'''
-    dots="󠀠"*(length-get_len(string)+string.count(" "))
-    return string+dots
-
 class BiliLiveAntiShield:
-    def __init__(self,rules:dict[str,Replace],words:list[str]):
+    def __init__(self,rules:Dict[str,Replace],words:List[str],filler:str="󠀠"):
         '''B站直播弹幕反屏蔽工具
         
         :param: rules 正则处理字典[正则匹配串:正则捕获处理函数/字符串]（用于处理较复杂规则）
-        :param: words 屏蔽词列表（用于处理较简单规则）'''
-        self.__deal_list:list[tuple[Pattern,Replace]]=[]
+        :param: words 屏蔽词列表（用于处理较简单规则）
+        :param: filler 用于填充屏蔽词的单字符，默认为U+E0020'''
+        self._filler=filler
+        self._single_fill=lambda x: x.group()[0]+self._filler+x.group()[1:]
+        self._multi_fill=tuple([lambda x,i=i: x.group(1)+self._fill(x.group(2),i) for i in range(10)])
+        self._deal_list:List[Tuple[Pattern,Replace]]=[]
         for pat,rep in rules.items():
-            self.__deal_list.append((re.compile(pat),rep))
+            self._deal_list.append((re.compile(pat),rep))
         for word in words:
-            self.__generate_rule(word)
-    
-    def __substitute(self,pat:Pattern,rep:Replace,string:str) -> str:
-        '''正则替换函数，是re.sub()的一种修改版本'''
-        # 目前有个缺点，如果屏蔽字首尾相同或可拆分为更小的重复单元，则可能无法替换干净。
-        # 例如对"ABABA"按"ABA"→"ACA"的替换规则，替换结果为"ACABA"而非"ACACA"。
-        def get_min_so(so:Match) -> Match:
-            '''递归函数，获取串总长最短的捕获组'''
-            new_so=pat.search(so.group()[1:])
-            return so if new_so is None else get_min_so(new_so)  
-        def min_sub(so:Match) -> str:
-            '''回调函数，获取替换结果'''
-            min_so=get_min_so(so)
-            min_rep=re.sub(r"\\(\d)",lambda x:min_so.group(int(x.group(1))),rep) if isinstance(rep,str) else rep(min_so)
-            return so.group().replace(min_so.group(),min_rep)
-        return pat.sub(min_sub,string)
+            self._generate_rule(word)
 
-    def __generate_rule(self,word:str) -> None:
+    def _fill(self,string:str,length:int) -> str:
+        '''使用填充符来填补字符串string，使其中的非空格字符数等于length'''
+        dots=self._filler*(length-len(string)+string.count(" "))
+        return string+dots
+
+    def _generate_rule(self,word:str) -> None:
         '''根据屏蔽词word，生成相应的匹配模式及替换规则，添加到列表deal_list中'''
-        # word中，“#”后的数字表示需要间隔多少个字符才不会被屏蔽。
-        # 如果word不含“#”，则默认在第一个字符后添加U+E0020。
-        groups=re.split(r"#[1-9]",word)
-        n=len(groups)-1
-        if n==0:
-            pat = "(?i)" + " ?".join(word)
-            rep = lambda x: x.group()[0] + "󠀠" + x.group()[1:]
-            self.__deal_list.append((re.compile(pat),rep))
-            return
-        fills=[int(i) for i in re.findall(r"#([1-9])",word)]
-        pat="(?i)" + "".join(["("+groups[i]+".*?)" for i in range(n)]) + "(%s)"%groups[n]
-        rep="lambda x: (" + "+".join(["fill(x.group(1),%d)"%(get_len(groups[0])+int(fills[0]))] +
-            ["x.group(%d)"%(i+1) for i in range(1,n+1)]) + ") if " + \
-            " and ".join(["measure(x.group(%d),%d)"%(i+1,get_len(groups[i])+int(fills[i])) for i in range(n)]) + \
-            " else x.group()"
-        self.__deal_list.append((re.compile(pat),eval(rep)))
+        # word中，“#”后的数字表示至少需要间隔多少个非空格字符才不会被屏蔽。
+        # 如果word不含“#”，则在第一个字符后添加一个填充符来进行处理。
+        try:
+            parts=re.split(r"#[1-9]",word)
+            n=len(parts)-1
+            if n==0:
+                pat = "(?i)"+" ?".join(word)
+                self._deal_list.append((re.compile(pat),self._single_fill))
+                return
+            distance=[int(i) for i in re.findall(r"#([1-9])",word)]
+            regex1,regex2="",""
+            if distance[0]==1:
+                regex1=" ?"
+            else:
+                exclude_chars=parts[0][1:-1] if parts[0][0]=="[" else parts[0][-1]
+                regex1="(?: ?[^%s ]){0,%d}? ?"%(exclude_chars,distance[0]-1)
+            for i in range(1,n):
+                regex=" ?" if distance[i]==1 else "( ?[^ ]){0,%d} ?"%(distance[i]-1)
+                regex2+=regex+parts[i+1]
+            pat="(?i)(%s)(%s)(?=%s)"%(parts[0],regex1,parts[1]+regex2)
+            self._deal_list.append((re.compile(pat),self._multi_fill[distance[0]]))
+        except: pass
 
     def deal(self,string:str) -> str:
         '''对字符串string进行反屏蔽处理'''
-        for i in self.__deal_list:
-            string = self.__substitute(i[0], i[1], string)
+        for i in self._deal_list:
+            string = i[0].sub(i[1],string)
         return string
