@@ -35,7 +35,6 @@ class LyricDanmu(wx.Frame):
         pub.subscribe(self.UpdateRecord,"record")
         pub.subscribe(self.RefreshLyric,"lyric")
         pub.subscribe(setWxUIAttr,"ui_change")
-        pub.subscribe(self.DealWithSpam,"spam")
         # API
         self.blApi = BiliLiveAPI(self.cookies,self.timeout_s)
         self.wyApi = NetEaseMusicAPI()
