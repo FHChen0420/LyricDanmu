@@ -109,7 +109,6 @@ class LyricDanmu(wx.Frame):
         self.qq_marks = {}
         self.locals = {}
         self.custom_shields = {}
-        self.room_shields = {}
         self.custom_texts = []
         self.danmu_log_dir = {}
         self.translate_records = {}
@@ -142,6 +141,7 @@ class LyricDanmu(wx.Frame):
         self.tl_stat_min_word_num=200
         self.show_stat_on_close=False
         self.anti_shield = BiliLiveAntiShield({},[])
+        self.room_anti_shield = BiliLiveAntiShield({},[])
         self.init_two_prefix=False
         self.enable_rich_record=False
         self.record_fontsize=9 if self.platform=="win" else 13
@@ -597,9 +597,7 @@ class LyricDanmu(wx.Frame):
         try:
             code=""
             data=self.jdApi.get_latest_bili_live_shield_words(timeout=(6,10))
-            so=re.search(r"# <DATA BEGIN>([\s\S]*?)# <DATA END>",data)
-            code=so.group(1).replace("and not measure(x.group(3),4)","") #简化某条特殊规则
-            code=re.sub(r"# <LD144 IGNORE BEGIN>([\s\S]*?)# <LD144 IGNORE END>","",code) #忽略部分规则
+            code=re.search(r"# <DATA BEGIN>([\s\S]*?)# <DATA END>",data).group(1)
         except:
             UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="无法获取更新")
         try:
@@ -947,7 +945,7 @@ class LyricDanmu(wx.Frame):
         comment = pre + msg
         if len(comment) > self.max_len*2.5:
             return showInfoDialog("弹幕内容过长", "弹幕发送失败")
-        comment = self.DealWithCustomShields(comment)
+        comment = self.room_anti_shield.deal(comment)
         comment = self.anti_shield.deal(comment)
         suf = "】" if comment.count("【") > comment.count("】") else ""
         self.SendSplitDanmu(comment,pre,suf,0)
@@ -1153,7 +1151,7 @@ class LyricDanmu(wx.Frame):
         msg = self.llist[self.lid+line-4][2]
         message = pre + msg
         if self.shield_changed:
-            message = self.DealWithCustomShields(message)
+            message = self.room_anti_shield.deal(message)
             message = self.anti_shield.deal(message)
         self.SendSplitDanmu(message,pre,suf,1)
         self.AddHistory(msg)
@@ -1228,40 +1226,19 @@ class LyricDanmu(wx.Frame):
         return [x for _, _, x in sorted(suggestions)]
 
     def GetRoomShields(self,roomid=None):
-        room_shields={}
+        rules,words={},[]
         if roomid is None:  roomid="none"
         for k,v in self.custom_shields.items():
             if v[2]!="" and roomid not in re.split("[,;，；]",v[2]): continue
-            room_shields[k]=v[:2]
-        self.room_shields=room_shields
-
-    def DealWithCustomShields(self,msg):
-        for k,v in self.room_shields.items():
-            if v[0]==0 and re.search(r"\\[1-9]",k) is not None:
-                msg=self.MultiDotBlock(k,msg)
+            if v[0]==1:
+                pat="(?i)"+transformToRegex(k," ?")
+                rules[pat]=v[1].replace("`","\u0592")
+            elif "#" in k:
+                words.append(transformToRegex(k))
             else:
-                try:
-                    msg=re.sub("(?i)"+" ?".join(k),v[1].replace("`","\u0592"),msg)
-                except Exception as e:
-                    print("[DealWithCustomShields Error]",k,e)
-        return msg
-
-    def MultiDotBlock(self,pattern,msg):
-        origin_msg=msg
-        try:
-            pattern=re.sub(r"\\(?![1-9])","",pattern)
-            groups=re.split(r"\\[1-9]",pattern)
-            fills=[int(i) for i in re.findall(r"\\([1-9])",pattern)]
-            n=len(fills)
-            pat="(?i)" + "".join(["("+groups[i]+".*?)" for i in range(n)]) + "(%s)"%groups[n]
-            repl="lambda x: (" + "+".join(["fill(x.group(1),%d)"%(len(groups[0])+int(fills[0]))] +
-                ["x.group(%d)"%(i+1) for i in range(1,n+1)]) + ") if " + \
-                " and ".join(["measure(x.group(%d),%d)"%(i+1,len(groups[i])+int(fills[i])) for i in range(n)]) + \
-                " else x.group()"
-            return re.sub(pat,eval(repl),msg)
-        except Exception as e:
-            print("[regex fail]",e)
-            return origin_msg
+                pat="(?i)"+transformToRegex(k," ?")
+                rules[pat]=lambda x:x.group()[0]+"\u0592"+x.group()[1:]
+        self.room_anti_shield=BiliLiveAntiShield(rules,words,"\u0592")
 
     def AddHistory(self,message):
         self.recent_history.insert(0,message)
@@ -1545,7 +1522,7 @@ class LyricDanmu(wx.Frame):
             lyrics = re.sub(k, v, lyrics)
             self.lyric_raw = re.sub(k,v,self.lyric_raw)
             self.lyric_raw_tl = re.sub(k,v,self.lyric_raw_tl)
-        lyrics = self.DealWithCustomShields(lyrics)
+        lyrics = self.room_anti_shield.deal(lyrics)
         lyrics = self.anti_shield.deal(lyrics)
         lyric_list=lyrics.split("\r\n")
         for i in range(len(lyric_list)):
@@ -1553,7 +1530,7 @@ class LyricDanmu(wx.Frame):
         if self.add_song_name and data["name"]!="" and len(tmpData)>0:
             tl=(tmpData[-1][1]+3) if tmpData[-1][1]>=0 else -1
             tl_str=getTimeLineStr(tl,1) if tl>=0 else ""
-            name_info=self.DealWithCustomShields("歌名："+data["name"])
+            name_info=self.room_anti_shield.deal("歌名："+data["name"])
             name_info=self.anti_shield.deal(name_info)
             tmpData.append(["",tl,"",""])
             tmpData.append([tl_str,tl,name_info,""])
@@ -1740,9 +1717,11 @@ class LyricDanmu(wx.Frame):
                 for line in f:
                     mo = re.match(r"\s*(0|1)\s+(\S+)\s+(\S+)\s*(\S*)", line)
                     if mo is None:  continue
-                    if re.search(r"\\(?![1-9])|[\(\)\[\]\{\}\.\+\*\^\$\?\|]",mo.group(2)) is not None:  continue
                     if mo.group(1)=="0":
-                        if "\\" in mo.group(2): rep=re.sub(r"\\([1-9])",lambda x: int(x.group(1))*"`",mo.group(2),count=1)
+                        so=re.search(r"#[1-9]",mo.group(2))
+                        if so is not None:
+                            rep=re.sub(r"#([1-9])",lambda x: int(x.group(1))*"`",mo.group(2),count=1)
+                            rep=re.sub(r"#[1-9]","",rep)
                         else:   rep=mo.group(2)[0]+"`"+mo.group(2)[1:]
                     else:   rep=mo.group(3).replace("·","`").replace("\\","\\\\")
                     rooms=mo.group(4)

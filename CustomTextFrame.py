@@ -60,7 +60,7 @@ class CustomTextFrame(wx.Frame):
     def RecvLyric(self,data):
         self.shield_changed = False
         content=data["content"].strip()
-        content=self.parent.DealWithCustomShields(content)
+        content=self.parent.room_anti_shield.deal(content)
         content=self.parent.anti_shield.deal(content)
         self.llist=[line for line in content.split("\n") if line.strip()!=""]
         self.llist.insert(0,"<BEGIN>")
@@ -99,8 +99,8 @@ class CustomTextFrame(wx.Frame):
         msg = self.lblLyrics[1-parent.lyric_offset].GetLabel()
         message = pre + msg
         if self.shield_changed:
-            message = parent.DealWithCustomShields(message)
-            message = self.parent.anti_shield.deal(message)
+            message = parent.room_anti_shield.deal(message)
+            message = parent.anti_shield.deal(message)
         parent.SendSplitDanmu(message,pre,suf,2)
         parent.AddHistory(msg)
     

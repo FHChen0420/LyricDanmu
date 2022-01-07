@@ -66,12 +66,6 @@ class ShieldConfigFrame(wx.Frame):
             dlg.ShowModal()
             dlg.Destroy()
             return
-        so=re.search(r"\\(?![1-9])|[\(\)\[\]\{\}\.\+\*\^\$\?\|]",before)
-        if so is not None or shield_type==1 and "\\" in before:
-            dlg = wx.MessageDialog(None, "屏蔽词含特殊字符", "添加屏蔽规则出错", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return
         if before==after:
             dlg = wx.MessageDialog(None, "屏蔽前后无变化", "添加屏蔽规则出错", wx.OK)
             dlg.ShowModal()
@@ -139,14 +133,10 @@ class ShieldConfigFrame(wx.Frame):
     def OnTextChanged(self,event):
         if self.cbbDeal.GetSelection()==1:  return
         before=self.tcBefore.GetValue().replace(" ","")
-        so=re.search(r"\\(?![1-9])|[\(\)\[\]\{\}\.\+\*\^\$\?\|]",before)
+        so=re.search(r"#[1-9]",before)
         if so is not None:
-            self.tcAfter.SetValue(" <错误> ")
-            return
-        so=re.search(r"\\[1-9]",before)
-        if so is not None:
-            after=re.sub(r"\\([1-9])",lambda x:"`"*int(x.group(1)),before,count=1)
-            after=re.sub(r"\\[1-9]","",after)
+            after=re.sub(r"#([1-9])",lambda x:"`"*int(x.group(1)),before,count=1)
+            after=re.sub(r"#[1-9]","",after)
         else:
             after=before[0]+"`"+before[1:] if len(before)>=2 else before
         self.tcAfter.SetValue(after)
