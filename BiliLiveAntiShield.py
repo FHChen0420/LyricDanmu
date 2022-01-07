@@ -40,7 +40,8 @@ class BiliLiveAntiShield:
             if distance[0]==1:
                 regex1=" ?"
             else:
-                exclude_chars=parts[0][1:-1] if parts[0][0]=="[" else parts[0][-1]
+                if parts[0][0]=="[":    exclude_chars=parts[0][1:-1]
+                else: exclude_chars=parts[0] if len(parts[0])==1 else ""
                 regex1="(?: ?[^%s ]){0,%d}? ?"%(exclude_chars,distance[0]-1)
             for i in range(1,n):
                 regex=" ?" if distance[i]==1 else "( ?[^ ]){0,%d} ?"%(distance[i]-1)
