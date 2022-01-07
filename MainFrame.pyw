@@ -145,6 +145,7 @@ class LyricDanmu(wx.Frame):
         self.init_two_prefix=False
         self.enable_rich_record=False
         self.record_fontsize=9 if self.platform=="win" else 13
+        self.f_resend = False
         self.f_resend_mark = True
 
     def ShowFrame(self, parent):
@@ -1066,7 +1067,7 @@ class LyricDanmu(wx.Frame):
                 return True
             if errmsg in ["f","fire"]:
                 self.LogShielded(msg)
-                if not ("[" in msg[:6] and "]" in msg[-3:]) and not brackets:
+                if self.f_resend and not ("[" in msg[:6] and "]" in msg[-3:]) and not brackets:
                     if self.f_resend_mark:
                         self.CallRecord("","0",-1,"1+")
                     newMsgs=self.BracketDanmu(msg)
@@ -1076,7 +1077,6 @@ class LyricDanmu(wx.Frame):
                         wx.MilliSleep(self.send_interval_ms+50)
                         self.SendDanmu(roomid,newMsgs[1],src,seq,try_times,brackets=True)
                     return res
-                self.LogKeyShielded(msg)
                 self.CallRecord(msg,roomid,src,"1")
                 self.CancelFollowingDanmu(seq)
                 return False
@@ -1339,13 +1339,6 @@ class LyricDanmu(wx.Frame):
     def LogShielded(self,msg):
         try:
             path="logs/shielded/SHIELDED_%s.log"%getTime(fmt="%y-%m")
-            with open(path,"a",encoding="utf-8") as f:
-                f.write("%s｜%s\n"%(getTime(fmt="%m-%d %H:%M"),msg))
-        except: pass
-    
-    def LogKeyShielded(self,msg):
-        try:
-            path="logs/shielded/SHIELDED_KEY_%s.log"%getTime(fmt="%y-%m")
             with open(path,"a",encoding="utf-8") as f:
                 f.write("%s｜%s\n"%(getTime(fmt="%m-%d %H:%M"),msg))
         except: pass
@@ -1684,6 +1677,8 @@ class LyricDanmu(wx.Frame):
                         self.enable_rich_record = v.lower()=="true"
                     elif k == "弹幕记录字号":
                         self.record_fontsize = min(max(int(v),9),16)
+                    elif k == "屏蔽句加括号重发": 
+                        self.f_resend = v.lower()=="true"
                     elif k == "屏蔽句重发标识":
                         self.f_resend_mark = v.lower()=="true"
         except Exception:
@@ -1884,6 +1879,7 @@ class LyricDanmu(wx.Frame):
                 f.write("忽略系统代理=%s\n" % self.no_proxy)
                 f.write("最低发送间隔=%d\n" % self.send_interval_ms)
                 f.write("请求超时阈值=%d\n" % int(1000*self.timeout_s))
+                f.write("屏蔽句加括号重发=%s\n" % self.f_resend)
                 f.write(titleLine("同传统计配置"))
                 f.write("同传中断阈值=%d\n" % self.tl_stat_break_min)
                 f.write("最低字数要求=%d\n" % self.tl_stat_min_word_num)

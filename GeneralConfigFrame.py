@@ -83,8 +83,6 @@ class GeneralConfigFrame(wx.Frame):
         self.ckbNoProxy.SetValue(parent.no_proxy)
         self.ckbRichRcd = wx.CheckBox(panel,-1,"彩色弹幕记录", pos=(180,295))
         self.ckbRichRcd.SetValue(parent.enable_rich_record)
-        self.ckbFResendMark = wx.CheckBox(panel,-1,"屏蔽句重发标识", pos=(80,320))
-        self.ckbFResendMark.SetValue(parent.f_resend_mark)
         wx.StaticText(panel,-1,"⍰",pos=(275,295)).SetToolTip(
             "默认双前缀模式：默认使用\"\"和\"【\"作为评论可选前缀，推荐同传勾选\n"+
             "禁用系统代理：若科学上网时本工具报网络异常错误，则请尝试勾选\n"+
@@ -198,7 +196,6 @@ class GeneralConfigFrame(wx.Frame):
         parent.init_two_prefix=self.ckbTwoPre.GetValue()
         parent.no_proxy=self.ckbNoProxy.GetValue()
         parent.enable_rich_record=self.ckbRichRcd.GetValue()
-        parent.f_resend_mark=self.ckbFResendMark.GetValue()
         os.environ["NO_PROXY"]="*" if parent.no_proxy else ""
         parent.RefreshLyric()
         if self.parent.customTextFrame:
