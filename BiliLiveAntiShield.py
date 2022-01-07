@@ -52,5 +52,9 @@ class BiliLiveAntiShield:
     def deal(self,string:str) -> str:
         '''对字符串string进行反屏蔽处理'''
         for i in self._deal_list:
-            string = i[0].sub(i[1],string)
+            try: 
+                string = i[0].sub(i[1],string)
+            except:
+                print("【Regex Error】 %s"%(i[0].pattern))
+                continue
         return string
