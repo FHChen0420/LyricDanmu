@@ -55,6 +55,7 @@ def swapBracket(msg) -> str:
 def setWxUIAttr(obj:wx.Control,label=None,color:Optional[wx.Colour]=None,enabled=None):
     """设置wxUI部件的显示文本、前景色、是否启用"""
     try:
+        if not obj: return # wx.Window部件在销毁时为False而不是None
         if color is not None:   obj.SetForegroundColour(color)
         if label is not None:   obj.SetLabel(label)
         if enabled is not None: obj.Enable(enabled)
@@ -62,12 +63,14 @@ def setWxUIAttr(obj:wx.Control,label=None,color:Optional[wx.Colour]=None,enabled
 
 def UIChange(obj:wx.Control,label=None,color:Optional[wx.Colour]=None,enabled=None):
     """主线程调用函数来设置wxUI部件的显示文本、前景色、是否启用"""
+    if not obj: return
     wx.CallAfter(pub.sendMessage,"ui_change",obj=obj,label=label,color=color,enabled=enabled)
 
 def setFont(obj:wx.Control,size,bold=False,name=None):
     """设置wxUI部件的字体大小、是否加粗、字体名称"""
     weight=wx.FONTWEIGHT_BOLD if bold else wx.FONTWEIGHT_NORMAL
     try:
+        if not obj: return
         if name is None:
             obj.SetFont(wx.Font(size,wx.FONTFAMILY_DEFAULT,wx.FONTSTYLE_NORMAL,weight))
         else:
