@@ -27,8 +27,8 @@ class RecordFrame(wx.Frame):
         menu.Check(wx.ID_TOP,parent.show_pin)
         menu2 = wx.Menu()
         menuBar.Append(menu2,"　日志　")
-        menu2.Append(wx.ID_FILE1,"本月屏蔽日志(关键记录)")
-        menu2.Append(wx.ID_FILE2,"本月屏蔽日志(全部记录)")
+        menu2.Append(wx.ID_FILE1,"本月屏蔽日志")
+        menu2.Append(wx.ID_FILE2,"上月屏蔽日志")
         menu2.AppendSeparator()
         menu2.Append(wx.ID_FILE3,"打开日志文件目录")
         menu2.AppendSeparator()
@@ -51,14 +51,17 @@ class RecordFrame(wx.Frame):
             self.ToggleWindowStyle(wx.STAY_ON_TOP)
         elif eventId==wx.ID_FILE1:
             try:
-                path=os.getcwd()+"/logs/shielded/SHIELDED_KEY_%s.log"%getTime(fmt="%y-%m")
+                path=os.getcwd()+"/logs/shielded/SHIELDED_%s.log"%getTime(fmt="%y-%m")
                 if self.Parent.platform=="win": os.startfile(path)
                 else: subprocess.call(["open",path])
             except FileNotFoundError:   showInfoDialog("日志文件不存在","打开日志失败")
             except Exception as e:  showInfoDialog("%s: %s"%(type(e),e),"打开日志失败")
         elif eventId==wx.ID_FILE2:
             try:
-                path=os.getcwd()+"/logs/shielded/SHIELDED_%s.log"%getTime(fmt="%y-%m")
+                ym=getTime(fmt="%y%m")
+                y,m=int(ym[:-2]),int(ym[-2:])-1
+                if m==0:    y,m=y-1,12
+                path=os.getcwd()+"/logs/shielded/SHIELDED_%2d-%2d.log"%(y,m)
                 if self.Parent.platform=="win": os.startfile(path)
                 else: subprocess.call(["open",path])
             except FileNotFoundError:   showInfoDialog("日志文件不存在","打开日志失败")
