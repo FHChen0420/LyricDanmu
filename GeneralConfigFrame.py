@@ -99,10 +99,10 @@ class GeneralConfigFrame(wx.Frame):
         wx.StaticText(panel,-1,"⍰",pos=(275,344)).SetToolTip(
             "左键：切换账号　　右键：修改账号\n"+
             "Cookie获取方法：\n"+
-            "电脑浏览器进入直播间 → 按F12打开开发者工具，选择Network栏\n"+
-            " → 发送一条弹幕 → Network栏会捕获到名为send的记录\n"+
-            " → 点击该记录的Headers栏 → 得到Request Headers中的cookie项\n"+
-            " → 粘贴到文本框中并关闭配置窗口\n\n"+
+            "浏览器进入B站主页，按F12打开开发者工具，选择Network栏\n"+
+            " → 刷新页面，点击被捕获的第一条记录\n"+
+            " → 点击该记录的Headers栏，找到cookie项\n"+
+            " → 复制粘贴到文本框中并关闭配置窗口\n\n"+
             "如果经常切换B站账号，那么建议使用浏览器无痕模式获取cookie")
         wx.StaticText(self.p2,-1,"账号标记",pos=(15,3)).SetForegroundColour("gray")
         self.tcAccName=wx.TextCtrl(self.p2,-1,"",pos=(75,0),size=(135,22))
