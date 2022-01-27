@@ -53,7 +53,7 @@ CN_LYRIC_PREPROCESS_RULES = {
 LYRIC_IGNORE_RULES=r"(?i)^[^\w\u4e00-\u9fff\u3040-\u31ff]{0,3}(终|完|undefined|[终終お]わ(る|り|った)|end|fin|music|[伴间]奏)[^\w\u4e00-\u9fff\u3040-\u31ff]{0,3}$|.(:|：|︰| - ).|©|不得翻唱"
 
 # 恋口上默认预设
-DEFAULT_CUSTOM_TEXT="<texts>\n<text title=\"古守恋口上\">\n我有些话想要对你说\n古守实在是太可爱了\n喜欢喜欢超喜欢 果然喜欢\n好不容易找到的吸血鬼\n肉肉来到世上的理由\n就是为了和古守相遇\n和肉肉一起共度一生\n世界上第一的家里蹲\n</text>\n</texts>"
+DEFAULT_CUSTOM_TEXT="<texts>\n<text title=\"古守恋口上\">\n「我有些话想要对你说」\n「古守实在是太可爱了」\n「喜欢喜欢超喜欢 果然喜欢」\n「好不容易找到的吸血鬼」\n「肉肉来到世上的理由」\n「就是为了和古守相遇」\n「和肉肉一起共度一生」\n「世界上第一的家里蹲」\n</text>\n</texts>"
 
 # 自定义弹幕发送结果错误码以及错误信息、弹幕记录颜色
 ERR_INFO={

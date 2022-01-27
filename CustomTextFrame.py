@@ -94,8 +94,7 @@ class CustomTextFrame(wx.Frame):
             dlg.Destroy()
             return
         if not self.NextLyric(None):    return
-        pre = "【"
-        suf = "】"
+        pre,suf = "",""
         msg = self.lblLyrics[1-parent.lyric_offset].GetLabel()
         message = pre + msg
         if self.shield_changed:
