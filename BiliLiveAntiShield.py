@@ -4,7 +4,7 @@ from typing import Callable, Match, Pattern, Union, Tuple, List, Dict
 Replace=Union[str,Callable[[Match],str]]
 
 class BiliLiveAntiShield:
-    def __init__(self,rules:Dict[str,Replace],words:List[str],filler:str="󠀠"):
+    def __init__(self,rules:Dict[str,Replace],words:List[str],filler:str="\U000E0020"):
         '''B站直播弹幕反屏蔽工具
         
         :param: rules 正则处理字典[正则匹配串:正则捕获处理函数/字符串]（用于处理较复杂规则）
@@ -44,7 +44,7 @@ class BiliLiveAntiShield:
                 else: exclude_chars=parts[0] if len(parts[0])==1 else ""
                 regex1="(?: ?[^\s%s]){0,%d}? ?"%(exclude_chars,distance[0]-1)
             for i in range(1,n):
-                regex=" ?" if distance[i]==1 else "( ?\S){0,%d} ?"%(distance[i]-1)
+                regex=" ?" if distance[i]==1 else "(?: ?\S){0,%d} ?"%(distance[i]-1)
                 regex2+=regex+parts[i+1]
             pat="(?i)(%s)(%s)(?=%s)"%(parts[0],regex1,parts[1]+regex2)
             self._deal_list.append((re.compile(pat),self._multi_fill[distance[0]]))
@@ -56,6 +56,6 @@ class BiliLiveAntiShield:
             try: 
                 string = i[0].sub(i[1],string)
             except:
-                print("【Regex Error】 %s"%(i[0].pattern))
+                #print("【Regex Error】 %s"%(i[0].pattern))
                 continue
         return string
