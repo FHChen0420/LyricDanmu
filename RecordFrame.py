@@ -61,7 +61,7 @@ class RecordFrame(wx.Frame):
                 ym=getTime(fmt="%y%m")
                 y,m=int(ym[:-2]),int(ym[-2:])-1
                 if m==0:    y,m=y-1,12
-                path=os.getcwd()+"/logs/shielded/SHIELDED_%2d-%2d.log"%(y,m)
+                path=os.getcwd()+"/logs/shielded/SHIELDED_%02d-%02d.log"%(y,m)
                 if self.Parent.platform=="win": os.startfile(path)
                 else: subprocess.call(["open",path])
             except FileNotFoundError:   showInfoDialog("日志文件不存在","打开日志失败")
