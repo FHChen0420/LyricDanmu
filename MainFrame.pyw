@@ -187,7 +187,7 @@ class LyricDanmu(wx.Frame):
         self.btnComment = wx.Button(self.p0, -1, "00 ↩", pos=(345, 9), size=(47, 32))
         self.btnComment.Bind(wx.EVT_BUTTON, self.SendComment)
         # 同传配置拓展按钮
-        self.btnExt = wx.Button(self.p0, -1, "▼", pos=(400, 9), size=(32, 32))
+        self.btnExt = wx.Button(self.p0, -1,  "▼" if self.init_show_lyric else "▲", pos=(400, 9), size=(32, 32))
         self.btnExt.Bind(wx.EVT_BUTTON, self.ToggleConfigUI)
         """ P1 歌词主面板 """
         # 直播间选择
