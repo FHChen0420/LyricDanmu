@@ -934,6 +934,7 @@ class LyricDanmu(wx.Frame):
 
     def SaveToLocal(self,event):
         lyric=self.tcImport.GetValue().strip()
+        lyric=lyric.replace("&","＆").replace("<","＜").replace(">","＞")
         if lyric == "":
             return showInfoDialog("歌词不能为空", "歌词保存失败")
         if lyric.count("\n") <= 4 or len(lyric) <= 50:
@@ -1738,11 +1739,17 @@ class LyricDanmu(wx.Frame):
             index+=1
 
     def ConvertLocalSong(self,filepath):
+        '''
+        对本地歌词内容进行如下转化：
+        1. 对歌词内容中的&<>进行全角替换，避免歌词解析失败
+        2. 如果歌词文件无<local>根节点，则添加(处理旧版本歌词格式的遗留问题)
+        '''
         try:
             with open(filepath, "r", encoding="utf-8") as f:
-                tmpContent=f.read().strip()
-            if not re.match("<name>",tmpContent):   return
-            content="<local>\n"+tmpContent+"\n</local>"
+                content=f.read().strip().replace("&","＆")
+            content=re.sub("<(?!/?(?:local|name|artists|tags|type|lyric)>)","＜",content)
+            content=re.sub("(?<!ocal|name|ists|tags|type|yric)>","＞",content)
+            content="<local>\n"+content+"\n</local>" if re.match("<name>",content) else content
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(content)
             return xml.dom.minidom.parseString(content)
