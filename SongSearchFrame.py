@@ -159,7 +159,6 @@ class SongSearchFrame(wx.Frame):
             txtRecommond = wx.StaticText(self.p0, -1, "建议：" + self.recommond, pos=(15, 10))
             setFont(txtRecommond,11 if wins else 15,bold=True)
             btnCopyRecommond = wx.Button(self.p0, -1, "复制\n建议", pos=(330, 10), size=(40, 40))
-            btnCopyRecommond.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)  #
             btnCopyRecommond.Bind(wx.EVT_BUTTON, self.CopyRecommond)
         self.txtMsg = wx.StaticText(self.p0, -1, "", pos=(50, 40), size=(280, -1), style=wx.ALIGN_CENTER)
         setFont(self.txtMsg,13 if wins else 17,bold=True,name="微软雅黑" if wins else None)
@@ -173,8 +172,6 @@ class SongSearchFrame(wx.Frame):
         setFont(self.btnNextPage,14)
         self.btnPrevPage.Bind(wx.EVT_BUTTON, self.PrevPage)
         self.btnNextPage.Bind(wx.EVT_BUTTON, self.NextPage)
-        self.btnPrevPage.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)  #
-        self.btnNextPage.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)  #
         song_num = len(self.all_songs)
         self.page_num = int(ceil(song_num * 1.0 / self.page_limit))
         self.panels = []
@@ -200,9 +197,6 @@ class SongSearchFrame(wx.Frame):
                 setFont(btn2,14)
                 setFont(btn3,14)
                 btn2.Bind(wx.EVT_BUTTON, self.CopyName)
-                btn1.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)  #
-                btn2.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)  #
-                btn3.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)  #
                 if i == 0 and j == 0:
                     btn1.SetFocus()
                 if "my_local" in song.keys():
@@ -231,6 +225,9 @@ class SongSearchFrame(wx.Frame):
                     btn1.Bind(wx.EVT_BUTTON, self.GetNetworkLyricQQ)
                     btn3.Bind(wx.EVT_BUTTON, self.OnMarkQQ)
                 j+=1
+        self.hkClose=wx.NewIdRef()
+        self.RegisterHotKey(self.hkClose,wx.MOD_NONE,wx.WXK_ESCAPE)
+        self.Bind(wx.EVT_HOTKEY,self.CloseFrame,self.hkClose)
         self.parent.pool.submit(self.ThreadOfGetLyricType)
         self.cur_page = 0
         self.btnPageNum.Disable()
@@ -498,13 +495,7 @@ class SongSearchFrame(wx.Frame):
         wxCopy(self.recommond)
         self.txtMsg.SetForegroundColour("SEA GREEN")
         self.txtMsg.SetLabel("已复制搜索建议")
-
-    def OnKeyDown(self, event):
-        keycode = event.GetRawKeyCode()
-        if keycode == 27:
-            self.Destroy()
-        event.Skip()
-
+        
     def OnMarkWY(self, event):
         song_id=event.GetEventObject().GetName()
         label = event.GetEventObject().GetLabel()
@@ -570,3 +561,6 @@ class SongSearchFrame(wx.Frame):
         for k,v in CN_LYRIC_PREPROCESS_RULES.items(): #其他预处理
             string=re.sub(k,v,string)
         return string
+    
+    def CloseFrame(self,event):
+        self.Close()
