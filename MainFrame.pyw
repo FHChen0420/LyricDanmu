@@ -1065,7 +1065,7 @@ class LyricDanmu(wx.Frame):
             if "max limit" in errmsg:
                 if try_times>0:
                     self.CallRecord("","0",-1,"6+")
-                    wx.MilliSleep(self.send_interval_ms)
+                    wx.MilliSleep(self.send_interval_ms+200)
                     return self.SendDanmu(roomid,msg,src,seq,try_times-1)
                 return self.CallRecord(msg,roomid,src,"6")
             self.LogDebug("[SendDanmu]"+"errmsg:"+errmsg)
