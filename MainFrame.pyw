@@ -78,7 +78,7 @@ class LyricDanmu(wx.Frame):
         self.timeline_base=0
         # 其他参数
         self.tmp_clipboard=""
-        self.recent_danmu = [None,None]
+        self.recent_danmu = {"_%d_"%i:0 for i in range(5)}
         self.danmu_queue = []
         self.recent_history = []
         self.tmp_history = []
@@ -1013,10 +1013,14 @@ class LyricDanmu(wx.Frame):
         return True
 
     def SendDanmu(self, roomid, msg, src=0, seq=0, try_times=2, brackets=False):
-        if msg in self.recent_danmu and len(msg) < self.max_len:
-            msg+=("\u0592" if msg+"\u0594" in self.recent_danmu else "\u0594")
-        self.recent_danmu.append(msg)
-        self.recent_danmu.pop(0)
+        if msg in self.recent_danmu.keys():
+            num=self.recent_danmu[msg]
+            self.recent_danmu[msg]=num+1
+            mark=eval("'\\U000e002%d'"%(num%10))
+            msg = msg+mark if len(msg) < self.max_len else msg[:-1]+mark
+        else:
+            self.recent_danmu.pop(list(self.recent_danmu.keys())[0])
+            self.recent_danmu[msg]=0
         try:
             data=self.blApi.send_danmu(roomid,msg,self.cur_acc)
             if not self.LoginCheck(data):
@@ -1210,13 +1214,13 @@ class LyricDanmu(wx.Frame):
             if v[2]!="" and roomid not in re.split("[,;，；]",v[2]): continue
             if v[0]==1:
                 pat="(?i)"+transformToRegex(k," ?")
-                rules[pat]=v[1].replace("`","\u0592")
+                rules[pat]=v[1].replace("`","\U000e0020")
             elif "#" in k:
                 words.append(transformToRegex(k))
             else:
                 pat="(?i)"+transformToRegex(k," ?")
-                rules[pat]=lambda x:x.group()[0]+"\u0592"+x.group()[1:]
-        self.room_anti_shield=BiliLiveAntiShield(rules,words,"\u0592")
+                rules[pat]=lambda x:x.group()[0]+"\U000e0020"+x.group()[1:]
+        self.room_anti_shield=BiliLiveAntiShield(rules,words)
 
     def AddHistory(self,message):
         self.recent_history.insert(0,message)
@@ -1265,7 +1269,7 @@ class LyricDanmu(wx.Frame):
                                 records[start_str]="%s,%s,%s,%.1f,%d,%d,%.1f"%(start_str,live_title,liver_name,duration,word_num,danmu_count,word_num/duration)
                             start_ts,last_ts,word_num,danmu_count=ts,ts,0,0
                         else:
-                            content=re.sub(r"^.*?【|[\[\]【】󠀠\u0592\u0594]","",mo.group(2).strip())
+                            content=re.sub(r"^.*?【|[\[\]【】\u0592\u0594\U000e0020-\U000e0029]","",mo.group(2).strip())
                             word_num+=len(content)
                             danmu_count+=1
                             last_ts=ts

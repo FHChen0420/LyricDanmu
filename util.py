@@ -50,7 +50,7 @@ def getTimeLineStr(seconds,style=0) -> str:
 
 def swapBracket(msg) -> str:
     """将】后的]换到前面的位置"""
-    return re.sub("】[\u0592-\u0594]?\]$","]】",msg)
+    return re.sub("】[\u0592\u0594\U000e0020-\U000e0029]?\]$","]】",msg)
 
 def setWxUIAttr(obj:wx.Control,label=None,color:Optional[wx.Colour]=None,enabled=None):
     """设置wxUI部件的显示文本、前景色、是否启用"""
