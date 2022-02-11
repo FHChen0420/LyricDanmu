@@ -1,3 +1,4 @@
+from numpy import multiply
 import wx
 import re
 
@@ -8,7 +9,7 @@ class RoomSelectFrame(wx.Frame):
         self.ShowFrame(parent)
     
     def ShowFrame(self,parent):
-        rowNum=len(self.parent.rooms)//4+1
+        rowNum=len(self.parent.rooms)//4+2
         self.height=h=35+30*rowNum
         pos,ds=parent.GetPosition(),wx.DisplaySize()
         x,y=pos[0]+20,pos[1]+30
@@ -33,13 +34,19 @@ class RoomSelectFrame(wx.Frame):
             btn=wx.Button(panel, -1, v, pos=(10+col*95, 5+row*30), size=(90, 27), name=k)
             btn.Bind(wx.EVT_BUTTON,self.SelectRoom)
             btn.Bind(wx.EVT_RIGHT_DOWN,self.OnRightClick)
-            if k==self.parent.roomid:
+            if self.parent.multiroom and k in self.parent.roomids:
+                btn.SetForegroundColour("BLUE")
+                unsaved_roomid=False
+            elif (not self.parent.multiroom) and k==self.parent.roomid:
                 btn.SetForegroundColour("BLUE")
                 btn.SetFocus()
                 unsaved_roomid=False
             i+=1
         btnAdd=wx.Button(panel, -1, "✚", pos=(10+i%4*95, 5+i//4*30), size=(90, 27))
         btnAdd.Bind(wx.EVT_BUTTON, self.Extend)
+        btnMulti=wx.ToggleButton(panel, -1, "多选模式", pos=(10+(i+1)%4*95, 5+(i+1)//4*30), size=(90, 27))
+        btnMulti.SetValue(self.parent.multiroom)
+        btnMulti.Bind(wx.EVT_TOGGLEBUTTON, self.MultiRoomAllow)
         if self.parent.roomid is not None:
             self.tcRoomId.SetValue(self.parent.roomid)
             if unsaved_roomid:
@@ -52,6 +59,9 @@ class RoomSelectFrame(wx.Frame):
         self.SetSize(400,self.height+40)
         self.show_extend=True
 
+    def MultiRoomAllow(self,event):
+        self.parent.multiroom = not self.parent.multiroom
+
     def OnRightClick(self,event):
         dlg = wx.MessageDialog(None, "是否删除房间？", "提示", wx.YES_NO|wx.NO_DEFAULT)
         if dlg.ShowModal()==wx.ID_YES:
@@ -63,8 +73,12 @@ class RoomSelectFrame(wx.Frame):
 
     def SelectRoom(self,event):
         btn=event.GetEventObject()
-        self.parent.SetRoomid(btn.GetName(),btn.GetLabel())
-        self.Destroy()
+        if self.parent.multiroom:
+            self.parent.SetRoomids(btn.GetName(),btn.GetLabel())
+            btn.SetForegroundColour("BLUE" if btn.GetName() in self.parent.roomids else "BLACK")
+        else:
+            self.parent.SetRoomid(btn.GetName(),btn.GetLabel())
+            self.Destroy()
 
     def GotoRoom(self,event):
         roomid=self.tcRoomId.GetValue().strip()
@@ -84,5 +98,8 @@ class RoomSelectFrame(wx.Frame):
             name=self.parent.rooms[roomid] if roomid in self.parent.rooms.keys() else roomid
         if op=="保存":
             self.parent.rooms[roomid]=name
-        self.parent.SetRoomid(roomid,name)
+        if self.parent.multiroom:
+            self.parent.SetRoomids(roomid,name)
+        else:
+            self.parent.SetRoomid(roomid,name)
         self.Destroy()
