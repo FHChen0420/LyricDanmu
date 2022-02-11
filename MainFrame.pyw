@@ -51,6 +51,11 @@ class LyricDanmu(wx.Frame):
         self.cur_acc = 0
         self.roomid = None
         self.room_name = None
+
+        self.roomids = []
+        self.room_names = []
+        self.multiroom = False
+
         self.colors={}
         self.modes={}
         self.cur_color=0
@@ -918,7 +923,7 @@ class LyricDanmu(wx.Frame):
         self.tcComment.SetFocus()
         if msg == "":
             return
-        if self.roomid is None:
+        if (not self.multiroom and self.roomid is None) or (self.multiroom and self.roomids is None):
             return showInfoDialog("未指定直播间", "提示")
         comment = pre + msg
         if len(comment) > self.max_len*2.5:
@@ -959,6 +964,26 @@ class LyricDanmu(wx.Frame):
         self.playerChaser.roomId=roomid
         self.GetRoomShields(roomid)
         self.pool.submit(self.ThreadOfGetDanmuConfig)
+    
+    def SetRoomids(self,roomid,name):
+        if name != "":
+            if name in self.room_names:
+                self.room_names.remove(name)
+            else:
+                self.room_names.append(name)
+            multinames = []
+            for n in self.room_names:
+                multinames.append(n[0])
+            self.btnRoom1.SetLabel('l'.join(multinames))
+            self.btnRoom2.SetLabel('l'.join(multinames))
+        if roomid in self.roomids: 
+            self.roomids.remove(roomid)
+        else: 
+            self.roomids.append(roomid)
+        if self.auto_sending: self.OnStopBtn(None)
+        self.playerChaser.roomId=roomid
+        self.GetRoomShields(roomid)
+        # self.pool.submit(self.ThreadOfGetDanmuConfig)
 
     def GetLiveInfo(self,roomid):
         try:
@@ -1147,9 +1172,18 @@ class LyricDanmu(wx.Frame):
                 msg = re.sub(k, v, msg)
         if len(msg) <= self.max_len:
             if len(msg+suf) <= self.max_len:
-                self.danmu_queue.append([self.roomid,msg+suf,src,seq])
+                if self.multiroom:
+                    for rid in self.roomids:
+                        self.danmu_queue.append([rid,msg+suf,src,seq])
+                else:
+                    self.danmu_queue.append([self.roomid,msg+suf,src,seq])
+
             else:
-                self.danmu_queue.append([self.roomid,msg,src,seq])
+                if self.multiroom:
+                    for rid in self.roomids:
+                        self.danmu_queue.append([rid,msg,src,seq])
+                else:
+                    self.danmu_queue.append([self.roomid,msg,src,seq])
             UIChange(self.btnClearQueue,label="清空 [%d]"%len(self.danmu_queue))#
             return
         spaceIdx = []
@@ -1167,7 +1201,11 @@ class LyricDanmu(wx.Frame):
                 if idx <= self.max_len: cutIdx = idx
         if cutIdx<self.max_len*0.5 and 1+len(msg[cutIdx:])+len(pre)>self.max_len:
              cutIdx = self.max_len
-        self.danmu_queue.append([self.roomid,msg[:cutIdx],src,seq])
+        if self.multiroom:
+            for rid in self.roomids:
+                self.danmu_queue.append([rid,msg[:cutIdx],src,seq])
+        else:
+            self.danmu_queue.append([self.roomid,msg[:cutIdx],src,seq])
         UIChange(self.btnClearQueue,label="清空 [%d]"%len(self.danmu_queue))#
         if msg[cutIdx:] in [")","）","」","】","\"","”"]:  return
         self.SendSplitDanmu(pre + "…" + msg[cutIdx:],pre,suf,src,seq)
