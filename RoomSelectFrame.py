@@ -1,4 +1,3 @@
-from numpy import multiply
 import wx
 import re
 
@@ -9,7 +8,7 @@ class RoomSelectFrame(wx.Frame):
         self.ShowFrame(parent)
     
     def ShowFrame(self,parent):
-        rowNum=len(self.parent.rooms)//4+2
+        rowNum=(len(self.parent.rooms)+1)//4+1
         self.height=h=35+30*rowNum
         pos,ds=parent.GetPosition(),wx.DisplaySize()
         x,y=pos[0]+20,pos[1]+30
@@ -60,7 +59,22 @@ class RoomSelectFrame(wx.Frame):
         self.show_extend=True
 
     def MultiRoomAllow(self,event):
-        self.parent.multiroom = not self.parent.multiroom
+        parent=self.parent
+        parent.multiroom = not parent.multiroom
+        if not parent.multiroom:
+            self.SetTitle("选择直播间")
+            if len(parent.roomids)>1:
+                parent.roomSelectFrame=RoomSelectFrame(parent)
+                self.Destroy()
+            parent.roomids=[]
+            parent.room_names=[]
+            roomid=parent.roomid
+            name=parent.rooms[roomid] if roomid in parent.rooms.keys() else str(roomid)
+            parent.SetRoomid(roomid,name)
+        if parent.multiroom and parent.roomid is not None:
+            self.SetTitle("选择直播间（多选模式）")
+            parent.roomids=[parent.roomid]
+            parent.room_names=[parent.room_name]
 
     def OnRightClick(self,event):
         dlg = wx.MessageDialog(None, "是否删除房间？", "提示", wx.YES_NO|wx.NO_DEFAULT)
