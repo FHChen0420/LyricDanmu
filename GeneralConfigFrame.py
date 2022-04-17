@@ -87,6 +87,10 @@ class GeneralConfigFrame(wx.Frame):
             "默认双前缀模式：默认使用\"\"和\"【\"作为评论可选前缀，推荐同传勾选\n"+
             "禁用系统代理：若科学上网时本工具报网络异常错误，则请尝试勾选\n"+
             "彩色弹幕记录：使用富文本格式显示各类弹幕记录(重启后生效)")
+        self.ckbFResend = wx.CheckBox(panel,-1,"屏蔽句自动重发", pos=(80,320))
+        self.ckbFResend.SetValue(parent.f_resend)
+        self.ckbFRMark = wx.CheckBox(panel,-1,"重发标识", pos=(200,320))
+        self.ckbFRMark.SetValue(parent.f_resend_mark)
         # 账号切换
         self.btnAccounts=[]
         wx.StaticText(panel,-1,"账号切换",pos=(15,344))
@@ -196,6 +200,8 @@ class GeneralConfigFrame(wx.Frame):
         parent.init_two_prefix=self.ckbTwoPre.GetValue()
         parent.no_proxy=self.ckbNoProxy.GetValue()
         parent.enable_rich_record=self.ckbRichRcd.GetValue()
+        parent.f_resend=self.ckbFResend.GetValue()
+        parent.f_resend_mark=self.ckbFRMark.GetValue()
         os.environ["NO_PROXY"]="*" if parent.no_proxy else ""
         parent.RefreshLyric()
         if self.parent.customTextFrame:

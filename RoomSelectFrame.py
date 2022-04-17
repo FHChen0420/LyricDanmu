@@ -8,7 +8,7 @@ class RoomSelectFrame(wx.Frame):
         self.ShowFrame(parent)
     
     def ShowFrame(self,parent):
-        rowNum=(len(self.parent.rooms)+1)//4+1
+        rowNum=(len(self.parent.rooms)+bool(parent.enable_multiroom))//4+1
         self.height=h=35+30*rowNum
         pos,ds=parent.GetPosition(),wx.DisplaySize()
         x,y=pos[0]+20,pos[1]+30
@@ -43,9 +43,10 @@ class RoomSelectFrame(wx.Frame):
             i+=1
         btnAdd=wx.Button(panel, -1, "✚", pos=(10+i%4*95, 5+i//4*30), size=(90, 27))
         btnAdd.Bind(wx.EVT_BUTTON, self.Extend)
-        btnMulti=wx.ToggleButton(panel, -1, "多选模式", pos=(10+(i+1)%4*95, 5+(i+1)//4*30), size=(90, 27))
-        btnMulti.SetValue(self.parent.multiroom)
-        btnMulti.Bind(wx.EVT_TOGGLEBUTTON, self.MultiRoomAllow)
+        if parent.enable_multiroom:
+            btnMulti=wx.ToggleButton(panel, -1, "多选模式", pos=(10+(i+1)%4*95, 5+(i+1)//4*30), size=(90, 27))
+            btnMulti.SetValue(self.parent.multiroom)
+            btnMulti.Bind(wx.EVT_TOGGLEBUTTON, self.MultiRoomAllow)
         if self.parent.roomid is not None:
             self.tcRoomId.SetValue(self.parent.roomid)
             if unsaved_roomid:

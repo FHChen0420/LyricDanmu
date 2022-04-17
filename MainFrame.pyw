@@ -147,8 +147,9 @@ class LyricDanmu(wx.Frame):
         self.init_two_prefix=False
         self.enable_rich_record=False
         self.record_fontsize=9 if self.platform=="win" else 13
-        self.f_resend = False
+        self.f_resend = True
         self.f_resend_mark = False
+        self.enable_multiroom = True
 
     def ShowFrame(self, parent):
         # 窗体
@@ -1680,6 +1681,8 @@ class LyricDanmu(wx.Frame):
                         self.f_resend = v.lower()=="true"
                     elif k == "屏蔽句重发标识":
                         self.f_resend_mark = v.lower()=="true"
+                    elif k == "启用房间多选":
+                        self.enable_multiroom = v.lower()=="true"
         except Exception:
             return showInfoDialog("读取config.txt失败", "启动出错")
         try:
@@ -1898,6 +1901,8 @@ class LyricDanmu(wx.Frame):
                 f.write("默认展开歌词=%s\n" % self.init_show_lyric)
                 f.write("默认打开记录=%s\n" % self.init_show_record)
                 f.write("默认双前缀模式=%s\n" % self.init_two_prefix)
+                f.write(titleLine("其它功能配置"))
+                f.write("启用房间多选=%s\n" % self.enable_multiroom)
                 f.write(titleLine("账号信息配置"))
                 f.write("账号标注=%s\n" % self.account_names[0])
                 f.write("cookie=%s\n" % self.cookies[0])
