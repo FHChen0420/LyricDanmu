@@ -1,6 +1,6 @@
 # coding: utf-8
 import re, os, time, sys, asyncio, webbrowser
-import wx, requests
+import wx, wx.html2, requests
 import xml.dom.minidom
 from concurrent.futures import ThreadPoolExecutor,as_completed
 from pubsub import pub
@@ -416,6 +416,9 @@ class LyricDanmu(wx.Frame):
             self.pool.submit(self.RunRoomPlayerChaser,self.roomid,self.loop)
             self.live_chasing=True
             self.btnChaser.SetForegroundColour("MEDIUM BLUE")
+        if self.platform=="win" and not wx.html2.WebView.IsBackendAvailable(wx.html2.WebViewBackendEdge):
+            webbrowser.open("http://127.0.0.1:8080/player.html")
+            return
         dlg = wx.MessageDialog(None, "[是] 浏览器打开(推荐)　　　[否] 工具自带窗体打开", "选择追帧显示方式", wx.YES_NO|wx.YES_DEFAULT)
         res = dlg.ShowModal()
         if res==wx.ID_YES:
