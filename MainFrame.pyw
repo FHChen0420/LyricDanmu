@@ -19,7 +19,7 @@ from API import *
 from constant import *
 from util import *
 
-LD_VERSION = "v1.4.4"
+LD_VERSION = "v1.4.5"
 
 class LyricDanmu(wx.Frame):
     def __init__(self, parent):
