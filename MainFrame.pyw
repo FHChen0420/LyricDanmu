@@ -148,7 +148,7 @@ class LyricDanmu(wx.Frame):
         self.enable_rich_record=False
         self.record_fontsize=9 if self.platform=="win" else 13
         self.f_resend = False
-        self.f_resend_mark = True
+        self.f_resend_mark = False
 
     def ShowFrame(self, parent):
         # 窗体
@@ -1038,7 +1038,8 @@ class LyricDanmu(wx.Frame):
             return showInfoDialog("解析错误，请重试", "获取弹幕配置出错")
         return True
 
-    def SendDanmu(self, roomid, msg, src=0, seq=0, try_times=2, brackets=False):
+    def SendDanmu(self, roomid, msg, src=0, seq=0, try_times=2):
+        originMsg=msg
         if msg in self.recent_danmu.keys():
             num=self.recent_danmu[msg]
             self.recent_danmu[msg]=num+1
@@ -1056,7 +1057,7 @@ class LyricDanmu(wx.Frame):
                 if try_times>0:
                     self.CallRecord("","0",-1,"3+")
                     wx.MilliSleep(self.send_interval_ms)
-                    return self.SendDanmu(roomid,msg,src,seq,try_times-2)
+                    return self.SendDanmu(roomid,originMsg,src,seq,try_times-2)
                 return self.CallRecord(msg,roomid,src,"3")
             if code==10031:
                 return self.CallRecord(msg,roomid,src,"4")
@@ -1064,7 +1065,7 @@ class LyricDanmu(wx.Frame):
                 if try_times>0:
                     self.CallRecord("","0",-1,"5+")
                     wx.MilliSleep(self.send_interval_ms)
-                    return self.SendDanmu(roomid,msg,src,seq,try_times-2)
+                    return self.SendDanmu(roomid,originMsg,src,seq,try_times-2)
                 return self.CallRecord(msg,roomid,src,"5")
             if code!=0:
                 self.LogDebug("[SendDanmu]"+str(data))
@@ -1074,17 +1075,12 @@ class LyricDanmu(wx.Frame):
                 self.CallRecord(msg,roomid,src,"0")
                 return True
             if errmsg in ["f","fire"]:
-                self.LogShielded(msg)
-                if self.f_resend and not ("[" in msg[:6] and "]" in msg[-3:]) and not brackets:
+                if self.f_resend and try_times>0:
                     if self.f_resend_mark:
                         self.CallRecord("","0",-1,"1+")
-                    newMsgs=self.BracketDanmu(msg)
-                    wx.MilliSleep(self.send_interval_ms)
-                    res=self.SendDanmu(roomid,newMsgs[0],src,seq,try_times,brackets=True)
-                    if len(newMsgs)==2 and res:
-                        wx.MilliSleep(self.send_interval_ms+50)
-                        self.SendDanmu(roomid,newMsgs[1],src,seq,try_times,brackets=True)
-                    return res
+                    wx.MilliSleep(self.send_interval_ms+50)
+                    return self.SendDanmu(roomid,originMsg,src,seq,try_times-2)
+                self.LogShielded(msg)
                 self.CallRecord(msg,roomid,src,"1")
                 self.CancelFollowingDanmu(seq)
                 return False
@@ -1096,7 +1092,7 @@ class LyricDanmu(wx.Frame):
                 if try_times>0:
                     self.CallRecord("","0",-1,"6+")
                     wx.MilliSleep(self.send_interval_ms+200)
-                    return self.SendDanmu(roomid,msg,src,seq,try_times-1)
+                    return self.SendDanmu(roomid,originMsg,src,seq,try_times-1)
                 return self.CallRecord(msg,roomid,src,"6")
             self.LogDebug("[SendDanmu]"+"errmsg:"+errmsg)
             self.CallRecord(msg,roomid,src,"x")
@@ -1106,7 +1102,7 @@ class LyricDanmu(wx.Frame):
             if "Remote end closed connection without response" in str(e) or "(10054," in str(e):
                 if try_times>0:
                     wx.MilliSleep(200)
-                    return self.SendDanmu(roomid,msg,src,seq,try_times-1)
+                    return self.SendDanmu(roomid,originMsg,src,seq,try_times-1)
                 return self.CallRecord(msg,roomid,src,"C")
             self.pool.submit(self.ThreadOfShowMsgDlg,"网络连接出错","弹幕发送失败")
             return self.CallRecord(msg,roomid,src,"A")
@@ -1677,7 +1673,7 @@ class LyricDanmu(wx.Frame):
                         self.enable_rich_record = v.lower()=="true"
                     elif k == "弹幕记录字号":
                         self.record_fontsize = min(max(int(v),9),16)
-                    elif k == "屏蔽句加括号重发": 
+                    elif k == "屏蔽句自动重发": 
                         self.f_resend = v.lower()=="true"
                     elif k == "屏蔽句重发标识":
                         self.f_resend_mark = v.lower()=="true"
@@ -1885,7 +1881,7 @@ class LyricDanmu(wx.Frame):
                 f.write("忽略系统代理=%s\n" % self.no_proxy)
                 f.write("最低发送间隔=%d\n" % self.send_interval_ms)
                 f.write("请求超时阈值=%d\n" % int(1000*self.timeout_s))
-                f.write("屏蔽句加括号重发=%s\n" % self.f_resend)
+                f.write("屏蔽句自动重发=%s\n" % self.f_resend)
                 f.write(titleLine("同传统计配置"))
                 f.write("同传中断阈值=%d\n" % self.tl_stat_break_min)
                 f.write("最低字数要求=%d\n" % self.tl_stat_min_word_num)
