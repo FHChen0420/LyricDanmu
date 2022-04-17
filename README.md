@@ -28,6 +28,6 @@ B站直播歌词/同传弹幕发送工具
 
     ```pyinstaller -F -w MainFrame.pyw -n LyricDanmu --add-data "./chaser/static/*;./chaser/static" --add-data "./dll/x64/*;."```
 
-+ MacOS：
++ MacOS(M1芯片可能会存在打包失败的情况，请尝试使用Rosetta运行)：
 
-    ```pyinstaller -F -w MainFrame.pyw -n LyricDanmu --add-data ./chaser/static/*:./chaser/static```
+    ```pyinstaller -F -w MainFrame.pyw -n LyricDanmu --add-data "./chaser/static/*:./chaser/static"```
