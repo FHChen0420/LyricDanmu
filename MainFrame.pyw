@@ -1048,37 +1048,40 @@ class LyricDanmu(wx.Frame):
             num=self.recent_danmu[msg]
             self.recent_danmu[msg]=num+1
             mark=eval("'\\U000e002%d'"%(num%10))
-            msg = msg+mark if len(msg) < self.max_len else msg[:-1]+mark
+            if len(msg) < self.max_len:
+                msg = msg[:-1]+mark+"】" if msg[-1]=="】" else msg+mark
+            else:
+                msg = msg[:-1]+mark
         else:
             self.recent_danmu.pop(list(self.recent_danmu.keys())[0])
             self.recent_danmu[msg]=0
         try:
             data=self.blApi.send_danmu(roomid,msg,self.cur_acc)
-            if not self.LoginCheck(data):
+            if not self.LoginCheck(data): #用户未登入（cookies无效）
                 return self.CallRecord(msg,roomid,src,"7")
             errmsg,code=data["msg"],data["code"]
-            if code==10030:
+            if code==10030: #弹幕发送频率过高
                 if try_times>0:
                     self.CallRecord("","0",-1,"3+")
                     wx.MilliSleep(self.send_interval_ms)
                     return self.SendDanmu(roomid,originMsg,src,seq,try_times-2)
                 return self.CallRecord(msg,roomid,src,"3")
-            if code==10031:
+            if code==10031: #短期内发送了两条内容完全相同的弹幕
                 return self.CallRecord(msg,roomid,src,"4")
-            if code==11000:
+            if code==11000: #弹幕被吞了（具体原因未知）
                 if try_times>0:
                     self.CallRecord("","0",-1,"5+")
                     wx.MilliSleep(self.send_interval_ms)
                     return self.SendDanmu(roomid,originMsg,src,seq,try_times-2)
                 return self.CallRecord(msg,roomid,src,"5")
-            if code!=0:
+            if code!=0: #其他发送失败情况
                 self.LogDebug("[SendDanmu]"+str(data))
                 self.CallRecord(msg,roomid,src,"x")
                 return self.CallRecord("(%s)"%errmsg,"0",-1,"-")
-            if errmsg=="":
+            if errmsg=="": #弹幕成功发送
                 self.CallRecord(msg,roomid,src,"0")
                 return True
-            if errmsg in ["f","fire"]:
+            if errmsg in ["f","fire"]: #弹幕含有B站通用屏蔽词，或因B站偶尔抽风导致无法发送
                 if self.f_resend and try_times>0:
                     if self.f_resend_mark:
                         self.CallRecord("","0",-1,"1+")
@@ -1088,11 +1091,11 @@ class LyricDanmu(wx.Frame):
                 self.CallRecord(msg,roomid,src,"1")
                 self.CancelFollowingDanmu(seq)
                 return False
-            if errmsg=="k":
+            if errmsg=="k": #弹幕含有当前直播间所设置的屏蔽词
                 self.CallRecord(msg,roomid,src,"2")
                 self.CancelFollowingDanmu(seq)
                 return False
-            if "max limit" in errmsg:
+            if "max limit" in errmsg: #当前房间弹幕流量过大，导致弹幕发送失败
                 if try_times>0:
                     self.CallRecord("","0",-1,"6+")
                     wx.MilliSleep(self.send_interval_ms+200)
@@ -1101,7 +1104,7 @@ class LyricDanmu(wx.Frame):
             self.LogDebug("[SendDanmu]"+"errmsg:"+errmsg)
             self.CallRecord(msg,roomid,src,"x")
             return self.CallRecord("(具体信息：%s)"%errmsg,"0",-1,"-")
-        except requests.exceptions.ConnectionError as e:
+        except requests.exceptions.ConnectionError as e: #网络无连接/连接中断
             self.LogDebug("[SendDanmu]"+str(e))
             if "Remote end closed connection without response" in str(e) or "(10054," in str(e):
                 if try_times>0:
@@ -1110,9 +1113,9 @@ class LyricDanmu(wx.Frame):
                 return self.CallRecord(msg,roomid,src,"C")
             self.pool.submit(self.ThreadOfShowMsgDlg,"网络连接出错","弹幕发送失败")
             return self.CallRecord(msg,roomid,src,"A")
-        except requests.exceptions.ReadTimeout:
+        except requests.exceptions.ReadTimeout: #API超时
             return self.CallRecord(msg,roomid,src,"B")
-        except Exception as e:
+        except Exception as e: #其他异常
             self.LogDebug("[SendDanmu]"+str(e))
             self.CallRecord(msg,roomid,src,"X")
             return self.CallRecord("(具体信息：%s)"%str(e),"0",-1,"-")
@@ -1121,18 +1124,6 @@ class LyricDanmu(wx.Frame):
         while len(self.danmu_queue)>0 and self.danmu_queue[0][3]==seq:
             danmu=self.danmu_queue.pop(0)
             self.CallRecord(danmu[1],danmu[0],danmu[2],"Z")
-    
-    def BracketDanmu(self,msg):
-        mo=re.match("^(.{0,6}【).",msg)
-        pre=mo.group(1) if mo is not None else ""
-        lp=len(pre)
-        if len(msg)+2<=self.max_len:
-            newMsg=pre+"["+msg[lp:]+"]"
-            return [swapBracket(newMsg)]
-        else:
-            newMsg1=pre+"["+msg[lp:self.max_len-lp-2]+"]"
-            newMsg2=pre+"[…"+msg[self.max_len-lp-2:]+"]"
-        return [swapBracket(newMsg1),swapBracket(newMsg2)]
     
     def RunRoomPlayerChaser(self,roomid,loop):
         asyncio.set_event_loop(loop)
