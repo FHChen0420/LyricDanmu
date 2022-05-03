@@ -22,7 +22,7 @@ from util import *
 
 class LyricDanmu(wx.Frame):
 
-    LD_VERSION = "v1.4.5"
+    LD_VERSION = "v1.5.0"
 
     def __init__(self, parent=None):
         """B站直播同传/歌词弹幕发送工具"""
