@@ -123,6 +123,7 @@ class LyricDanmu(wx.Frame):
         self.pool.submit(self.ThreadOfSend)
 
     def DefaultConfig(self):
+        """加载默认配置"""
         self.rooms={}
         self.sp_rooms={}
         self.wy_marks = {}
@@ -167,6 +168,7 @@ class LyricDanmu(wx.Frame):
         self.f_resend_mark = False
 
     def ShowFrame(self, parent):
+        """布局并显示各类窗体控件"""
         # 窗体
         wx.Frame.__init__(self, parent, title="LyricDanmu %s - %s"%(self.LD_VERSION,self.account_names[0]),
             style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX) | wx.STAY_ON_TOP)
@@ -432,6 +434,7 @@ class LyricDanmu(wx.Frame):
         self.btnTop.Show(False)
     
     def ShowPlayer(self,event):
+        """显示追帧窗体"""
         if not self.live_chasing:
             if self.roomid is None:
                 return showInfoDialog("未指定直播间", "提示")
@@ -547,6 +550,7 @@ class LyricDanmu(wx.Frame):
 
 
     def ThreadOfGetDanmuConfig(self):
+        """（子线程）获取弹幕配置"""
         UIChange(self.btnRoom1,enabled=False)
         UIChange(self.btnRoom2,enabled=False)
         UIChange(self.btnDmCfg1,enabled=False)
@@ -565,6 +569,7 @@ class LyricDanmu(wx.Frame):
         UIChange(self.btnRoom2,enabled=True)
 
     def ThreadOfSetDanmuConfig(self,color,mode):
+        """（子线程）修改弹幕配置"""
         try:
             data=self.blApi.set_danmu_config(self.roomid,color,mode,self.cur_acc)
             if data["code"]!=0:
@@ -584,6 +589,7 @@ class LyricDanmu(wx.Frame):
         return True
 
     def ThreadOfSend(self):
+        """（子线程）发送弹幕"""
         last_time = 0
         while self.running:
             try:
@@ -603,6 +609,7 @@ class LyricDanmu(wx.Frame):
                 return showInfoDialog("弹幕发送线程出错，请重启并将问题反馈给作者\n" + str(e), "发生错误")
 
     def ThreadOfAutoSend(self):
+        """（子线程）自动发送带时轴的歌词"""
         self.cur_t=self.timelines[self.oid]
         next_t=self.timelines[self.oid+1]
         self.timeline_base=time.time()-self.cur_t
@@ -622,6 +629,7 @@ class LyricDanmu(wx.Frame):
         self.OnStopBtn(None)
 
     def ThreadOfUpdateGlobalShields(self):
+        """（子线程）从云端更新B站直播间全局屏蔽词库"""
         if os.path.exists("tmp.tmp"):   return
         with open("tmp.tmp","w",encoding="utf-8") as f:  f.write("")
         UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="获取更新中…")
@@ -650,6 +658,7 @@ class LyricDanmu(wx.Frame):
             except: pass
 
     def ThreadOfShowMsgDlg(self,content,title):
+        """（子线程）显示消息弹窗"""
         if self.show_msg_dlg:   return
         self.show_msg_dlg=True
         showInfoDialog(content,title)
@@ -734,6 +743,7 @@ class LyricDanmu(wx.Frame):
         wx.CallAfter(pub.sendMessage,"lyric")
 
     def ImportLyric(self, event):
+        """导入本地歌词"""
         lyric = self.tcImport.GetValue().strip()
         if lyric == "":
             return showInfoDialog("歌词不能为空", "歌词导入失败")
@@ -792,6 +802,7 @@ class LyricDanmu(wx.Frame):
         event.Skip()
 
     def CountText(self, event):
+        """计算弹幕发送框的当前已输入内容的长度（含前缀长度）"""
         comment = self.cbbComPre.GetValue() + self.tcComment.GetValue()
         label = "%02d" % len(comment) + (" ↩" if len(comment) <= self.max_len*2.5 else " ×")
         self.btnComment.SetLabel(label)
@@ -915,6 +926,7 @@ class LyricDanmu(wx.Frame):
             self.colorFrame.Show(False)
 
     def OnPasteComment(self,event):
+        """粘贴文本到弹幕发送框时触发。如果文本含有换行符，则进行相应处理"""
         text=wxPaste()
         if text is None:  return
         if "\n" in text or "\r" in text:
@@ -925,6 +937,7 @@ class LyricDanmu(wx.Frame):
         event.Skip()
     
     def OnPasteSearch(self,event):
+        """粘贴文本到歌词搜索框时触发。如果文本是QQ音乐听歌识曲字符串格式，则进行相应处理"""
         text=wxPaste()
         if text is None:  return
         mo=re.match("歌曲名：(.*?)，歌手名：",text)
@@ -936,15 +949,18 @@ class LyricDanmu(wx.Frame):
         event.Skip()
     
     def FetchFromTmpClipboard(self,event):
+        """从剪贴板中获取临时的数据"""
         if self.tmp_clipboard!="":
             wxCopy(self.tmp_clipboard)
             self.tmp_clipboard=""
         event.Skip()
     
     def SetColaborMode(self,event):
+        """设置在当前直播间中所使用的弹幕颜色"""
         self.colabor_mode=self.cbbClbMod.GetSelection()
 
     def SearchLyric(self, event):
+        """搜索歌词（优先级：本地歌词>收藏歌词>非收藏歌词）"""
         src=event.GetEventObject().GetName()
         words = self.tcSearch.GetValue().strip().replace("\\","")
         if words in ["","*"]:   return
@@ -964,6 +980,7 @@ class LyricDanmu(wx.Frame):
         self.songSearchFrame = SongSearchFrame(self, src, words, mark_ids, local_names)
 
     def SendComment(self, event):
+        """发送弹幕评论框中的内容"""
         pre = self.cbbComPre.GetValue()
         msg = self.tcComment.GetValue().strip()
         self.tcComment.SetFocus()
@@ -984,6 +1001,7 @@ class LyricDanmu(wx.Frame):
         self.history_state=False
 
     def SaveToLocal(self,event):
+        """将自定义歌词保存到本地文件"""
         lyric=self.tcImport.GetValue().strip()
         lyric=lyric.replace("&","＆").replace("<","＜").replace(">","＞")
         if lyric == "":
@@ -1020,6 +1038,7 @@ class LyricDanmu(wx.Frame):
         self.pool.submit(self.ThreadOfGetDanmuConfig)
 
     def GetLiveInfo(self,roomid):
+        """根据房间号获取直播信息（主播名称、直播标题）"""
         try:
             data=self.blApi.get_room_info(roomid)
             live_title=data["data"]["room_info"]["title"].replace(",","，")
@@ -1029,7 +1048,7 @@ class LyricDanmu(wx.Frame):
                 liver_name=liver_name.replace(k,v)
             return liver_name,live_title
         except Exception as e:
-            print("Error GetLiveInfo:",type(e),e)
+            self.LogDebug(f"[GetLiveInfo] {e}")
             return str(roomid),""
 
     def GetCurrentDanmuConfig(self,roomid=None):
@@ -1054,6 +1073,7 @@ class LyricDanmu(wx.Frame):
         return True
 
     def GetUsableDanmuConfig(self):
+        """获取用户在当前直播间内的可用弹幕配置（颜色、位置）"""
         try:
             data=self.blApi.get_danmu_config(self.roomid,self.cur_acc)
             if not self.LoginCheck(data):    return False
@@ -1074,7 +1094,15 @@ class LyricDanmu(wx.Frame):
             return showInfoDialog("解析错误，请重试", "获取弹幕配置出错")
         return True
 
-    def SendDanmu(self, roomid, msg, src=0, seq=0, try_times=2):
+    def SendDanmu(self, roomid, msg, src, seq, try_times=2):
+        """
+        发送弹幕
+        :param roomid: 直播间号
+        :param msg: 弹幕内容
+        :param src: 弹幕来源(详见constant.py)
+        :param seq: 弹幕序列号
+        :param try_times: 大于0表示弹幕发送失败后允许重发
+        """
         originMsg=msg
         if msg in self.recent_danmu.keys():
             num=self.recent_danmu[msg]
@@ -1159,6 +1187,7 @@ class LyricDanmu(wx.Frame):
             return self.CallRecord("(具体信息：%s)"%str(e),roomid,src,"-",False)
     
     def CancelFollowingDanmu(self,seq):
+        """从弹幕队列中移除组号为seq的一组弹幕"""
         while len(self.danmu_queue)>0 and self.danmu_queue[0][3]==seq:
             danmu=self.danmu_queue.pop(0)
             self.CallRecord(danmu[1],danmu[0],danmu[2],"Z")
@@ -1181,6 +1210,7 @@ class LyricDanmu(wx.Frame):
         self.pool_ws.submit(self.ws_dict[roomid].Start)
         
     def RunRoomPlayerChaser(self,roomid,loop):
+        """启用追帧服务"""
         asyncio.set_event_loop(loop)
         self.playerChaser.roomId=roomid
         if isPortUsed():
@@ -1189,6 +1219,7 @@ class LyricDanmu(wx.Frame):
             self.playerChaser.serve(8080)
     
     def ShowStatDialog(self):
+        """显示同传统计数据弹框"""
         stat_len=len(self.translate_stat)
         if not self.show_stat_on_close or stat_len==0:  return
         content="" if stat_len==1 else "本次同传共产生了%d条记录：\n"%stat_len
@@ -1200,6 +1231,7 @@ class LyricDanmu(wx.Frame):
         showInfoDialog(content,"同传统计数据")
 
     def SendLyric(self, line):
+        """发送歌词弹幕"""
         pre = self.cbbLycPre.GetValue()
         suf = self.cbbLycSuf.GetValue()
         msg = self.llist[self.lid+line-4][2]
@@ -1257,14 +1289,17 @@ class LyricDanmu(wx.Frame):
 
 
     def Mark(self,src,song_id,tags):
+        """收藏歌词"""
         if src=="wy": self.wy_marks[song_id]=tags
         else: self.qq_marks[song_id]=tags
 
     def Unmark(self,src,song_id):
+        """取消收藏歌词"""
         if src=="wy": self.wy_marks.pop(song_id,None)
         else: self.qq_marks.pop(song_id,None)
 
     def GetRoomShields(self,roomid=None):
+        """获取当前房间的自定义屏蔽处理规则"""
         rules,words={},[]
         if roomid is None:  roomid="none"
         for k,v in self.custom_shields.items():
@@ -1280,6 +1315,7 @@ class LyricDanmu(wx.Frame):
         self.room_anti_shield=BiliLiveAntiShield(rules,words)
 
     def AddHistory(self,message):
+        """将弹幕内容保存到近期弹幕历史记录中"""
         self.recent_history.insert(0,message)
         if len(self.recent_history)>10:
             self.recent_history.pop()
@@ -1297,18 +1333,20 @@ class LyricDanmu(wx.Frame):
             self.LogDanmu(msg,roomid,src,res,cur_time)
     
     def SaveTLRecords(self):
+        """记录近期同传数据至recent.dat文件，随后存储同传数据统计日志"""
         try:
             with open("logs/recent.dat","w",encoding="utf-8") as f:
                 for k,v in self.translate_records.items():
                     if v[1] is None:   continue
                     f.write("%s,%d,%d,%s\n"%(k,v[0],v[1],v[2]))
-        except Exception as e: print("SaveTLRecordsOnClose Error:",type(e),e)
+        except Exception as e: self.LogDebug(f"[SaveTLRecords] {e}")
         for k,v in self.translate_records.items():
             if v[1] is None:    continue
             stat_res=self.StatTLRecords(k,v[0],v[1],v[2])
             self.translate_stat+=list(stat_res.values())
     
     def StatTLRecords(self,roomid,start_time,end_time,live_title):
+        """统计同传弹幕数据，并保存到本地csv文件"""
         dir_name=self.danmu_log_dir[roomid]
         liver_name=dir_name.split("_",1)[1]
         start_date_ts=strToTs(getTime(start_time,fmt="%y-%m-%d 00:00:00"))
@@ -1334,7 +1372,7 @@ class LyricDanmu(wx.Frame):
                             danmu_count+=1
                             last_ts=ts
             except Exception as e:
-                print("StatTLRecords ReadError:",date,type(e),e)
+                self.LogDebug(f"[StatTLRecords] ReadError: DATE={date} {e}")
         if word_num>=self.tl_stat_min_word_num and danmu_count>=self.tl_stat_min_count:
             start_str=getTime(start_ts,fmt="%Y-%m-%d %H:%M:%S")
             duration=(last_ts-start_ts)/60
@@ -1344,7 +1382,7 @@ class LyricDanmu(wx.Frame):
             showInfoDialog("CSV文件被其他软件（如Excel）改动后，保存的编码错误\n请尝试将logs目录下的CSV文件移至他处\n"
             +"Excel编码解决方法：微软Excel->设置CSV保存编码为UTF-8\nWPS Excel->安装CoolCsv插件","保存同传统计结果出错")
         except Exception as e:
-            print("StatTLRecords WriteError:",roomid,type(e),e)
+            self.LogDebug(f"[StatTLRecords] WriteError: ROOMID={roomid} {e}")
         finally:
             return records
 
@@ -1372,6 +1410,7 @@ class LyricDanmu(wx.Frame):
                 self.translate_records[roomid]=[cur_time,cur_time,live_title]
     
     def LogShielded(self,msg):
+        """输出屏蔽词日志"""
         try:
             path="logs/shielded/SHIELDED_%s.log"%getTime(fmt="%y-%m")
             with open(path,"a",encoding="utf-8") as f:
@@ -1379,6 +1418,7 @@ class LyricDanmu(wx.Frame):
         except: pass
     
     def LogSongName(self,msg):
+        """输出歌词发送日志"""
         try:
             path="logs/lyric/LYRIC_%s.log"%getTime(fmt="%y-%m")
             with open(path,"a",encoding="utf-8") as f:
@@ -1386,6 +1426,7 @@ class LyricDanmu(wx.Frame):
         except: pass
 
     def LogDebug(self,msg):
+        """输出调试日志"""
         try:
             path="logs/debug/DEBUG_%s.log"%getTime(fmt="%y-%m")
             with open(path,"a",encoding="utf-8") as f:
@@ -1393,6 +1434,7 @@ class LyricDanmu(wx.Frame):
         except: pass
 
     def LoginCheck(self,res):
+        """根据接口返回码判断B站账号配置是否有效"""
         if res["code"]==-101 or "登录" in res["message"]:
             self.OnStopBtn(None)
             return showInfoDialog("账号配置不可用，请修改Cookie配置\n"+
@@ -1406,12 +1448,14 @@ class LyricDanmu(wx.Frame):
         return False
     
     def SaveAccountInfo(self,acc_no,acc_name,cookie):
+        """保存B站账号信息"""
         self.account_names[acc_no]=acc_name
         self.cookies[acc_no]=self.blApi.update_cookie(cookie,acc_no)
         if acc_no==self.cur_acc:
             self.SetTitle("LyricDanmu %s - %s"%(self.LD_VERSION,acc_name))
     
     def SwitchAccount(self,acc_no):
+        """切换要使用的B站账号"""
         acc_name=self.account_names[acc_no]
         if acc_no==self.cur_acc:    return
         self.cur_acc=acc_no
@@ -1422,12 +1466,14 @@ class LyricDanmu(wx.Frame):
 
 
     def GetLyricData(self,lrcO):
+        """将单语歌词字符串整理为歌词数据列表"""
         listO = []
         for o in lrcO.strip().split("\n"):
             for f in splitTnL(o):    listO.append(f)
         return sorted(listO, key=lambda f:f[1])
 
     def GetMixLyricData(self, lrcO, lrcT):
+        """将双语歌词字符串整理为歌词数据列表"""
         dictT,dictO,res = {},{},[]
         for t in lrcT.strip().split("\n"):
             for f in splitTnL(t):    dictT[f[3]]=f
@@ -1446,6 +1492,7 @@ class LyricDanmu(wx.Frame):
         return res
 
     def FilterLyric(self,fs):
+        """过滤歌词中的无用信息，并整理空行"""
         res,fslen,prev_empty,i=[],len(fs),False,0
         while i<fslen:
             if re.search(LYRIC_IGNORE_RULES,fs[i][2]):
@@ -1469,6 +1516,7 @@ class LyricDanmu(wx.Frame):
         return res
 
     def MergeSingleLyric(self,fs):
+        """对单语歌词进行时轴合并处理"""
         fslen,usedlen=len(fs),len(self.cbbLycPre.GetValue().lstrip())+1
         res,base_tl,prev_tl,content,new_line=[],0,100,"",True
         for i in range(fslen):
@@ -1491,6 +1539,7 @@ class LyricDanmu(wx.Frame):
         return res
 
     def MergeMixLyric(self,fs):
+        """对双语歌词进行时轴合并处理"""
         fslen,usedlen=len(fs),len(self.cbbLycPre.GetValue().lstrip())+1
         res,base_tl,prev_tl,content_o,content_t,new_line=[],0,100,"","",True
         for i in range(0,fslen,2):
@@ -1519,6 +1568,7 @@ class LyricDanmu(wx.Frame):
         return res
 
     def RecvLyric(self,data):
+        """解析歌词数据并显示在歌词面板"""
         self.init_lock = False
         self.shield_changed = False
         self.OnStopBtn(None)
@@ -1600,6 +1650,7 @@ class LyricDanmu(wx.Frame):
             self.btnStopAuto.Disable()
 
     def RefreshLyric(self):
+        """刷新歌词文本的显示"""
         if self.init_lock:  return
         offset=int(self.has_trans and self.lyc_mod>0) - 4 
         for i in range(11):
@@ -1613,6 +1664,7 @@ class LyricDanmu(wx.Frame):
 
 
     def CheckFile(self):
+        """检查配置文件与数据文件是否存在，若不存在则进行创建"""
         dirs=("songs","logs","logs/danmu","logs/lyric","logs/debug","logs/shielded")
         for dir in dirs:
             if not os.path.exists(dir): os.mkdir(dir)
@@ -1640,6 +1692,7 @@ class LyricDanmu(wx.Frame):
                 f.write("同传开始时间,直播标题,主播,持续时间(分钟),同传字数,同传条数,速度(字/分钟)\n")
 
     def ReadFile(self):
+        """从文件中读取配置与数据"""
         try:
             with open("config.txt", "r", encoding="utf-8") as f:
                 for line in f:
@@ -1794,6 +1847,7 @@ class LyricDanmu(wx.Frame):
         return True
 
     def ReadCustomTexts(self):
+        """加载用户预设文本"""
         default_data={
             "title":"(右键编辑)",
             "content":"",
@@ -1832,9 +1886,10 @@ class LyricDanmu(wx.Frame):
                 f.write(content)
             return xml.dom.minidom.parseString(content)
         except Exception as e:
-            print("ConvertLocalSong:",filepath,type(e),str(e))
+            self.LogDebug(f"[ConvertLocalSong] filepath={filepath} {e}")
 
     def ReadLocalSongs(self):
+        """加载本地歌曲"""
         fileList = os.listdir("songs")
         for file in fileList:
             filepath = "songs/" + file
@@ -1844,7 +1899,7 @@ class LyricDanmu(wx.Frame):
             except xml.parsers.expat.ExpatError:
                 DOMTree = self.ConvertLocalSong(filepath)
             except Exception as e:
-                print("ReadLocalSongs(1):",filepath,type(e),str(e))
+                self.LogDebug(f"[ReadLocalSongs(1)] filepath={filepath} {e}")
             if DOMTree is None:     continue
             try:
                 localSong = DOMTree.documentElement
@@ -1854,9 +1909,10 @@ class LyricDanmu(wx.Frame):
                 tags=getNodeValue(localSong,"tags")
                 self.locals[file]=name+";"+artists+";"+lang+";"+tags
             except Exception as e:
-                print("ReadLocalSongs(2):",filepath,type(e),str(e))
+                self.LogDebug(f"[ReadLocalSongs(2)] filepath={filepath} {e}")
 
     def CreateLyricFile(self,name,artists,tags,lyric,has_trans):
+        """创建本地歌词文件"""
         filename=re.sub(r";|；","",name)
         lang="双语" if has_trans else "单语"
         for k,v in FILENAME_TRANSFORM_RULES.items():
@@ -1885,6 +1941,7 @@ class LyricDanmu(wx.Frame):
             return showInfoDialog("文件写入失败", "歌词保存失败")
 
     def ShowLocalInfo(self,file):
+        """读取本地歌词文件并显示相关信息"""
         try:
             localSong =xml.dom.minidom.parse("songs/"+file).documentElement
             lyric=getNodeValue(localSong,"lyric")
@@ -1902,10 +1959,11 @@ class LyricDanmu(wx.Frame):
             self.ResizeUI()
             return True
         except Exception as e:
-            print("ShowLocalInfo:",str(e))
+            self.LogDebug(f"[ShowLocalInfo] file={file} {e}")
             return False
 
     def SaveConfig(self):
+        """将应用配置写入配置文件config.txt"""
         def titleLine(title): return "%s\n#%s#\n%s\n"%("-"*15,title,"-"*15)
         try:
             with open("config.txt", "w", encoding="utf-8") as f:
@@ -1940,17 +1998,16 @@ class LyricDanmu(wx.Frame):
                 f.write("默认展开歌词=%s\n" % self.init_show_lyric)
                 f.write("默认打开记录=%s\n" % self.init_show_record)
                 f.write("默认双前缀模式=%s\n" % self.init_two_prefix)
-                f.write(titleLine("其它功能配置"))
-                f.write("启用房间多选=%s\n" % self.enable_multiroom)
                 f.write(titleLine("账号信息配置"))
                 f.write("账号标注=%s\n" % self.account_names[0])
                 f.write("cookie=%s\n" % self.cookies[0])
                 f.write("账号标注2=%s\n" % self.account_names[1])
                 f.write("cookie2=%s\n" % self.cookies[1])
         except Exception as e:
-            print("SaveConfig:",type(e),e)
+            self.LogDebug(f"[SaveConfig] {e}")
 
     def SaveData(self):
+        """将数据写入对应的配置文件"""
         try:
             with open("rooms.txt", "w", encoding="utf-8") as f:
                 for roomid in self.rooms:
@@ -1989,6 +2046,6 @@ class LyricDanmu(wx.Frame):
 
 
 if __name__ == '__main__':
-    app = wx.App(False)
-    frame = LyricDanmu(None)
+    app = wx.App()
+    frame = LyricDanmu()
     app.MainLoop()
