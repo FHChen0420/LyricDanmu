@@ -169,6 +169,18 @@ class BiliLiveAPI(BaseAPI):
         res=self.sessions[number].post(url=url,headers=self.headers,data=data,timeout=timeout)
         return json.loads(res.text)
     
+    def search_live_users(self,keyword,page_size=10,timeout=None) -> dict:
+        """根据关键字搜索直播用户"""
+        url="https://api.bilibili.com/x/web-interface/search/type"
+        params={
+            "keyword": keyword,
+            "search_type": "live_user",
+            "page_size": page_size,
+        }
+        if timeout is None: timeout=self.timeout
+        res=requests.get(url=url,headers=self.headers,params=params,timeout=timeout)
+        return json.loads(res.text)
+    
     def update_cookie(self,cookie:str,number=0) -> str:
         """更新账号Cookie信息
         :返回cookie中buvid3,SESSDATA,bili_jct三项的合并内容"""
