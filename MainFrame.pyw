@@ -508,7 +508,7 @@ class LyricDanmu(wx.Frame):
 
     def ToggleLyricUI(self, event):
         self.show_lyric = not self.show_lyric
-        self.btnExtLrc.SetForegroundColour("blue" if self.show_lyric else "black")
+        self.btnExtLrc.SetForegroundColour("medium blue" if self.show_lyric else "black")
         if self.show_lyric: self.tcSearch.SetFocus()
         else: self.tcComment.SetFocus()
         self.ResizeUI()
@@ -1201,7 +1201,7 @@ class LyricDanmu(wx.Frame):
             to_room,from_rooms,spreading=cfg[0][0],cfg[0][1:],cfg[1]
             if to_room is None or roomid not in from_rooms or not spreading: continue
             pre="\u0592"+(speaker if speaker!="" else self.sp_rooms[roomid][1])+"【"
-            msg=pre+content
+            msg=self.anti_shield.deal(pre+content)
             suf="】" if msg.count("【")>msg.count("】") else ""
             self.AddDanmuToQueue(to_room,msg,pre,suf,DM_SPREAD,self.sp_max_len)
     
@@ -1782,7 +1782,7 @@ class LyricDanmu(wx.Frame):
                 for line in f:
                     mo=re.match(r"\s*(\d+)\s+(\S+)(?:\s+(\S+))?",line)
                     if mo is not None:
-                        self.sp_rooms[mo.group(1)] = [mo.group(2),mo.group(2)[:2] if mo.group(3) is None else mo.group(3)]
+                        self.sp_rooms[mo.group(1)] = [mo.group(2),"" if mo.group(3) is None else mo.group(3)]
         except Exception:
             showInfoDialog("读取rooms_spread.txt失败", "提示")
         try:
