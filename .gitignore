@@ -1,10 +1,12 @@
 __pycache__
+\.idea
 build
 dist
 songs
 logs
 config.txt
 rooms.txt
+rooms_spread.txt
 marks_qq.txt
 marks_wy.txt
 custom_texts.txt
