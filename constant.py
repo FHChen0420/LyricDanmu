@@ -23,7 +23,7 @@ HTML_TRANSFORM_RULES = {
     r"&apos;": "'",
     r"&quot;": "\"",
     r"&amp;": "＆",
-    r"&nbsp;| ": " ",#注意"|"后的空格是&#160
+    r"&nbsp;|\u00A0": " ",
 }
 
 # 压缩处理规则
@@ -76,3 +76,9 @@ ERR_INFO={
     "6+": ("🔄 房间弹幕过密","gray"),
     "-": ("", "gray"),
 }
+
+# 弹幕来源类型
+DM_COMMENT=0        #弹幕输入框
+DM_LYRIC=1          #歌词
+DM_CUSTOM_TEXT=2    #预设文本
+DM_SPREAD=3         #同传转发
