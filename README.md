@@ -1,14 +1,17 @@
 ## LyricDanmu
 B站直播歌词/同传弹幕发送工具
 
-开发环境：Python3.9.1
+开发环境：Python3.8.10 / Python3.9.1
 
 ### 代码列表
 
 + MainFrame.pyw 主界面
 + SongSearchFrame.py 歌词搜索结果界面
 + SongMarkFrame.py 歌词收藏设置界面
-+ RoomSelectFrame.py 直播间选择界面
++ RoomSelectFrame.py 直播间选择界面（用于进入房间）
++ SpRoomSelectFrame.py 直播间选择界面（用于转发弹幕）
++ DanmuSpreadFrame.py 弹幕转发配置界面
++ LiveUserSearchFrame.py 直播用户搜索界面
 + GeneralConfigFrame.py 应用通用设置界面
 + ShieldConfigFrame.py 屏蔽词管理界面
 + CustomTextFrame.py 预设文本界面
@@ -16,11 +19,14 @@ B站直播歌词/同传弹幕发送工具
 + ColorFrame.py 弹幕颜色选择框
 + PlayerFrame.py 直播画面播放窗体
 + API.py 接口类
-+ BiliLiveAntiShield.py 屏蔽字处理
++ BiliLiveAntiShield.py B站直播屏蔽字处理类
++ BiliLiveWebSocket.py B站直播websocket类
 + util.py 工具函数
 + constant.py 常量
 + langconv.py & zh_wiki.py 繁体转简体逻辑&数据（Ref: skydark/nstools）
 + chaser/ B站直播追帧本地服务（By:Sirius   Ref: bilibili/flv.js）
+
+```注意：本项目的文件命名、变量命名并不规范，请勿模仿```
 
 ### Pyinstaller打包指令
 
