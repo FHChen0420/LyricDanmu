@@ -1,4 +1,5 @@
 import wx
+from constant import DM_CUSTOM_TEXT
 
 class CustomTextFrame(wx.Frame):
     def __init__(self,parent):
@@ -100,7 +101,7 @@ class CustomTextFrame(wx.Frame):
         if self.shield_changed:
             message = parent.room_anti_shield.deal(message)
             message = parent.anti_shield.deal(message)
-        parent.SendSplitDanmu(message,pre,suf,2)
+        parent.AddDanmuToQueue(parent.roomid,message,pre,suf,DM_CUSTOM_TEXT)
         parent.AddHistory(msg)
     
     def ShowEditPanel(self,event):
