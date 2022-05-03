@@ -78,6 +78,18 @@ def getNodeValue(parentNode,childName) -> str:
     try:    return parentNode.getElementsByTagName(childName)[0].childNodes[0].nodeValue.strip()
     except IndexError:  return ""
 
+def editDictItem(_dict:dict,oldKey,newKey,newValue=None,setValueToNone=False) -> dict:
+    """在不改变键的顺序的情况下修改字典键值对中的键，返回修改后的新字典"""
+    keys,values=list(_dict.keys()),list(_dict.values())
+    for i,_key in enumerate(keys):
+        if _key==oldKey:  break
+    else:
+        _dict[newKey]=newValue
+        return _dict
+    keys[i]=newKey 
+    values[i]=None if setValueToNone else (values[i] if newValue is None else newValue)
+    return dict(zip(keys,values))
+
 def splitTnL(lrc_line:str) -> list:
     """对lrc格式的歌词行进行处理，分离时间轴与歌词内容
 
