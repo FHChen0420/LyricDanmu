@@ -1,4 +1,5 @@
-import re, time, wx, socket, sys, os
+import re, time, wx, socket, unicodedata
+import subprocess, sys, os
 from typing import Optional
 from pubsub import pub
 
@@ -58,7 +59,7 @@ def setWxUIAttr(obj:wx.Control,label=None,color:Optional[wx.Colour]=None,enabled
     except RuntimeError: pass
 
 def UIChange(obj:wx.Control,label=None,color:Optional[wx.Colour]=None,enabled=None):
-    """主线程调用函数来设置wxUI部件的显示文本、前景色、是否启用"""
+    """（请在子线程中使用）调用主线程函数来设置wxUI部件的显示文本、前景色、是否启用"""
     if not obj: return
     wx.CallAfter(pub.sendMessage,"ui_change",obj=obj,label=label,color=color,enabled=enabled)
 
@@ -112,7 +113,7 @@ def splitTnL(lrc_line:str) -> list:
     return fs
 
 def showInfoDialog(content="",title=""):
-    """弹出确认对话框"""
+    """弹出确认对话框并返回False"""
     dlg = wx.MessageDialog(None, content, title, wx.OK)
     dlg.ShowModal()
     dlg.Destroy()
@@ -123,6 +124,49 @@ def transformToRegex(string:str,join:str="") -> str:
     string = re.sub(r"\s+", "", string)
     pattern = re.sub(r"([+.*?^$|(){}\[\]\\])",r"\\\1","∷".join(string))
     return pattern.replace("∷", join)
+
+def searchByOneCharTag(char, dictionary, split_tag_by=";") -> list:
+    """
+    根据单个字符char对dictionary内每个值中的所有标签进行精确查询，返回满足匹配条件的所有键
+    e.g. char="m" dictionary={"k1":"a;b;c","k2":"L;M;N","k3":"money;boom","k4":"m"} return ["k2","k4"]
+    """
+    res = []
+    for key in dictionary.keys():
+        tags = dictionary[key].split(split_tag_by)
+        for tag in tags:
+            if tag.lower().strip()==char.lower():
+                res.append(key)
+                break
+    return res
+
+def searchByTag(keyword, dictionary, split_tag_by=";") -> list:
+    """
+    根据字符串word对dictionary内每个值中的所有标签进行模糊查询，返回满足匹配条件的所有键
+    e.g. word="abc" dictionary={"k1":"cba;bca","k2":"dabcd","k3":"adbdc;d;e"} return ["k3","k2"]
+    """
+    suggestions = []
+    pattern = "(?i)"+transformToRegex(keyword,".*?")
+    regex = re.compile(pattern)
+    for key in dictionary.keys():
+        sug = []
+        tags = dictionary[key].split(split_tag_by)
+        for tag in tags:
+            match = regex.search(tag.lstrip())
+            if match:
+                sug.append((len(match.group()), match.start()))
+        if len(sug) > 0:
+            sug = sorted(sug)
+            suggestions.append((sug[0][0], sug[0][1], key))
+    return [x for _, _, x in sorted(suggestions)]
+
+def getStrWidth(string) -> int:
+    """获取字符串string的大致显示宽度，返回值以半角字符的长度为单位"""
+    width=0
+    for char in string:
+        if unicodedata.east_asian_width(char) in ["W","F"]: width+=2
+        else: width+=1
+    return width
+    #return sum([2 if unicodedata.east_asian_width(char) in ["W","F"] else 1 for char in string])
 
 def isPortUsed(ip:str="127.0.0.1", port:int=8080) -> bool:
     """检查端口是否已被占用"""
@@ -165,6 +209,13 @@ def updateCsvFile(file_path:str,key_index:int,new_records:dict,max_size:int=1024
         for k,v in new_records.items():
             if k not in old_records.keys():
                 f.write(v.strip()+"\n")
+
+def openFile(path,platform="win"):
+    """打开文件"""
+    try:
+        if platform=="win": os.startfile(path)
+        else: subprocess.call(["open",path])
+    except: raise
 
 def resource_path(relative_path):
     '''返回资源绝对路径(针对pyinstaller打包用)'''

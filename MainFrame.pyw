@@ -165,7 +165,6 @@ class LyricDanmu(wx.Frame):
         self.record_fontsize=9 if self.platform=="win" else 13
         self.f_resend = True
         self.f_resend_mark = False
-        self.enable_multiroom = True
 
     def ShowFrame(self, parent):
         # 窗体
@@ -957,11 +956,11 @@ class LyricDanmu(wx.Frame):
         for k,v in self.qq_marks.items():
             merge_mark_ids["Q"+k]=v
         if len(words)==1:
-            mark_ids = self.SearchByOneCharTag(words, merge_mark_ids)
-            local_names = self.SearchByOneCharTag(words, self.locals)
+            mark_ids = searchByOneCharTag(words, merge_mark_ids)
+            local_names = searchByOneCharTag(words, self.locals)
         else:
-            mark_ids = self.SearchByTag(words, merge_mark_ids)
-            local_names = self.SearchByTag(words, self.locals)
+            mark_ids = searchByTag(words, merge_mark_ids)
+            local_names = searchByTag(words, self.locals)
         self.songSearchFrame = SongSearchFrame(self, src, words, mark_ids, local_names)
 
     def SendComment(self, event):
@@ -1264,32 +1263,6 @@ class LyricDanmu(wx.Frame):
     def Unmark(self,src,song_id):
         if src=="wy": self.wy_marks.pop(song_id,None)
         else: self.qq_marks.pop(song_id,None)
-
-    def SearchByOneCharTag(self, char, collection):
-        res = []
-        for song_id in collection:
-            tags = collection[song_id].split(";")
-            for tag in tags:
-                if tag.lower().strip()==char.lower():
-                    res.append(song_id)
-                    break
-        return res
-
-    def SearchByTag(self, words, collection):
-        suggestions = []
-        pattern = "(?i)"+transformToRegex(words,".*?")
-        regex = re.compile(pattern)
-        for song_id in collection:
-            sug = []
-            tags = collection[song_id].split(";")
-            for tag in tags:
-                match = regex.search(tag.lstrip())
-                if match:
-                    sug.append((len(match.group()), match.start()))
-            if len(sug) > 0:
-                sug = sorted(sug)
-                suggestions.append((sug[0][0], sug[0][1], song_id))
-        return [x for _, _, x in sorted(suggestions)]
 
     def GetRoomShields(self,roomid=None):
         rules,words={},[]
