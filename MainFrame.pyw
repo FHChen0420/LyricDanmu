@@ -13,16 +13,18 @@ from RecordFrame import RecordFrame
 from ShieldConfigFrame import ShieldConfigFrame
 from CustomTextFrame import CustomTextFrame
 from BiliLiveAntiShield import BiliLiveAntiShield
+from DanmuSpreadFrame import DanmuSpreadFrame
 from PlayerFrame import PlayerFrame
 from chaser.live_chaser import RoomPlayerChaser
 from API import *
 from constant import *
 from util import *
 
-LD_VERSION = "v1.4.5"
-
 class LyricDanmu(wx.Frame):
-    def __init__(self, parent):
+
+    LD_VERSION = "v1.4.5"
+
+    def __init__(self, parent=None):
         """B站直播同传/歌词弹幕发送工具"""
         # 获取操作系统信息
         self.platform="win" if sys.platform=="win32" else "mac"
@@ -31,9 +33,21 @@ class LyricDanmu(wx.Frame):
         self.CheckFile()
         if not self.ReadFile(): return
         if self.no_proxy: os.environ["NO_PROXY"]="*"
+        # 子窗体
+        self.songSearchFrame = None     # 歌词搜索结果界面
+        self.colorFrame = None          # 弹幕颜色选择界面
+        self.generalConfigFrame = None  # 应用设置界面
+        self.customTextFrame = None     # 预设文本界面
+        self.playerFrame = None         # 追帧窗口
+        self.danmuSpreadFrame = None    # 弹幕转发配置界面
+        self.shieldConfigFrame = None   # 自定义屏蔽词配置界面
+        self.roomSelectFrame = None     # 房间选择界面
+        self.recordFrame = None         # 弹幕发送记录界面
         # 消息订阅
         pub.subscribe(self.UpdateRecord,"record")
         pub.subscribe(self.RefreshLyric,"lyric")
+        pub.subscribe(self.SpreadDanmu,"ws_recv")
+        pub.subscribe(self.StartListening,"ws_start")
         pub.subscribe(setWxUIAttr,"ui_change")
         # API
         self.blApi = BiliLiveAPI(self.cookies,self.timeout_s)
@@ -51,9 +65,6 @@ class LyricDanmu(wx.Frame):
         self.cur_acc = 0
         self.roomid = None
         self.room_name = None
-        self.roomids = []
-        self.room_names = []
-        self.multiroom = False
         self.colors={}
         self.modes={}
         self.cur_color=0
@@ -93,11 +104,17 @@ class LyricDanmu(wx.Frame):
         self.pre_idx = 0
         self.transparent = 255
         self.danmu_seq=1
+        self.sp_succ_count=0
+        self.sp_fail_count=0
         # 追帧服务
         self.live_chasing = False
         self.playerChaser=RoomPlayerChaser("1")
+        # 弹幕监听与转发
+        self.ws_dict={}
+        self.sp_configs=[[[None],False] for _ in range(3)]
         # 线程池与事件循环
-        self.pool = ThreadPoolExecutor(max_workers=8+len(self.admin_rooms))
+        self.pool = ThreadPoolExecutor(max_workers=8)
+        self.pool_ws = ThreadPoolExecutor(max_workers=12,thread_name_prefix="DanmuSpreader")
         self.loop = asyncio.new_event_loop()
         # 显示界面与启动线程
         self.ShowFrame(parent)
@@ -107,6 +124,7 @@ class LyricDanmu(wx.Frame):
 
     def DefaultConfig(self):
         self.rooms={}
+        self.sp_rooms={}
         self.wy_marks = {}
         self.qq_marks = {}
         self.locals = {}
@@ -115,13 +133,11 @@ class LyricDanmu(wx.Frame):
         self.danmu_log_dir = {}
         self.translate_records = {}
         self.translate_stat = []
-        self.admin_rooms = []
-        self.auto_shield_ad = False
-        self.auto_mute_ad = False
         self.max_len = 30
+        self.sp_max_len = None
         self.prefix = "【♪"
         self.suffix = "】"
-        self.prefixs = ["【♪","【♬","【❀","【❄️","【★"]
+        self.prefixs = ["【♪","【♬","【❀","【❄️"]
         self.suffixs = ["","】"]
         self.send_interval_ms = 750
         self.timeout_s = 5
@@ -153,19 +169,11 @@ class LyricDanmu(wx.Frame):
 
     def ShowFrame(self, parent):
         # 窗体
-        wx.Frame.__init__(self, parent, title="LyricDanmu %s - %s"%(LD_VERSION,self.account_names[0]),
+        wx.Frame.__init__(self, parent, title="LyricDanmu %s - %s"%(self.LD_VERSION,self.account_names[0]),
             style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX) | wx.STAY_ON_TOP)
         self.Bind(wx.EVT_CLOSE, self.OnClose)
         self.Bind(wx.EVT_MOVE, self.OnMove)
         self.Bind(wx.EVT_CHILD_FOCUS,self.OnFocus)
-        self.songSearchFrame = None
-        self.colorFrame = None
-        self.generalConfigFrame = None
-        self.customTextFrame = None
-        self.playerFrame = None
-        self.shieldConfigFrame = ShieldConfigFrame(self)
-        self.roomSelectFrame = RoomSelectFrame(self)
-        self.recordFrame = RecordFrame(self)
         if self.init_show_record:
             pos_x,pos_y=self.Position[0]+self.Size[0]+30,self.Position[1]+30
             self.recordFrame.SetPosition((pos_x,pos_y))
@@ -366,6 +374,11 @@ class LyricDanmu(wx.Frame):
         self.p4.Show(False)
         self.ResizeUI()
         self.Show(True)
+        # 子窗体
+        self.danmuSpreadFrame = DanmuSpreadFrame(self)
+        self.shieldConfigFrame = ShieldConfigFrame(self)
+        self.roomSelectFrame = RoomSelectFrame(self)
+        self.recordFrame = RecordFrame(self)
         if self.platform=="mac":
             self.ShowRoomSelectFrame(None)
 
@@ -390,6 +403,11 @@ class LyricDanmu(wx.Frame):
             self.generalConfigFrame.Raise()
         else:
             self.generalConfigFrame=GeneralConfigFrame(self)
+
+    def ShowDanmuSpreadFrame(self,event):
+        self.danmuSpreadFrame.Show()
+        self.danmuSpreadFrame.Restore()
+        self.danmuSpreadFrame.Raise()
 
     def ShowRecordFrame(self,event):
         self.recordFrame.Show()
@@ -795,7 +813,22 @@ class LyricDanmu(wx.Frame):
 
     def ClearQueue(self,event):
         self.danmu_queue.clear()
-        UIChange(self.btnClearQueue,label="清空 [0]")
+        self.UpdateDanmuQueueLen(0)
+    
+    def UpdateDanmuQueueLen(self,n=None):
+        """更新当前弹幕队列的长度显示"""
+        n=len(self.danmu_queue) if n is None else n
+        color="grey" if n<3 else "gold" if n<6 else "red"
+        UIChange(self.btnClearQueue,label=f"清空 [{n}]")
+        UIChange(self.danmuSpreadFrame.lblWait,label=f"待发:{n}",color=color)
+    
+    def UpdateSpreadSuccCount(self):
+        self.sp_succ_count+=1
+        UIChange(self.danmuSpreadFrame.lblSucc,label=f"已转:{self.sp_succ_count}")
+    
+    def UpdateSpreadFailCount(self):
+        self.sp_fail_count+=1
+        UIChange(self.danmuSpreadFrame.lblFail,label=f"失败:{self.sp_fail_count}")
 
     def PrevLyric(self, event):
         if self.init_lock:  return
@@ -839,6 +872,8 @@ class LyricDanmu(wx.Frame):
             self.last_song_name=self.cur_song_name
             self.LogSongName("%8s\t%s"%(self.roomid,self.cur_song_name))
 
+    
+
     def OnClose(self, event):
         self.running = False
         self.OnStopBtn(None)
@@ -850,9 +885,12 @@ class LyricDanmu(wx.Frame):
         if os.path.exists("tmp.tmp"):
             try:    os.remove("tmp.tmp")
             except: pass
+        for ws in self.ws_dict.values():
+            ws.Stop()
         if not self.loop.is_closed():
             self.loop.call_soon_threadsafe(self.loop.stop)
-        self.pool.shutdown(wait=True)
+        self.pool.shutdown()
+        self.pool_ws.shutdown()
         self.Destroy()
 
     def ChangeDanmuPosition(self,event):
@@ -925,7 +963,7 @@ class LyricDanmu(wx.Frame):
         self.tcComment.SetFocus()
         if msg == "":
             return
-        if (not self.multiroom and self.roomid is None) or (self.multiroom and len(self.roomids)==0):
+        if self.roomid is None:
             return showInfoDialog("未指定直播间", "提示")
         comment = pre + msg
         if len(comment) > self.max_len*2.5:
@@ -933,7 +971,7 @@ class LyricDanmu(wx.Frame):
         comment = self.room_anti_shield.deal(comment)
         comment = self.anti_shield.deal(comment)
         suf = "】" if comment.count("【") > comment.count("】") else ""
-        self.SendSplitDanmu(comment,pre,suf,0)
+        self.AddDanmuToQueue(self.roomid,comment,pre,suf,DM_COMMENT)
         self.tcComment.Clear()
         self.tcComment.SetSelection(0,0)
         self.AddHistory(msg)
@@ -955,40 +993,25 @@ class LyricDanmu(wx.Frame):
         self.CreateLyricFile(name,artists,tags,lyric,has_trans)
 
 
-    def SetRoomid(self,roomid,name):
-        if name != "":
-            self.room_name=name
-            self.btnRoom1.SetLabel(name)
-            self.btnRoom2.SetLabel(name)
+    def EnterRoom(self,roomid,rname):
+        """设置当前直播间"""
+        if not roomid:
+            self.roomid,self.room_name=None,None
+            self.btnRoom1.SetLabel("选择直播间")
+            self.btnRoom2.SetLabel("选择直播间")
+            self.btnDmCfg1.Disable()
+            self.btnDmCfg2.Disable()
+            if self.auto_sending: self.OnStopBtn(None)
+            return
+        self.room_name=rname
+        self.btnRoom1.SetLabel(rname)
+        self.btnRoom2.SetLabel(rname)
         if roomid==self.roomid: return
         if self.auto_sending: self.OnStopBtn(None)
         self.roomid=roomid
         self.playerChaser.roomId=roomid
         self.GetRoomShields(roomid)
         self.pool.submit(self.ThreadOfGetDanmuConfig)
-    
-    def SetRoomids(self,roomid,name):
-        if roomid in self.roomids:
-            if len(self.roomids)==1:
-                showInfoDialog("请至少选择一个直播间","提示")
-                return
-            self.roomids.remove(roomid)
-            if roomid==self.roomid:
-                self.roomid=self.roomids[0]
-                self.playerChaser.roomId=roomid
-                self.GetRoomShields(roomid)
-        else:
-            self.roomids.append(roomid)
-        if name != "":
-            if name in self.room_names:
-                self.room_names.remove(name)
-            else:
-                self.room_names.append(name)
-            multinames = [i[0] for i in self.room_names]
-            self.btnRoom1.SetLabel('|'.join(multinames))
-            self.btnRoom2.SetLabel('|'.join(multinames))
-        if self.auto_sending: self.OnStopBtn(None)
-        # self.pool.submit(self.ThreadOfGetDanmuConfig)
 
     def GetLiveInfo(self,roomid):
         try:
@@ -1003,14 +1026,17 @@ class LyricDanmu(wx.Frame):
             print("Error GetLiveInfo:",type(e),e)
             return str(roomid),""
 
-    def GetCurrentDanmuConfig(self):
+    def GetCurrentDanmuConfig(self,roomid=None):
+        """获取用户在当前直播间内所使用的弹幕配置（颜色、位置、最大长度）"""
         try:
-            data=self.blApi.get_user_info(self.roomid,self.cur_acc)
+            roomid=self.roomid if roomid is None else roomid
+            data=self.blApi.get_user_info(roomid,self.cur_acc)
             if not self.LoginCheck(data):    return False
             if data["code"]==19002001:
                 return showInfoDialog("房间不存在", "获取弹幕配置出错")
             config=data["data"]["property"]["danmu"]
             self.max_len=config["length"]
+            self.sp_max_len=min(30,self.max_len)
             self.cur_color=config["color"]
             self.cur_mode=config["mode"]
         except requests.exceptions.ConnectionError:
@@ -1125,6 +1151,23 @@ class LyricDanmu(wx.Frame):
             danmu=self.danmu_queue.pop(0)
             self.CallRecord(danmu[1],danmu[0],danmu[2],"Z")
     
+    def SpreadDanmu(self,roomid,speaker,content):
+        """转发同传弹幕"""
+        if self.sp_max_len is None:
+            if not self.GetCurrentDanmuConfig(roomid):
+                self.sp_max_len=20
+        for cfg in self.sp_configs:
+            to_room,from_rooms,spreading=cfg[0][0],cfg[0][1:],cfg[1]
+            if to_room is None or roomid not in from_rooms or not spreading: continue
+            pre="\u0592"+(speaker if speaker!="" else self.sp_rooms[roomid][1])+"【"
+            msg=pre+content
+            suf="】" if msg.count("【")>msg.count("】") else ""
+            self.AddDanmuToQueue(to_room,msg,pre,suf,DM_SPREAD,self.sp_max_len)
+    
+    def StartListening(self,roomid):
+        """建立与直播间之间的Websocket连接"""
+        self.pool_ws.submit(self.ws_dict[roomid].Start)
+        
     def RunRoomPlayerChaser(self,roomid,loop):
         asyncio.set_event_loop(loop)
         self.playerChaser.roomId=roomid
@@ -1152,28 +1195,36 @@ class LyricDanmu(wx.Frame):
         if self.shield_changed:
             message = self.room_anti_shield.deal(message)
             message = self.anti_shield.deal(message)
-        self.SendSplitDanmu(message,pre,suf,1)
+        self.AddDanmuToQueue(self.roomid,message,pre,suf,DM_LYRIC)
         self.AddHistory(msg)
 
-    def SendSplitDanmu(self, msg, pre, suf, src, seq=0):
-        if seq==0:
+    def AddDanmuToQueue(self, roomid, msg, pre, suf, src, seq=None, max_len=None):
+        """
+        将弹幕添加到弹幕发送队列，对于过长的弹幕会进行切割
+        :param roomid: 直播间号
+        :param msg: 弹幕内容(含前缀)
+        :param pre: 弹幕前缀
+        :param suf: 弹幕后缀
+        :param src: 弹幕来源(详见constant.py)
+        :param seq: 弹幕序列号(默认递增,仅在弹幕切割或重发时才会产生相同序列号的弹幕)
+        :param max_len: 弹幕长度限制(默认为当前账号在当前直播间的弹幕长度限制)
+        """
+        if seq is None:
             seq=self.danmu_seq
             self.danmu_seq+=1
-        if len(msg) > self.max_len:
+        if max_len is None:
+            max_len=self.max_len
+        if len(msg) > max_len:
             for k, v in COMPRESS_RULES.items():
                 msg = re.sub(k, v, msg)
-        if len(msg) <= self.max_len:
-            if len(msg+suf) <= self.max_len:
+        if len(msg) <= max_len:
+            if len(msg+suf) <= max_len:
                 msg+=suf
-            if self.multiroom:
-                for rid in self.roomids:
-                    self.danmu_queue.append([rid,msg,src,seq])
-            else:
-                self.danmu_queue.append([self.roomid,msg,src,seq])
-            UIChange(self.btnClearQueue,label="清空 [%d]"%len(self.danmu_queue))#
+            self.danmu_queue.append([roomid,msg,src,seq])
+            self.UpdateDanmuQueueLen()
             return
         spaceIdx = []
-        cutIdx = self.max_len
+        cutIdx = max_len
         for i in range(len(msg)):
             if msg[i] in " 　/":
                 spaceIdx.append(i)
@@ -1184,17 +1235,13 @@ class LyricDanmu(wx.Frame):
                 spaceIdx.append(i + 1)
         if len(spaceIdx) > 0:
             for idx in spaceIdx:
-                if idx <= self.max_len: cutIdx = idx
-        if cutIdx<self.max_len*0.5 and 1+len(msg[cutIdx:])+len(pre)>self.max_len:
-             cutIdx = self.max_len
-        if self.multiroom:
-            for rid in self.roomids:
-                self.danmu_queue.append([rid,msg[:cutIdx],src,seq])
-        else:
-            self.danmu_queue.append([self.roomid,msg[:cutIdx],src,seq])
-        UIChange(self.btnClearQueue,label="清空 [%d]"%len(self.danmu_queue))#
+                if idx <= max_len: cutIdx = idx
+        if cutIdx<max_len*0.5 and 1+len(msg[cutIdx:])+len(pre)>max_len:
+            cutIdx = max_len
+        self.danmu_queue.append([roomid,msg[:cutIdx],src,seq])
+        self.UpdateDanmuQueueLen()
         if msg[cutIdx:] in [")","）","」","】","\"","”"]:  return
-        self.SendSplitDanmu(pre + "…" + msg[cutIdx:],pre,suf,src,seq)
+        self.AddDanmuToQueue(roomid,pre + "…" + msg[cutIdx:],pre,suf,src,seq,max_len)
 
 
     def Mark(self,src,song_id,tags):
@@ -1377,7 +1424,8 @@ class LyricDanmu(wx.Frame):
         acc_name=self.account_names[acc_no]
         if acc_no==self.cur_acc:    return
         self.cur_acc=acc_no
-        self.SetTitle("LyricDanmu %s - %s"%(LD_VERSION,acc_name))
+        self.SetTitle("LyricDanmu %s - %s"%(self.LD_VERSION,acc_name))
+        self.sp_max_len=None
         if self.roomid is not None:
             self.pool.submit(self.ThreadOfGetDanmuConfig)
 
@@ -1581,6 +1629,9 @@ class LyricDanmu(wx.Frame):
             self.SaveConfig()
         if not os.path.exists("rooms.txt"):
             with open("rooms.txt", "w", encoding="utf-8") as f:     f.write("")
+        if not os.path.exists("rooms_spread.txt"):
+            op="copy" if self.platform=="win" else "cp"
+            os.system(op+" rooms.txt rooms_spread.txt")
         if not os.path.exists("marks_wy.txt"):
             with open("marks_wy.txt", "w", encoding="utf-8") as f:  f.write("")
         if not os.path.exists("marks_qq.txt"):
@@ -1672,32 +1723,38 @@ class LyricDanmu(wx.Frame):
                         self.f_resend = v.lower()=="true"
                     elif k == "屏蔽句重发标识":
                         self.f_resend_mark = v.lower()=="true"
-                    elif k == "启用房间多选":
-                        self.enable_multiroom = v.lower()=="true"
         except Exception:
             return showInfoDialog("读取config.txt失败", "启动出错")
         try:
             with open("rooms.txt", "r", encoding="utf-8") as f:
                 for line in f:
-                    mo=re.match(r"\s*(\d+)\s+(.+)",line)
+                    mo=re.match(r"\s*(\d+)\s+(\S+)",line)
                     if mo is not None:
-                        self.rooms[mo.group(1)] = mo.group(2).rstrip()
+                        self.rooms[mo.group(1)] = mo.group(2)
         except Exception:
             showInfoDialog("读取rooms.txt失败", "提示")
         try:
+            with open("rooms_spread.txt", "r", encoding="utf-8") as f:
+                for line in f:
+                    mo=re.match(r"\s*(\d+)\s+(\S+)(?:\s+(\S+))?",line)
+                    if mo is not None:
+                        self.sp_rooms[mo.group(1)] = [mo.group(2),mo.group(2)[:2] if mo.group(3) is None else mo.group(3)]
+        except Exception:
+            showInfoDialog("读取rooms_spread.txt失败", "提示")
+        try:
             with open("marks_wy.txt", "r", encoding="utf-8") as f:
                 for line in f:
-                    mo = re.match(r"\s*(\d+)\s+(.+)", line)
+                    mo = re.match(r"\s*(\d+)\s+(S+)", line)
                     if mo is not None:
-                        self.wy_marks[mo.group(1)] = mo.group(2).rstrip()
+                        self.wy_marks[mo.group(1)] = mo.group(2)
         except Exception:
             showInfoDialog("读取marks_wy.txt失败", "提示")
         try:
             with open("marks_qq.txt", "r", encoding="utf-8") as f:
                 for line in f:
-                    mo = re.match(r"\s*(\d+)\s+(.+)", line)
+                    mo = re.match(r"\s*(\d+)\s+(\S+)", line)
                     if mo is not None:
-                        self.qq_marks[mo.group(1)] = mo.group(2).rstrip()
+                        self.qq_marks[mo.group(1)] = mo.group(2)
         except Exception:
             showInfoDialog("读取marks_qq.txt失败", "提示")
         try:
@@ -1907,6 +1964,13 @@ class LyricDanmu(wx.Frame):
             with open("rooms.txt", "w", encoding="utf-8") as f:
                 for roomid in self.rooms:
                     f.write("%-15s%s\n" % (roomid, self.rooms[roomid]))
+        except: pass
+        try:
+            with open("rooms_spread.txt", "w", encoding="utf-8") as f:
+                for roomid in self.sp_rooms:
+                    rname,sname=self.sp_rooms[roomid]
+                    room_info=rname+max(19-getStrWidth(rname),1)*" "+sname
+                    f.write("%-15s%s\n" % (roomid, room_info))
         except: pass
         try:
             with open("marks_wy.txt", "w", encoding="utf-8") as f:
