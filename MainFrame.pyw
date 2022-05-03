@@ -300,25 +300,29 @@ class LyricDanmu(wx.Frame):
         self.btnDmCfg1.Bind(wx.EVT_BUTTON, self.ShowColorFrame)
         self.btnDmCfg2.Bind(wx.EVT_BUTTON, self.ChangeDanmuPosition)
         # 同传前缀与模式设置
-        self.btnColaborCfg = wx.Button(self.p3, -1, "单人模式+" if self.init_two_prefix else "单人模式", pos=(125, 3), size=(87, 32))
+        self.btnColaborCfg = wx.Button(self.p3, -1, "单人模式+" if self.init_two_prefix else "单人模式", pos=(115, 3), size=(87, 32))
         self.btnColaborCfg.Bind(wx.EVT_BUTTON,self.ShowColaborPart)
         # 常规设置按钮
-        self.btnGeneralCfg = wx.Button(self.p3, -1, "应用设置", pos=(235, 3), size=(87, 32))
+        self.btnGeneralCfg = wx.Button(self.p3, -1, "应用设置", pos=(215, 3), size=(87, 32))
         self.btnGeneralCfg.Bind(wx.EVT_BUTTON,self.ShowGeneralConfigFrame)
         # 弹幕记录按钮
-        self.btnShowRecord = wx.Button(self.p3, -1, "弹幕记录", pos=(125, 40), size=(87, 32))
+        self.btnShowRecord = wx.Button(self.p3, -1, "弹幕记录", pos=(115, 40), size=(87, 32))
         self.btnShowRecord.Bind(wx.EVT_BUTTON,self.ShowRecordFrame)
         # 屏蔽词管理按钮
-        self.btnShieldCfg=wx.Button(self.p3,-1,"屏蔽词管理",pos=(235, 40), size=(87, 32))
+        self.btnShieldCfg=wx.Button(self.p3,-1,"屏蔽词管理",pos=(215, 40), size=(87, 32))
         self.btnShieldCfg.Bind(wx.EVT_BUTTON,self.ShowShieldConfigFrame)
+        # 同传弹幕转发配置按钮
+        self.btnSpreadCfg = wx.Button(self.p3, -1, "转发", pos=(315, 3), size=(57,32))
+        self.btnSpreadCfg.Bind(wx.EVT_BUTTON,self.ShowDanmuSpreadFrame)
         # 歌词面板展开按钮
-        self.btnExtLrc = wx.Button(self.p3, -1, "收起歌词" if self.init_show_lyric else "歌词面板", pos=(345, 3), size=(87, 32))
+        self.btnExtLrc = wx.Button(self.p3, -1, "歌词", pos=(375, 3), size=(57, 32))
         self.btnExtLrc.Bind(wx.EVT_BUTTON, self.ToggleLyricUI)
+        self.btnExtLrc.SetForegroundColour("blue" if self.init_show_lyric else "black")
         # 追帧按钮
-        self.btnChaser = wx.Button(self.p3, -1, "追帧", pos=(345,40), size=(42,32))
+        self.btnChaser = wx.Button(self.p3, -1, "追帧", pos=(315,40), size=(57,32))
         self.btnChaser.Bind(wx.EVT_BUTTON, self.ShowPlayer)
         # 置顶按钮
-        self.btnTop = wx.Button(self.p3, -1, "置顶", pos=(390, 40), size=(42, 32))
+        self.btnTop = wx.Button(self.p3, -1, "置顶", pos=(375, 40), size=(57, 32))
         self.btnTop.Bind(wx.EVT_BUTTON, self.TogglePinUI)
         """ P4 多人联动面板 """
         wx.StaticText(self.p4, -1, "1", pos=(15, 10))
@@ -432,9 +436,15 @@ class LyricDanmu(wx.Frame):
         if not self.live_chasing:
             if self.roomid is None:
                 return showInfoDialog("未指定直播间", "提示")
-            self.pool.submit(self.RunRoomPlayerChaser,self.roomid,self.loop)
-            self.live_chasing=True
-            self.btnChaser.SetForegroundColour("MEDIUM BLUE")
+            dlg = wx.MessageDialog(None, "是否启用直播流追帧服务？", "提示", wx.YES_NO|wx.NO_DEFAULT)
+            if dlg.ShowModal()==wx.ID_YES:
+                self.pool.submit(self.RunRoomPlayerChaser,self.roomid,self.loop)
+                self.live_chasing=True
+                self.btnChaser.SetForegroundColour("MEDIUM BLUE")
+                dlg.Destroy()
+            else:
+                dlg.Destroy()
+                return
         if self.platform=="win" and not wx.html2.WebView.IsBackendAvailable(wx.html2.WebViewBackendEdge):
             webbrowser.open("http://127.0.0.1:8080/player.html")
             return
@@ -496,7 +506,7 @@ class LyricDanmu(wx.Frame):
 
     def ToggleLyricUI(self, event):
         self.show_lyric = not self.show_lyric
-        self.btnExtLrc.SetLabel("收起歌词" if self.show_lyric else "歌词面板")
+        self.btnExtLrc.SetForegroundColour("blue" if self.show_lyric else "black")
         if self.show_lyric: self.tcSearch.SetFocus()
         else: self.tcComment.SetFocus()
         self.ResizeUI()
@@ -588,7 +598,7 @@ class LyricDanmu(wx.Frame):
                 task = [self.pool.submit(self.SendDanmu, danmu[0], danmu[1], danmu[2], danmu[3])]
                 for i in as_completed(task):    pass
                 last_time = time.time()
-                UIChange(self.btnClearQueue,label="清空 [%d]" % len(self.danmu_queue))  #
+                self.UpdateDanmuQueueLen()
             except RuntimeError:    pass
             except Exception as e:
                 return showInfoDialog("弹幕发送线程出错，请重启并将问题反馈给作者\n" + str(e), "发生错误")
@@ -615,10 +625,7 @@ class LyricDanmu(wx.Frame):
     def ThreadOfUpdateGlobalShields(self):
         if os.path.exists("tmp.tmp"):   return
         with open("tmp.tmp","w",encoding="utf-8") as f:  f.write("")
-        try:
-            UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="获取更新中…")
-        except Exception as e:
-            print(type(e),e)
+        UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="获取更新中…")
         try:
             code=""
             data=self.jdApi.get_latest_bili_live_shield_words(timeout=(6,10))
@@ -1018,7 +1025,7 @@ class LyricDanmu(wx.Frame):
             data=self.blApi.get_room_info(roomid)
             live_title=data["data"]["room_info"]["title"].replace(",","，")
             liver_name=data["data"]["anchor_info"]["base_info"]["uname"].replace(",","，")
-            liver_name=re.sub(r"(?i)[_\-]*(official|channel).*","",liver_name)
+            liver_name=re.sub(r"(?i)[_\-]*(official|channel)","",liver_name)
             for k,v in FILENAME_TRANSFORM_RULES.items():
                 liver_name=liver_name.replace(k,v)
             return liver_name,live_title
@@ -1084,6 +1091,8 @@ class LyricDanmu(wx.Frame):
         try:
             data=self.blApi.send_danmu(roomid,msg,self.cur_acc)
             if not self.LoginCheck(data): #用户未登入（cookies无效）
+                if self.danmuSpreadFrame.StopAll():
+                    showInfoDialog("已自动暂停弹幕转发","提示")
                 return self.CallRecord(msg,roomid,src,"7")
             errmsg,code=data["msg"],data["code"]
             if code==10030: #弹幕发送频率过高
@@ -1418,7 +1427,7 @@ class LyricDanmu(wx.Frame):
         self.account_names[acc_no]=acc_name
         self.cookies[acc_no]=self.blApi.update_cookie(cookie,acc_no)
         if acc_no==self.cur_acc:
-            self.SetTitle("LyricDanmu %s - %s"%(LD_VERSION,acc_name))
+            self.SetTitle("LyricDanmu %s - %s"%(self.LD_VERSION,acc_name))
     
     def SwitchAccount(self,acc_no):
         acc_name=self.account_names[acc_no]
