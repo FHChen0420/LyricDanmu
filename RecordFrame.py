@@ -1,5 +1,5 @@
-import wx,os,webbrowser,subprocess
-from util import setFont,wxCopy,getTime,showInfoDialog
+import wx,os,webbrowser,time
+from util import openFile, setFont,wxCopy,getTime,showInfoDialog
 
 class RecordFrame(wx.Frame):
     def __init__(self,parent):
@@ -30,9 +30,10 @@ class RecordFrame(wx.Frame):
         menu2.Append(wx.ID_FILE1,"本月屏蔽日志")
         menu2.Append(wx.ID_FILE2,"上月屏蔽日志")
         menu2.AppendSeparator()
-        menu2.Append(wx.ID_FILE3,"打开日志文件目录")
+        menu2.Append(wx.ID_FILE3,"当前房间近期弹幕日志")
+        menu2.Append(wx.ID_FILE4,"日志文件目录")
         menu2.AppendSeparator()
-        menu2.Append(wx.ID_NETWORK,"打开屏蔽词收集文档")
+        menu2.Append(wx.ID_NETWORK,"屏蔽词在线收集文档")
         self.SetMenuBar(menuBar)
         self.Bind(wx.EVT_MENU, self.MenuHandler)
 
@@ -50,33 +51,45 @@ class RecordFrame(wx.Frame):
         elif eventId==wx.ID_TOP:
             self.ToggleWindowStyle(wx.STAY_ON_TOP)
         elif eventId==wx.ID_FILE1:
-            try:
-                path=os.getcwd()+"/logs/shielded/SHIELDED_%s.log"%getTime(fmt="%y-%m")
-                if self.Parent.platform=="win": os.startfile(path)
-                else: subprocess.call(["open",path])
-            except FileNotFoundError:   showInfoDialog("日志文件不存在","打开日志失败")
-            except Exception as e:  showInfoDialog("%s: %s"%(type(e),e),"打开日志失败")
+            path=os.getcwd()+"/logs/shielded/SHIELDED_%s.log"%getTime(fmt="%y-%m")
+            try:    openFile(path)
+            except FileNotFoundError:   return showInfoDialog("本月暂未产生屏蔽记录","提示")
+            except Exception as e:  return showInfoDialog("%s: %s"%(type(e),e),"打开日志失败")
+            return True
         elif eventId==wx.ID_FILE2:
-            try:
-                ym=getTime(fmt="%y%m")
-                y,m=int(ym[:-2]),int(ym[-2:])-1
-                if m==0:    y,m=y-1,12
-                path=os.getcwd()+"/logs/shielded/SHIELDED_%02d-%02d.log"%(y,m)
-                if self.Parent.platform=="win": os.startfile(path)
-                else: subprocess.call(["open",path])
-            except FileNotFoundError:   showInfoDialog("日志文件不存在","打开日志失败")
-            except Exception as e:  showInfoDialog("%s: %s"%(type(e),e),"打开日志失败")
+            ym=getTime(fmt="%y%m")
+            y,m=int(ym[:2]),int(ym[2:])-1
+            if m==0:    y,m=y-1,12
+            path=os.getcwd()+"/logs/shielded/SHIELDED_%02d-%02d.log"%(y,m)
+            try:    openFile(path)
+            except FileNotFoundError:   return showInfoDialog("上月未产生屏蔽记录","提示")
+            except Exception as e:  return showInfoDialog("%s: %s"%(type(e),e),"打开日志失败")
+            return True
         elif eventId==wx.ID_FILE3:
-            try:
-                path=os.getcwd()+"/logs"
-                if self.Parent.platform=="win": os.startfile(path)
-                else: subprocess.call(["open",path])
-            except FileNotFoundError:   showInfoDialog("日志目录不存在","打开日志目录失败")
-            except Exception as e:  showInfoDialog("%s: %s"%(type(e),e),"打开日志目录失败")
+            roomid=self.Parent.roomid
+            if not roomid:
+                return showInfoDialog("未选择直播间","提示")
+            if roomid not in self.Parent.danmu_log_dir.keys():
+                return showInfoDialog("近期未在当前直播间发送过弹幕","提示")
+            cur_time=int(time.time())
+            dir_name=self.Parent.danmu_log_dir[roomid]
+            for i in range(7):
+                date=getTime(cur_time-86400*i,fmt="%y-%m-%d")
+                path=os.getcwd()+"/logs/danmu/%s/%s.log"%(dir_name,date)
+                try:    openFile(path)
+                except FileNotFoundError: continue
+                except Exception as e:  return showInfoDialog("%s: %s"%(type(e),e),"打开日志失败")
+                return True
+            return showInfoDialog("近期未在当前直播间发送过弹幕","提示")
+        elif eventId==wx.ID_FILE4:
+            path=os.getcwd()+"/logs"
+            try:    openFile(path)
+            except FileNotFoundError:   return showInfoDialog("日志目录不存在","打开日志目录失败")
+            except Exception as e:  return showInfoDialog("%s: %s"%(type(e),e),"打开日志目录失败")
+            return True
         elif eventId==wx.ID_NETWORK:
             webbrowser.open("https://docs.qq.com/sheet/DV2Nqb1NLd2hDeUt6")
 
-    
     def AppendText(self,content,color="black"):
         if self.rich:
             self.style.SetTextColour(color)
