@@ -885,7 +885,6 @@ class LyricDanmu(wx.Frame):
             self.last_song_name=self.cur_song_name
             self.LogSongName("%8s\t%s"%(self.roomid,self.cur_song_name))
 
-    
 
     def OnClose(self, event):
         self.running = False
@@ -1184,7 +1183,7 @@ class LyricDanmu(wx.Frame):
     
     def CancelFollowingDanmu(self,seq):
         """从弹幕队列中移除组号为seq的一组弹幕"""
-        while len(self.danmu_queue)>0 and self.danmu_queue[0][3]==seq:
+        while len(self.danmu_queue)>0 and self.danmu_queue[0][3]==seq and "…" in self.danmu_queue[0][1]:
             danmu=self.danmu_queue.pop(0)
             self.CallRecord(danmu[1],danmu[0],danmu[2],"Z")
     
