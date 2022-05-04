@@ -36,6 +36,10 @@ class RecordFrame(wx.Frame):
         menu2.Append(wx.ID_NETWORK,"屏蔽词在线收集文档")
         self.SetMenuBar(menuBar)
         self.Bind(wx.EVT_MENU, self.MenuHandler)
+        if parent.init_show_record:
+            pos_x,pos_y=parent.Position[0]+parent.Size[0]+30,parent.Position[1]+30
+            self.SetPosition((pos_x,pos_y))
+            self.Show()
 
     def OnClose(self,event):
         self.Show(False)

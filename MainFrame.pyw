@@ -175,10 +175,6 @@ class LyricDanmu(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.OnClose)
         self.Bind(wx.EVT_MOVE, self.OnMove)
         self.Bind(wx.EVT_CHILD_FOCUS,self.OnFocus)
-        if self.init_show_record:
-            pos_x,pos_y=self.Position[0]+self.Size[0]+30,self.Position[1]+30
-            self.recordFrame.SetPosition((pos_x,pos_y))
-            self.recordFrame.Show()
         self.p0 = wx.Panel(self, -1, size=(450, 50), pos=(0, 0))
         self.p1 = wx.Panel(self, -1, size=(450, 360), pos=(0, 0))
         self.p2 = wx.Panel(self, -1, size=(450, 360), pos=(0, 0))
