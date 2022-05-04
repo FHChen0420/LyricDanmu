@@ -160,12 +160,14 @@ class LyricDanmu(wx.Frame):
         self.tl_stat_min_word_num=200
         self.show_stat_on_close=False
         self.anti_shield = BiliLiveAntiShield({},[])
+        self.anti_shield_ex = BiliLiveAntiShield({},[])
         self.room_anti_shield = BiliLiveAntiShield({},[])
         self.init_two_prefix=False
         self.enable_rich_record=False
         self.record_fontsize=9 if self.platform=="win" else 13
         self.f_resend = True
         self.f_resend_mark = False
+        self.f_resend_deal = True
 
     def ShowFrame(self, parent):
         """布局并显示各类窗体控件"""
@@ -638,9 +640,10 @@ class LyricDanmu(wx.Frame):
         try:
             if code=="":    return
             # 写入内存
-            scope = {"words":[],"rules":{}}
+            scope = {"words":[],"rules":{},"ex_words":[],"ex_rules":{}}
             exec(code,scope)
             self.anti_shield=BiliLiveAntiShield(scope["rules"],scope["words"])
+            self.anti_shield_ex=BiliLiveAntiShield(scope["ex_rules"],scope["ex_words"])
             # 写入文件
             with open("shields_global.dat", "wb") as f:
                 f.write(bytes(code,encoding="utf-8"))
@@ -651,7 +654,7 @@ class LyricDanmu(wx.Frame):
             UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="云端数据有误")
         finally:
             try:    os.remove("tmp.tmp")
-            except: pass
+            except BaseException: pass
 
     def ThreadOfShowMsgDlg(self,content,title):
         """（子线程）显示消息弹窗"""
@@ -885,7 +888,6 @@ class LyricDanmu(wx.Frame):
             self.last_song_name=self.cur_song_name
             self.LogSongName("%8s\t%s"%(self.roomid,self.cur_song_name))
 
-    
 
     def OnClose(self, event):
         self.running = False
@@ -1147,8 +1149,11 @@ class LyricDanmu(wx.Frame):
                 if self.f_resend and try_times>0:
                     if self.f_resend_mark:
                         self.CallRecord("",roomid,src,"1+",False)
-                    wx.MilliSleep(self.send_interval_ms+50)
-                    return self.SendDanmu(roomid,originMsg,src,seq,try_times-2)
+                    newMsg=self.anti_shield_ex.deal(originMsg) if self.f_resend_deal else originMsg
+                    if newMsg!=originMsg:
+                        self.LogShielded(msg)
+                    wx.MilliSleep(self.send_interval_ms+30)
+                    return self.SendDanmu(roomid,newMsg,src,seq,try_times-2)
                 self.LogShielded(msg)
                 self.CallRecord(msg,roomid,src,"1")
                 self.CancelFollowingDanmu(seq)
@@ -1184,7 +1189,7 @@ class LyricDanmu(wx.Frame):
     
     def CancelFollowingDanmu(self,seq):
         """从弹幕队列中移除组号为seq的一组弹幕"""
-        while len(self.danmu_queue)>0 and self.danmu_queue[0][3]==seq:
+        while len(self.danmu_queue)>0 and self.danmu_queue[0][3]==seq and "…" in self.danmu_queue[0][1]:
             danmu=self.danmu_queue.pop(0)
             self.CallRecord(danmu[1],danmu[0],danmu[2],"Z")
     
@@ -1763,6 +1768,8 @@ class LyricDanmu(wx.Frame):
                         self.f_resend = v.lower()=="true"
                     elif k == "屏蔽句重发标识":
                         self.f_resend_mark = v.lower()=="true"
+                    elif k == "进一步处理屏蔽句":
+                        self.f_resend_deal = v.lower()=="true"
         except Exception:
             return showInfoDialog("读取config.txt失败", "启动出错")
         try:
@@ -1817,10 +1824,11 @@ class LyricDanmu(wx.Frame):
         except Exception:
             showInfoDialog("读取shields.txt失败", "提示")
         try:
-            scope= {"modified_time":0,"words":[],"rules":{}}
+            scope= {"modified_time":0,"words":[],"rules":{},"ex_words":[],"ex_rules":{}}
             with open("shields_global.dat","r",encoding="utf-8") as f:
                 exec(f.read(),scope)
             self.anti_shield=BiliLiveAntiShield(scope["rules"],scope["words"])
+            self.anti_shield_ex=BiliLiveAntiShield(scope["ex_rules"],scope["ex_words"])
             self.need_update_global_shields=time.time()-scope["modified_time"]>GLOBAL_SHIELDS_UPDATE_INTERVAL_S
         except Exception:
             showInfoDialog("读取shields_global.dat失败", "提示")
@@ -1981,6 +1989,7 @@ class LyricDanmu(wx.Frame):
                 f.write("最低发送间隔=%d\n" % self.send_interval_ms)
                 f.write("请求超时阈值=%d\n" % int(1000*self.timeout_s))
                 f.write("屏蔽句自动重发=%s\n" % self.f_resend)
+                f.write("进一步处理屏蔽句=%s\n" % self.f_resend_deal)
                 f.write(titleLine("同传统计配置"))
                 f.write("同传中断阈值=%d\n" % self.tl_stat_break_min)
                 f.write("最低字数要求=%d\n" % self.tl_stat_min_word_num)

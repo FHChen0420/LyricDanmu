@@ -78,19 +78,22 @@ class GeneralConfigFrame(wx.Frame):
         self.ckbInitRcd.SetValue(parent.init_show_record)
         self.ckbTwoPre = wx.CheckBox(panel,-1,"双前缀", pos=(226,270))
         self.ckbTwoPre.SetValue(parent.init_two_prefix)
-        wx.StaticText(panel,-1,"其它设置",pos=(15,295))
-        self.ckbNoProxy = wx.CheckBox(panel,-1,"禁用系统代理", pos=(80,295))
+        wx.StaticText(panel,-1,"屏蔽句重发",pos=(10,295))
+        self.ckbFResend = wx.CheckBox(panel,-1,"启用", pos=(80,295))
+        self.ckbFResend.SetValue(parent.f_resend)
+        self.ckbFRDeal = wx.CheckBox(panel,-1,"进一步处理", pos=(130,295))
+        self.ckbFRDeal.SetValue(parent.f_resend_deal)
+        self.ckbFRMark = wx.CheckBox(panel,-1,"显示标识", pos=(215,295))
+        self.ckbFRMark.SetValue(parent.f_resend_mark)
+        wx.StaticText(panel,-1,"其它设置",pos=(15,320))
+        self.ckbNoProxy = wx.CheckBox(panel,-1,"禁用系统代理", pos=(80,320))
         self.ckbNoProxy.SetValue(parent.no_proxy)
-        self.ckbRichRcd = wx.CheckBox(panel,-1,"彩色弹幕记录", pos=(180,295))
+        self.ckbRichRcd = wx.CheckBox(panel,-1,"彩色弹幕记录", pos=(180,320))
         self.ckbRichRcd.SetValue(parent.enable_rich_record)
-        wx.StaticText(panel,-1,"⍰",pos=(275,295)).SetToolTip(
+        wx.StaticText(panel,-1,"⍰",pos=(275,320)).SetToolTip(
             "默认双前缀模式：默认使用\"\"和\"【\"作为评论可选前缀，推荐同传勾选\n"+
             "禁用系统代理：若科学上网时本工具报网络异常错误，则请尝试勾选\n"+
             "彩色弹幕记录：使用富文本格式显示各类弹幕记录(重启后生效)")
-        self.ckbFResend = wx.CheckBox(panel,-1,"屏蔽句自动重发", pos=(80,320))
-        self.ckbFResend.SetValue(parent.f_resend)
-        self.ckbFRMark = wx.CheckBox(panel,-1,"重发标识", pos=(200,320))
-        self.ckbFRMark.SetValue(parent.f_resend_mark)
         # 账号切换
         self.btnAccounts=[]
         wx.StaticText(panel,-1,"账号切换",pos=(15,344))
@@ -201,6 +204,7 @@ class GeneralConfigFrame(wx.Frame):
         parent.no_proxy=self.ckbNoProxy.GetValue()
         parent.enable_rich_record=self.ckbRichRcd.GetValue()
         parent.f_resend=self.ckbFResend.GetValue()
+        parent.f_resend_deal=self.ckbFRDeal.GetValue()
         parent.f_resend_mark=self.ckbFRMark.GetValue()
         os.environ["NO_PROXY"]="*" if parent.no_proxy else ""
         parent.RefreshLyric()
