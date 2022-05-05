@@ -597,7 +597,7 @@ class LyricDanmu(wx.Frame):
                 interval_s = 0.001 * self.send_interval_ms + last_time - time.time()
                 if interval_s > 0:
                     wx.MilliSleep(int(1000 * interval_s))
-                task = [self.pool.submit(self.SendDanmu, danmu[0], danmu[1], danmu[2], danmu[3], danmu[4])]
+                task = [self.pool.submit(self.SendDanmu, *danmu)]
                 for _ in as_completed(task):    pass
                 last_time = time.time()
                 self.UpdateDanmuQueueLen()
@@ -1289,16 +1289,6 @@ class LyricDanmu(wx.Frame):
         if cut_idx<=max_len*0.5 and 1+len(msg)-cut_idx+pre_len>max_len: # 如果切得太短，导致剩余部分太长，就多切一点
             cut_idx = max_len
         return cut_idx
-
-    def Mark(self,src,song_id,tags):
-        """收藏歌词"""
-        if src=="wy": self.wy_marks[song_id]=tags
-        else: self.qq_marks[song_id]=tags
-
-    def Unmark(self,src,song_id):
-        """取消收藏歌词"""
-        if src=="wy": self.wy_marks.pop(song_id,None)
-        else: self.qq_marks.pop(song_id,None)
 
     def GetRoomShields(self,roomid=None):
         """获取当前房间的自定义屏蔽处理规则"""
