@@ -112,6 +112,20 @@ def splitTnL(lrc_line:str) -> list:
         fs.append([secfmt, secnum, content, secOrigin])
     return fs
 
+def charType(char,group=False) -> str:
+    """获取字符类型(不考虑全角英文/数字)
+    分组时的返回值： AN:字母/数字 CJ:汉字/日文假名 O:其他
+    不分组时的返回值： A:字母 C:汉字 J:日文假名 N:数字 O:其他"""
+    result="O"
+    if "\u4E00"<=char<="\u9FA5": result="C"
+    elif "\u0041"<=char<="\u005A" or "\u0061"<=char<="\u007A": result="A"
+    elif "\u0030"<=char<="\u0039": result="N"
+    elif "\u3040"<=char<="\u309F" or "\u30A0"<=char<="\u30FF": result="J"
+    if group:
+        if result in "AN": return "AN"
+        if result in "CJ": return "CJ"
+    return result
+
 def showInfoDialog(content="",title=""):
     """弹出确认对话框并返回False"""
     dlg = wx.MessageDialog(None, content, title, wx.OK)

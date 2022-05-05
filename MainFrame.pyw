@@ -103,7 +103,6 @@ class LyricDanmu(wx.Frame):
         self.colabor_mode = int(self.init_two_prefix)
         self.pre_idx = 0
         self.transparent = 255
-        self.danmu_seq=1
         self.sp_succ_count=0
         self.sp_fail_count=0
         # 追帧服务
@@ -598,8 +597,8 @@ class LyricDanmu(wx.Frame):
                 interval_s = 0.001 * self.send_interval_ms + last_time - time.time()
                 if interval_s > 0:
                     wx.MilliSleep(int(1000 * interval_s))
-                task = [self.pool.submit(self.SendDanmu, danmu[0], danmu[1], danmu[2], danmu[3])]
-                for i in as_completed(task):    pass
+                task = [self.pool.submit(self.SendDanmu, danmu[0], danmu[1], danmu[2], danmu[3], danmu[4])]
+                for _ in as_completed(task):    pass
                 last_time = time.time()
                 self.UpdateDanmuQueueLen()
             except RuntimeError:    pass
@@ -992,7 +991,7 @@ class LyricDanmu(wx.Frame):
         comment = self.room_anti_shield.deal(comment)
         comment = self.anti_shield.deal(comment)
         suf = "】" if comment.count("【") > comment.count("】") else ""
-        self.AddDanmuToQueue(self.roomid,comment,pre,suf,DM_COMMENT)
+        self.AddDanmuToQueue(self.roomid,comment,DM_COMMENT,pre,suf)
         self.tcComment.Clear()
         self.tcComment.SetSelection(0,0)
         self.AddHistory(msg)
@@ -1092,21 +1091,26 @@ class LyricDanmu(wx.Frame):
             return showInfoDialog("解析错误，请重试", "获取弹幕配置出错")
         return True
 
-    def SendDanmu(self, roomid, msg, src, seq, try_times=2):
+    def SendDanmu(self, roomid, msg, src, pre, max_len, try_times=2):
         """
         发送弹幕
         :param roomid: 直播间号
-        :param msg: 弹幕内容
+        :param msg: 弹幕内容（含前后缀）
         :param src: 弹幕来源(详见constant.py)
-        :param seq: 弹幕序列号
+        :param msg: 弹幕前缀
+        :param max_len: 弹幕长度限制
         :param try_times: 大于0表示弹幕发送失败后允许重发
         """
-        originMsg=msg
+        if re.match("^%s[)）」”\"\'\]]】?^"%pre,msg):  return
+        origin_msg,cut_idx=msg,None
+        if len(msg)>max_len:
+            cut_idx=self.GetCutIndex(msg,max_len,len(pre))
+            msg=msg[:cut_idx]
         if msg in self.recent_danmu.keys():
             num=self.recent_danmu[msg]
             self.recent_danmu[msg]=num+1
             mark=eval("'\\U000e002%d'"%(num%10))
-            if len(msg) < self.max_len:
+            if len(msg) < max_len:
                 msg = msg[:-1]+mark+"】" if msg[-1]=="】" else msg+mark
             else:
                 msg = msg[:-1]+mark
@@ -1124,7 +1128,7 @@ class LyricDanmu(wx.Frame):
                 if try_times>0:
                     self.CallRecord("",roomid,src,"3+",False)
                     wx.MilliSleep(self.send_interval_ms)
-                    return self.SendDanmu(roomid,originMsg,src,seq,try_times-2)
+                    return self.SendDanmu(roomid,origin_msg,src,pre,max_len,try_times-2)
                 return self.CallRecord(msg,roomid,src,"3")
             if code==10031: #短期内发送了两条内容完全相同的弹幕
                 return self.CallRecord(msg,roomid,src,"4")
@@ -1132,7 +1136,7 @@ class LyricDanmu(wx.Frame):
                 if try_times>0:
                     self.CallRecord("",roomid,src,"5+",False)
                     wx.MilliSleep(self.send_interval_ms)
-                    return self.SendDanmu(roomid,originMsg,src,seq,try_times-2)
+                    return self.SendDanmu(roomid,origin_msg,src,pre,max_len,try_times-2)
                 return self.CallRecord(msg,roomid,src,"5")
             # if code==-500: ... #弹幕长度超出限制
             # if code==-102: ... #本次直播需要购票观看
@@ -1144,29 +1148,31 @@ class LyricDanmu(wx.Frame):
                 return self.CallRecord("(%s)"%errmsg,roomid,src,"-",False)
             if errmsg=="": #弹幕成功发送
                 self.CallRecord(msg,roomid,src,"0")
+                if cut_idx is not None:
+                    remain_msg=pre+"…"+origin_msg[cut_idx:]
+                    wx.MilliSleep(self.send_interval_ms)
+                    self.SendDanmu(roomid,remain_msg,src,pre,max_len)
                 return True
             if errmsg in ["f","fire"]: #弹幕含有B站通用屏蔽词或特殊房间屏蔽词，或因B站偶尔抽风导致无法发送
                 if self.f_resend and try_times>0:
                     if self.f_resend_mark:
                         self.CallRecord("",roomid,src,"1+",False)
-                    newMsg=self.anti_shield_ex.deal(originMsg) if self.f_resend_deal else originMsg
-                    if newMsg!=originMsg:
+                    new_msg=self.anti_shield_ex.deal(origin_msg) if self.f_resend_deal else origin_msg
+                    if new_msg!=origin_msg:
                         self.LogShielded(msg)
                     wx.MilliSleep(self.send_interval_ms+30)
-                    return self.SendDanmu(roomid,newMsg,src,seq,try_times-2)
+                    return self.SendDanmu(roomid,new_msg,src,pre,max_len,try_times-2)
                 self.LogShielded(msg)
                 self.CallRecord(msg,roomid,src,"1")
-                self.CancelFollowingDanmu(seq)
                 return False
             if errmsg=="k": #弹幕含有当前直播间所设置的屏蔽词
                 self.CallRecord(msg,roomid,src,"2")
-                self.CancelFollowingDanmu(seq)
                 return False
             if errmsg=="max limit exceeded": #当前房间弹幕流量过大，导致弹幕发送失败
                 if try_times>0 or (src==DM_SPREAD and try_times==0):
                     self.CallRecord("",roomid,src,"6+",False)
                     wx.MilliSleep(self.send_interval_ms+200)
-                    return self.SendDanmu(roomid,originMsg,src,seq,try_times-1)
+                    return self.SendDanmu(roomid,origin_msg,src,pre,max_len,try_times-1)
                 return self.CallRecord(msg,roomid,src,"6")
             self.LogDebug(f"[SendDanmu] ERRMSG={errmsg}")
             self.CallRecord(msg,roomid,src,"x")
@@ -1176,7 +1182,7 @@ class LyricDanmu(wx.Frame):
             if "Connection aborted." in str(e):
                 if try_times>0:
                     wx.MilliSleep(200)
-                    return self.SendDanmu(roomid,originMsg,src,seq,try_times-1)
+                    return self.SendDanmu(roomid,origin_msg,src,pre,max_len,try_times-1)
                 return self.CallRecord(msg,roomid,src,"C")
             self.pool.submit(self.ThreadOfShowMsgDlg,"网络连接出错","弹幕发送失败")
             return self.CallRecord(msg,roomid,src,"A")
@@ -1186,12 +1192,6 @@ class LyricDanmu(wx.Frame):
             self.LogDebug(f"[SendDanmu] TYPE={type(e)} DESC={e}")
             self.CallRecord(msg,roomid,src,"X")
             return self.CallRecord("(具体信息：%s)"%str(e),roomid,src,"-",False)
-    
-    def CancelFollowingDanmu(self,seq):
-        """从弹幕队列中移除组号为seq的一组弹幕"""
-        while len(self.danmu_queue)>0 and self.danmu_queue[0][3]==seq and "…" in self.danmu_queue[0][1]:
-            danmu=self.danmu_queue.pop(0)
-            self.CallRecord(danmu[1],danmu[0],danmu[2],"Z")
     
     def SpreadDanmu(self,roomid,speaker,content):
         """转发同传弹幕"""
@@ -1204,7 +1204,7 @@ class LyricDanmu(wx.Frame):
             pre="\u0592"+(speaker if speaker!="" else self.sp_rooms[roomid][1])+"【"
             msg=self.anti_shield.deal(pre+content)
             suf="】" if msg.count("【")>msg.count("】") else ""
-            self.AddDanmuToQueue(to_room,msg,pre,suf,DM_SPREAD,self.sp_max_len)
+            self.AddDanmuToQueue(to_room,msg,DM_SPREAD,pre,suf,self.sp_max_len)
     
     def StartListening(self,roomid):
         """建立与直播间之间的Websocket连接"""
@@ -1240,54 +1240,55 @@ class LyricDanmu(wx.Frame):
         if self.shield_changed:
             message = self.room_anti_shield.deal(message)
             message = self.anti_shield.deal(message)
-        self.AddDanmuToQueue(self.roomid,message,pre,suf,DM_LYRIC)
+        self.AddDanmuToQueue(self.roomid,message,DM_LYRIC,pre,suf)
         self.AddHistory(msg)
 
-    def AddDanmuToQueue(self, roomid, msg, pre, suf, src, seq=None, max_len=None):
+    def AddDanmuToQueue(self, roomid, msg, src, pre="", suf="", max_len=None):
         """
-        将弹幕添加到弹幕发送队列，对于过长的弹幕会进行切割
+        将弹幕添加到弹幕发送队列
         :param roomid: 直播间号
         :param msg: 弹幕内容(含前缀)
+        :param src: 弹幕来源(详见constant.py)
         :param pre: 弹幕前缀
         :param suf: 弹幕后缀
-        :param src: 弹幕来源(详见constant.py)
-        :param seq: 弹幕序列号(默认递增,仅在弹幕切割或重发时才会产生相同序列号的弹幕)
         :param max_len: 弹幕长度限制(默认为当前账号在当前直播间的弹幕长度限制)
         """
-        if seq is None:
-            seq=self.danmu_seq
-            self.danmu_seq+=1
         if max_len is None:
             max_len=self.max_len
         if len(msg) > max_len:
             for k, v in COMPRESS_RULES.items():
                 msg = re.sub(k, v, msg)
-        if len(msg) <= max_len:
-            if len(msg+suf) <= max_len:
-                msg+=suf
-            self.danmu_queue.append([roomid,msg,src,seq])
-            self.UpdateDanmuQueueLen()
-            return
-        spaceIdx = []
-        cutIdx = max_len
-        for i in range(len(msg)):
-            if msg[i] in " 　/":
-                spaceIdx.append(i)
-                spaceIdx.append(i + 1)
-            elif msg[i] in "（“(「":
-                spaceIdx.append(i)
-            elif msg[i] in "，。：！？）”…,:!?)」~":
-                spaceIdx.append(i + 1)
-        if len(spaceIdx) > 0:
-            for idx in spaceIdx:
-                if idx <= max_len: cutIdx = idx
-        if cutIdx<max_len*0.5 and 1+len(msg[cutIdx:])+len(pre)>max_len:
-            cutIdx = max_len
-        self.danmu_queue.append([roomid,msg[:cutIdx],src,seq])
+        if not (len(msg)<=max_len and len(msg+suf)>max_len):
+            msg+=suf
+        self.danmu_queue.append([roomid,msg,src,pre,max_len])
         self.UpdateDanmuQueueLen()
-        if msg[cutIdx:] in [")","）","」","】","\"","”"]:  return
-        self.AddDanmuToQueue(roomid,pre + "…" + msg[cutIdx:],pre,suf,src,seq,max_len)
-
+        return
+        
+    def GetCutIndex(self,msg,max_len,pre_len=0):
+        """获取合适的弹幕切割位置"""
+        space_idx=[]
+        cut_idx = max_len
+        for i in range(len(msg)-1,pre_len,-1):
+            if msg[i] in " 　/…": # 两侧均可切割
+                space_idx.append(i+1)
+                space_idx.append(i)
+            elif msg[i] in "（“(「": # 左侧可切割
+                space_idx.append(i)
+            elif msg[i] in "，。：！？）”,:!?)」~": # 右侧可切割
+                space_idx.append(i+1)
+            elif "O"!=charType(msg[i],True)!=charType(msg[i+1],True)!="O": # 汉字或假名 与 字母或数字 的边界可切割
+                space_idx.append(i+1)
+            else: continue
+            if len(space_idx)>0 and space_idx[0]<max_len:
+                cut_idx=space_idx[0]
+                break
+            if len(space_idx)>1:
+                if space_idx[1]>=max_len-3: # 预留一些空间便于重发时添加字符
+                    cut_idx=space_idx[1]
+                break
+        if cut_idx<=max_len*0.5 and 1+len(msg)-cut_idx+pre_len>max_len: # 如果切得太短，导致剩余部分太长，就多切一点
+            cut_idx = max_len
+        return cut_idx
 
     def Mark(self,src,song_id,tags):
         """收藏歌词"""

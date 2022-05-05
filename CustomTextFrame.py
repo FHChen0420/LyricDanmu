@@ -101,7 +101,7 @@ class CustomTextFrame(wx.Frame):
         if self.shield_changed:
             message = parent.room_anti_shield.deal(message)
             message = parent.anti_shield.deal(message)
-        parent.AddDanmuToQueue(parent.roomid,message,pre,suf,DM_CUSTOM_TEXT)
+        parent.AddDanmuToQueue(parent.roomid,message,DM_CUSTOM_TEXT,pre,suf)
         parent.AddHistory(msg)
     
     def ShowEditPanel(self,event):
