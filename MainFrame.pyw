@@ -1148,7 +1148,7 @@ class LyricDanmu(wx.Frame):
                 return self.CallRecord("(%s)"%errmsg,roomid,src,"-",False)
             if errmsg=="": #弹幕成功发送
                 self.CallRecord(msg,roomid,src,"0")
-                if cut_idx is not None:
+                if cut_idx is not None: # 过长弹幕切割后的前半段成功发送后，继续发送后半段
                     remain_msg=pre+"…"+origin_msg[cut_idx:]
                     wx.MilliSleep(self.send_interval_ms)
                     self.SendDanmu(roomid,remain_msg,src,pre,max_len)
@@ -1192,7 +1192,7 @@ class LyricDanmu(wx.Frame):
             self.LogDebug(f"[SendDanmu] TYPE={type(e)} DESC={e}")
             self.CallRecord(msg,roomid,src,"X")
             return self.CallRecord("(具体信息：%s)"%str(e),roomid,src,"-",False)
-    
+
     def SpreadDanmu(self,roomid,speaker,content):
         """转发同传弹幕"""
         if self.sp_max_len is None:
