@@ -166,7 +166,7 @@ class LyricDanmu(wx.Frame):
         self.enable_rich_record=False
         self.record_fontsize=9 if self.platform=="win" else 13
         self.f_resend = True
-        self.f_resend_mark = False
+        self.f_resend_mark = True
         self.f_resend_deal = True
 
     def ShowFrame(self, parent):
