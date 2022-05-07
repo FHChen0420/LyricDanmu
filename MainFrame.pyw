@@ -1102,7 +1102,7 @@ class LyricDanmu(wx.Frame):
         :param max_len: 弹幕长度限制
         :param try_times: 大于0表示弹幕发送失败后允许重发
         """
-        if re.match("^%s[)）」”\"\'\]]】?^"%pre,msg):  return
+        if re.match("^%s…?[\s)）」』】’”\"\'\]][\s\U000E0020-\U000E0029】]*$"%pre,msg):  return True
         origin_msg,cut_idx=msg,None
         if len(msg)>max_len:
             cut_idx=self.GetCutIndex(msg,max_len,len(pre))
@@ -1274,13 +1274,13 @@ class LyricDanmu(wx.Frame):
         """获取合适的弹幕切割位置"""
         space_idx=[]
         cut_idx = max_len
-        for i in range(len(msg)-1,pre_len,-1):
+        for i in range(max_len-1,pre_len,-1):
             if msg[i] in " 　/…": # 两侧均可切割
                 space_idx.append(i+1)
                 space_idx.append(i)
-            elif msg[i] in "（“(「": # 左侧可切割
+            elif msg[i] in "（“‘(「『": # 左侧可切割
                 space_idx.append(i)
-            elif msg[i] in "，。：！？）”,:!?)」~": # 右侧可切割
+            elif msg[i] in "，。：！？）”’,:!?)」』~": # 右侧可切割
                 space_idx.append(i+1)
             elif "O"!=charType(msg[i],True)!=charType(msg[i+1],True)!="O": # 汉字或假名 与 字母或数字 的边界可切割
                 space_idx.append(i+1)
