@@ -111,6 +111,8 @@ class LyricDanmu(wx.Frame):
         # 弹幕监听与转发
         self.ws_dict={}
         self.sp_configs=[[[None],False] for _ in range(3)]
+        self.sp_max_len = None
+        self.sp_room_anti_shields = {}
         # 线程池与事件循环
         self.pool = ThreadPoolExecutor(max_workers=8)
         self.pool_ws = ThreadPoolExecutor(max_workers=12,thread_name_prefix="DanmuSpreader")
@@ -134,7 +136,6 @@ class LyricDanmu(wx.Frame):
         self.translate_records = {}
         self.translate_stat = []
         self.max_len = 30
-        self.sp_max_len = None
         self.prefix = "【♪"
         self.suffix = "】"
         self.prefixs = ["【♪","【♬","【❀","【❄️"]
@@ -559,7 +560,7 @@ class LyricDanmu(wx.Frame):
         else:
             self.roomid = None
             self.room_name = None
-            self.GetRoomShields()
+            self.room_anti_shield=self.GetRoomShields()
             UIChange(self.btnRoom1,label="选择直播间")
             UIChange(self.btnRoom2,label="选择直播间")
         UIChange(self.btnRoom1,enabled=True)
@@ -1031,7 +1032,7 @@ class LyricDanmu(wx.Frame):
         if self.auto_sending: self.OnStopBtn(None)
         self.roomid=roomid
         self.playerChaser.roomId=roomid
-        self.GetRoomShields(roomid)
+        self.room_anti_shield=self.GetRoomShields(roomid)
         self.pool.submit(self.ThreadOfGetDanmuConfig)
 
     def GetLiveInfo(self,roomid):
@@ -1202,7 +1203,12 @@ class LyricDanmu(wx.Frame):
             to_room,from_rooms,spreading=cfg[0][0],cfg[0][1:],cfg[1]
             if to_room is None or roomid not in from_rooms or not spreading: continue
             pre="\u0592"+(speaker if speaker!="" else self.sp_rooms[roomid][1])+"【"
-            msg=self.anti_shield.deal(pre+content)
+            try:
+                msg=self.sp_room_anti_shields[to_room].deal(pre+content)
+            except:
+                self.sp_room_anti_shields[to_room]=self.GetRoomShields(to_room)
+                msg=self.sp_room_anti_shields[to_room].deal(pre+content)
+            msg=self.anti_shield.deal(msg)
             suf="】" if msg.count("【")>msg.count("】") else ""
             self.AddDanmuToQueue(to_room,msg,DM_SPREAD,pre,suf,self.sp_max_len)
     
@@ -1291,9 +1297,10 @@ class LyricDanmu(wx.Frame):
         return cut_idx
 
     def GetRoomShields(self,roomid=None):
-        """获取当前房间的自定义屏蔽处理规则"""
+        """获取指定房间的自定义屏蔽处理规则"""
         rules,words={},[]
-        if roomid is None:  roomid="none"
+        if roomid is None:
+            return BiliLiveAntiShield({},[])
         for k,v in self.custom_shields.items():
             if v[2]!="" and roomid not in re.split("[,;，；]",v[2]): continue
             if v[0]==1:
@@ -1304,7 +1311,7 @@ class LyricDanmu(wx.Frame):
             else:
                 pat="(?i)"+transformToRegex(k," ?")
                 rules[pat]=lambda x:x.group()[0]+"\U000e0020"+x.group()[1:]
-        self.room_anti_shield=BiliLiveAntiShield(rules,words)
+        return BiliLiveAntiShield(rules,words)
 
     def AddHistory(self,message):
         """将弹幕内容保存到近期弹幕历史记录中"""

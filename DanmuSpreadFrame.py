@@ -90,7 +90,7 @@ class DanmuSpreadFrame(wx.Frame):
             self.configs[slot][0][index]=roomid
         else:
             self.configs[slot][0].append(roomid)
-        if self.configs[slot][1]:
+        if index>0 and self.configs[slot][1]:
             if roomid not in self.websockets.keys():
                 self.websockets[roomid]=BiliLiveWebSocket(roomid)
             self.websockets[roomid].ChangeRefCount(+1)
