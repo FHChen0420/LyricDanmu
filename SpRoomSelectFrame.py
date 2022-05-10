@@ -46,15 +46,14 @@ class SpRoomSelectFrame(wx.Frame):
         i=0
         for roomid,v in self.sp_rooms.items():
             row,col=i//4,i%4
-            sname=v[1].replace(";","；")
-            btn=wx.Button(panel, -1, v[0], pos=(10+col*95, 5+row*30), size=(90, 27), name=f"{roomid};{sname}")
+            btn=wx.Button(panel, -1, v[0], pos=(10+col*95, 5+row*30), size=(90, 27), name=f"{roomid};{v[1]}")
             if roomid==self.select:
                 btn.SetForegroundColour("blue")
                 btn.SetFocus()
                 self.sbox.SetLabel("编辑房间")
                 self.tcRoomId.SetLabel(roomid)
                 self.tcRoomName.SetLabel(v[0])
-                self.tcShortName.SetLabel(sname)
+                self.tcShortName.SetLabel(v[1])
             if roomid in self.disable_rids:
                 btn.SetForegroundColour("grey")
             else:
@@ -118,6 +117,8 @@ class SpRoomSelectFrame(wx.Frame):
             return showInfoDialog("未填写房间名称", "提示")
         if sname=="":
             return showInfoDialog("未填写主播简称", "提示")
+        if any([char in sname for char in ";；,，"]):
+            return showInfoDialog("主播简称不能包含分号或逗号", "提示")
         if len(sname)>5:
             return showInfoDialog("主播简称过长", "提示")
         if roomid not in self.sp_rooms.keys() and self.select!="":
