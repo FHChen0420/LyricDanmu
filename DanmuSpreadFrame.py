@@ -1,6 +1,7 @@
 import wx,re
 from SpRoomSelectFrame import SpRoomSelectFrame
 from BiliLiveWebSocket import BiliLiveWebSocket
+from util import UIChange
 
 class DanmuSpreadFrame(wx.Frame):
     def __init__(self, parent):
@@ -10,14 +11,16 @@ class DanmuSpreadFrame(wx.Frame):
         self.show_pin=parent.show_pin
         self.roomSelector=None
         self.spreadFilter=None
+        self.succ_count=0
+        self.fail_count=0
         self.ShowFrame(parent)
     
     def ShowFrame(self,parent):
-        wx.Frame.__init__(self, parent, title="弹幕转发配置",size=(420,300),
+        wx.Frame.__init__(self, parent, title="弹幕转发配置",size=(420,315),
             style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.MINIMIZE_BOX))
         if parent.show_pin:
             self.ToggleWindowStyle(wx.STAY_ON_TOP)
-        self.panel=panel=wx.Panel(self,-1,pos=(0,0),size=(420,300))
+        self.panel=panel=wx.Panel(self,-1,pos=(0,0),size=(420,315))
         self.btnRoomLst=[[],[],[]]
         self.lblFilterLst=[[],[],[]]
         self.btnCtrlLst=[]
@@ -60,27 +63,30 @@ class DanmuSpreadFrame(wx.Frame):
                 hbox3.Add(lblFilter,0,wx.LEFT|wx.TOP|wx.RESERVE_SPACE_EVEN_IF_HIDDEN,5)
                 sbs.Add(hbox3,0,wx.RESERVE_SPACE_EVEN_IF_HIDDEN)
             # 开始/暂停按钮
-            btnCtrl=wx.Button(panel,-1,size=(90,40))
+            btnCtrl=wx.Button(panel,-1,size=(90,35))
             btnCtrl.SetName(str(i))
             btnCtrl.Bind(wx.EVT_BUTTON,self.ToggleSpreading)
             self.btnCtrlLst.append(btnCtrl)
             sbs.Add(btnCtrl,0,wx.UP|wx.RESERVE_SPACE_EVEN_IF_HIDDEN,10)
             hbox.Add(sbs,0,wx.ALL|wx.EXPAND,2)
-        # 文本提示/转发成功数/转发失败数/待发送弹幕数
+        # 操作提示/转发成功数/转发失败数/待发送弹幕数/最近转发弹幕
         hbox2=wx.BoxSizer()
-        lblHint=wx.StaticText(panel,-1,"左键选择房间，右键清除房间")
+        lblHint=wx.StaticText(panel,-1,"左键选择房间，右键清除房间，⚙限定前缀")
         lblHint.SetForegroundColour("grey")
-        hbox2.Add(lblHint,0,wx.LEFT,10)
+        hbox2.Add(lblHint,0,wx.LEFT,5)
         self.lblSucc=wx.StaticText(panel,-1,"已转:0")
         self.lblSucc.SetForegroundColour("grey")
-        hbox2.Add(self.lblSucc,0,wx.LEFT,60)
+        hbox2.Add(self.lblSucc,0,wx.LEFT,13)
         self.lblFail=wx.StaticText(panel,-1,"失败:0")
         self.lblFail.SetForegroundColour("grey")
-        hbox2.Add(self.lblFail,0,wx.LEFT,20)
+        hbox2.Add(self.lblFail,0,wx.LEFT,13)
         self.lblWait=wx.StaticText(panel,-1,"待发:0")
         self.lblWait.SetForegroundColour("grey")
-        hbox2.Add(self.lblWait,0,wx.LEFT,20)
+        hbox2.Add(self.lblWait,0,wx.LEFT,13)
+        self.lblRecent=wx.StaticText(panel,-1,"")
+        self.lblRecent.SetForegroundColour("dark grey")
         self.sizer.Add(hbox2)
+        self.sizer.Add(self.lblRecent)
         self.sizer.Add(hbox)
         panel.SetSizer(self.sizer)
         self.Bind(wx.EVT_CLOSE,self.OnClose)
@@ -213,17 +219,26 @@ class DanmuSpreadFrame(wx.Frame):
                 idx+=1
             for i in range(idx,4):
                 self.lblFilterLst[slot][i].Show(False)
-        self.Parent.btnSpreadCfg.SetForegroundColour("blue" if any([cfg[1] for cfg in self.configs]) else "black")
+        self.Parent.btnSpreadCfg.SetForegroundColour("medium blue" if any([cfg[1] for cfg in self.configs]) else "black")
         if self.spreadFilter:
             self.spreadFilter.Destroy()
         # 目前按钮显示有bug，可能无法立即显示boxsizer中被取消隐藏的按钮，
         # 需要对boxsizer进行resize才能立即生效（在线等一个更好的方法）
         # self.sizer.Layout() # 有下面两行的话这行可以不加
         self.panel.SetSize(0,0)
-        self.panel.SetSize(420,300)
+        self.panel.SetSize(420,315)
         
     def OnClose(self,event):
         self.Show(False)
+    
+    def RecordSucc(self,label):
+        self.succ_count+=1
+        UIChange(self.lblSucc,label=f"已转:{self.succ_count}")
+        UIChange(self.lblRecent,label=label)
+    
+    def RecordFail(self):
+        self.fail_count+=1
+        UIChange(self.lblFail,label=f"失败:{self.fail_count}")
 
 class SpreadFilterFrame(wx.Frame):
     def __init__(self, parent, slot, index):
@@ -239,13 +254,14 @@ class SpreadFilterFrame(wx.Frame):
         panel=wx.Panel(self,-1,pos=(0,0),size=(300,90))
         wx.StaticText(panel,-1,"使用分号或逗号进行分隔，留空则不进行限制",pos=(10,5))
         speakers=self.configs[slot][2][index]
-        self.tcFilter=wx.TextCtrl(panel,-1,speakers,pos=(10,28),size=(210,27))
+        self.tcFilter=wx.TextCtrl(panel,-1,speakers,pos=(10,28),size=(210,27),style=wx.TE_PROCESS_ENTER)
+        self.tcFilter.Bind(wx.EVT_TEXT_ENTER,self.Save)
         self.btnSave=wx.Button(panel,-1,"保 存",pos=(225,28),size=(65,27))
         self.btnSave.Bind(wx.EVT_BUTTON,self.Save)
         self.Show()
     
     def Save(self,event):
-        speakers=self.tcFilter.GetValue().strip().replace(" ","")
+        speakers=self.tcFilter.GetValue().replace(" ","").replace("\u0592","")
         speakers=re.sub("[;；,，]+",";",speakers)
         speakers="" if speakers==";" else speakers
         self.configs[self.slot][2][self.index]=speakers

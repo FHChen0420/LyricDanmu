@@ -103,8 +103,6 @@ class LyricDanmu(wx.Frame):
         self.colabor_mode = int(self.init_two_prefix)
         self.pre_idx = 0
         self.transparent = 255
-        self.sp_succ_count=0
-        self.sp_fail_count=0
         # 追帧服务
         self.live_chasing = False
         self.playerChaser=RoomPlayerChaser("1")
@@ -837,14 +835,6 @@ class LyricDanmu(wx.Frame):
         color="grey" if n<3 else "gold" if n<6 else "red"
         UIChange(self.btnClearQueue,label=f"清空 [{n}]")
         UIChange(self.danmuSpreadFrame.lblWait,label=f"待发:{n}",color=color)
-    
-    def UpdateSpreadSuccCount(self):
-        self.sp_succ_count+=1
-        UIChange(self.danmuSpreadFrame.lblSucc,label=f"已转:{self.sp_succ_count}")
-    
-    def UpdateSpreadFailCount(self):
-        self.sp_fail_count+=1
-        UIChange(self.danmuSpreadFrame.lblFail,label=f"失败:{self.sp_fail_count}")
 
     def PrevLyric(self, event):
         if self.init_lock:  return
@@ -1333,8 +1323,11 @@ class LyricDanmu(wx.Frame):
         """在弹幕发送记录界面以及转发界面更新记录，并输出到弹幕日志文件"""
         cur_time=int(time.time())
         if src==DM_SPREAD:
-            if res=="0":    self.UpdateSpreadSuccCount()
-            elif log:       self.UpdateSpreadFailCount()
+            if res=="0":
+                label=f" {getTime(cur_time)}｜→{self.sp_rooms[roomid][0]}｜{msg[1:]}"
+                self.danmuSpreadFrame.RecordSucc(label)
+            elif log:
+                self.danmuSpreadFrame.RecordFail()
         else:
             (pre,color)=(getTime(cur_time)+"｜","black") if res=="0" else ERR_INFO[res]
             self.recordFrame.AppendText("\n"+pre+msg,color)
