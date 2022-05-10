@@ -1,10 +1,39 @@
 ## LyricDanmu
 B站直播歌词/同传弹幕发送工具
 
-开发环境：Python3.8.10 / Python3.9.1
+### 主要功能介绍
+##### 歌词相关功能：
++ 基于网易云、QQ音乐API查找歌曲并获取歌词
++ 点击按钮发送歌词弹幕或调整歌词进度，支持自动发送有时轴的歌词，支持同时传双语歌词
++ 支持手动导入歌词至本地库，支持将在线搜索到的歌词添加至收藏库
++ 可编辑本地库与收藏库中的歌词标签，便于搜索
++ 支持快捷发送预设文本
+##### 同传相关功能：
++ 可自行设定同传弹幕前缀，发送弹幕时会自动添加
++ 联动模式中，可使用Tab键或Alt+数字键快速切换同传弹幕前缀
++ 可实时显示当前待发送弹幕的文本长度，支持一次性输入2.5倍于当前房间弹幕长度上限的字数
++ 支持对同传数据进行统计，自动导出统计结果csv文件
++ 支持监听直播间的同传弹幕并转发到其他直播间
++ 支持直播追帧，更早地抓取直播流（暂不支持HEVC直播流）
+##### 通用功能：
++ 使用弹幕队列控制弹幕发送间隔，避免弹幕发送频率过快而被拦截
++ 自动将超过长度限制的弹幕进行切割，并分别发送
++ 对b站弹幕屏蔽字进行处理，支持简单的自定义屏蔽处理规则
++ 对部分发送失败的弹幕会自动尝试重发
++ 对发送过的弹幕与歌名进行日志记录
++ 支持设置在当前直播间的弹幕颜色与位置
+
+### Pyinstaller打包指令
++ Windows(64位)：
+
+    ```pyinstaller -F -w MainFrame.pyw -n LyricDanmu --add-data "./chaser/static/*;./chaser/static" --add-data "./dll/x64/*;."```
+
++ MacOS(M1芯片可能会存在打包失败的情况，请尝试使用Rosetta运行)：
+
+    ```pyinstaller -F -w MainFrame.pyw -n LyricDanmu --add-data "./chaser/static/*:./chaser/static"```
 
 ### 代码列表
-
+开发环境：Python3.8.10 / Python3.9.1
 + MainFrame.pyw 主界面
 + SongSearchFrame.py 歌词搜索结果界面
 + SongMarkFrame.py 歌词收藏设置界面
@@ -24,16 +53,6 @@ B站直播歌词/同传弹幕发送工具
 + util.py 工具函数
 + constant.py 常量
 + langconv.py & zh_wiki.py 繁体转简体逻辑&数据（Ref: skydark/nstools）
-+ chaser/ B站直播追帧本地服务（By:Sirius   Ref: bilibili/flv.js）
++ chaser/ B站直播追帧本地服务（By:Sirius）
 
 ```注意：本项目的文件命名、变量命名并不规范，请勿模仿```
-
-### Pyinstaller打包指令
-
-+ Windows(64位)：
-
-    ```pyinstaller -F -w MainFrame.pyw -n LyricDanmu --add-data "./chaser/static/*;./chaser/static" --add-data "./dll/x64/*;."```
-
-+ MacOS(M1芯片可能会存在打包失败的情况，请尝试使用Rosetta运行)：
-
-    ```pyinstaller -F -w MainFrame.pyw -n LyricDanmu --add-data "./chaser/static/*:./chaser/static"```
