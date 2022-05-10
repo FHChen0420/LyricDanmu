@@ -150,6 +150,8 @@ class DanmuSpreadFrame(wx.Frame):
                     cfg[2].pop(index-1)
                 if index>0 and cfg[1]:
                     count+=1
+            if cfg[0][0] is None and len(cfg[0])==1:
+                cfg[1]=False
         if roomid in self.websockets.keys():
             self.websockets[roomid].ChangeRefCount(-count)
 
@@ -247,7 +249,7 @@ class SpreadFilterFrame(wx.Frame):
         self.index=index
         pos=parent.GetPosition()
         x,y=pos[0]+50,pos[1]+90
-        wx.Frame.__init__(self, parent, title=" 仅转发以下说话人前缀", pos=(x,y), size=(300, 90),
+        wx.Frame.__init__(self, parent, title=" 仅转发指定的说话人前缀", pos=(x,y), size=(300, 90),
         style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.MINIMIZE_BOX) |wx.FRAME_FLOAT_ON_PARENT)
         if parent.show_pin:
             self.ToggleWindowStyle(wx.STAY_ON_TOP)
