@@ -1,4 +1,4 @@
-import wx
+import wx,re
 from SpRoomSelectFrame import SpRoomSelectFrame
 from BiliLiveWebSocket import BiliLiveWebSocket
 
@@ -9,6 +9,7 @@ class DanmuSpreadFrame(wx.Frame):
         self.websockets=parent.ws_dict
         self.show_pin=parent.show_pin
         self.roomSelector=None
+        self.spreadFilter=None
         self.ShowFrame(parent)
     
     def ShowFrame(self,parent):
@@ -18,6 +19,7 @@ class DanmuSpreadFrame(wx.Frame):
             self.ToggleWindowStyle(wx.STAY_ON_TOP)
         self.panel=panel=wx.Panel(self,-1,pos=(0,0),size=(420,300))
         self.btnRoomLst=[[],[],[]]
+        self.lblFilterLst=[[],[],[]]
         self.btnCtrlLst=[]
         self.boxLst=[]
         self.sizer=wx.BoxSizer(wx.VERTICAL)
@@ -38,7 +40,7 @@ class DanmuSpreadFrame(wx.Frame):
             btnTo.Bind(wx.EVT_RIGHT_DOWN,self.UnSelectRoom)
             self.btnRoomLst[i].append(btnTo)
             sbs.Add(btnTo)
-            # 转发来源房间
+            # 转发来源房间 及 房间前缀过滤标识
             lblFrom=wx.StaticText(panel,-1,"监听下列房间的同传：")
             lblFrom.SetForegroundColour("grey")
             sbs.Add(lblFrom)
@@ -48,7 +50,15 @@ class DanmuSpreadFrame(wx.Frame):
                 btnFrom.Bind(wx.EVT_BUTTON,self.ShowSpRoomSelector)
                 btnFrom.Bind(wx.EVT_RIGHT_DOWN,self.UnSelectRoom)
                 self.btnRoomLst[i].append(btnFrom)
-                sbs.Add(btnFrom,0,wx.RESERVE_SPACE_EVEN_IF_HIDDEN)
+                hbox3=wx.BoxSizer()
+                hbox3.Add(btnFrom,0,wx.RESERVE_SPACE_EVEN_IF_HIDDEN)
+                lblFilter=wx.StaticText(panel,-1,"⚙",size=(25,25))
+                lblFilter.SetName(f"{i};{j-1}")
+                lblFilter.SetForegroundColour("grey")
+                lblFilter.Bind(wx.EVT_LEFT_DOWN,self.ShowspreadFilter)
+                self.lblFilterLst[i].append(lblFilter)
+                hbox3.Add(lblFilter,0,wx.LEFT|wx.TOP|wx.RESERVE_SPACE_EVEN_IF_HIDDEN,5)
+                sbs.Add(hbox3,0,wx.RESERVE_SPACE_EVEN_IF_HIDDEN)
             # 开始/暂停按钮
             btnCtrl=wx.Button(panel,-1,size=(90,40))
             btnCtrl.SetName(str(i))
@@ -82,14 +92,24 @@ class DanmuSpreadFrame(wx.Frame):
         if self.roomSelector:
             self.roomSelector.Destroy()
         self.roomSelector=SpRoomSelectFrame(self,int(slot),int(index))
+
+    def ShowspreadFilter(self,event):
+        lblFilter=event.GetEventObject()
+        slot,index=lblFilter.GetName().split(";")
+        if self.spreadFilter:
+            self.spreadFilter.Destory()
+        self.spreadFilter=SpreadFilterFrame(self,int(slot),int(index))
     
     def SelectRoom(self,slot,index,roomid):
         old_rid=None
         if index<len(self.configs[slot][0]):
             old_rid=self.configs[slot][0][index]
             self.configs[slot][0][index]=roomid
+            if index>0 and old_rid!=roomid:
+                self.configs[slot][2][index-1]=""
         else:
             self.configs[slot][0].append(roomid)
+            self.configs[slot][2].append("")
         if index>0 and self.configs[slot][1]:
             if roomid not in self.websockets.keys():
                 self.websockets[roomid]=BiliLiveWebSocket(roomid)
@@ -115,10 +135,15 @@ class DanmuSpreadFrame(wx.Frame):
         count=0
         for cfg in self.configs:
             for index,rid in enumerate(cfg[0]):
-                if roomid!=rid: continue
-                if index==0: cfg[0][0]=None
-                else: cfg[0].pop(index)
-                if index>0 and cfg[1]: count+=1
+                if roomid!=rid:
+                    continue
+                if index==0:
+                    cfg[0][0]=None
+                else:
+                    cfg[0].pop(index)
+                    cfg[2].pop(index-1)
+                if index>0 and cfg[1]:
+                    count+=1
         if roomid in self.websockets.keys():
             self.websockets[roomid].ChangeRefCount(-count)
 
@@ -133,6 +158,7 @@ class DanmuSpreadFrame(wx.Frame):
             self.configs[slot][0][0]=None
         else:
             roomid=self.configs[slot][0].pop(index)
+            self.configs[slot][2].pop(index-1)
             if self.configs[slot][1]:
                 self.websockets[roomid].ChangeRefCount(-1)
         if self.configs[slot][0][0] is None and len(self.configs[slot][0])==1:
@@ -180,7 +206,16 @@ class DanmuSpreadFrame(wx.Frame):
                 self.btnRoomLst[slot][idx].Show(bool(cfg[0][0]) or idx>1)
             for i in range(idx+1,5):
                 self.btnRoomLst[slot][i].Show(False)
+            idx=0
+            for speaker_filters in cfg[2]:
+                self.lblFilterLst[slot][idx].SetForegroundColour("grey" if speaker_filters=="" else "gold")
+                self.lblFilterLst[slot][idx].Show(True)
+                idx+=1
+            for i in range(idx,4):
+                self.lblFilterLst[slot][i].Show(False)
         self.Parent.btnSpreadCfg.SetForegroundColour("blue" if any([cfg[1] for cfg in self.configs]) else "black")
+        if self.spreadFilter:
+            self.spreadFilter.Destroy()
         # 目前按钮显示有bug，可能无法立即显示boxsizer中被取消隐藏的按钮，
         # 需要对boxsizer进行resize才能立即生效（在线等一个更好的方法）
         # self.sizer.Layout() # 有下面两行的话这行可以不加
@@ -189,3 +224,29 @@ class DanmuSpreadFrame(wx.Frame):
         
     def OnClose(self,event):
         self.Show(False)
+
+class SpreadFilterFrame(wx.Frame):
+    def __init__(self, parent, slot, index):
+        self.configs=parent.configs
+        self.slot=slot
+        self.index=index
+        pos=parent.GetPosition()
+        x,y=pos[0]+50,pos[1]+90
+        wx.Frame.__init__(self, parent, title=" 仅转发以下说话人前缀", pos=(x,y), size=(300, 90),
+        style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.MINIMIZE_BOX) |wx.FRAME_FLOAT_ON_PARENT)
+        if parent.show_pin:
+            self.ToggleWindowStyle(wx.STAY_ON_TOP)
+        panel=wx.Panel(self,-1,pos=(0,0),size=(300,90))
+        wx.StaticText(panel,-1,"使用分号或逗号进行分隔，留空则不进行限制",pos=(10,5))
+        speakers=self.configs[slot][2][index]
+        self.tcFilter=wx.TextCtrl(panel,-1,speakers,pos=(10,28),size=(210,27))
+        self.btnSave=wx.Button(panel,-1,"保 存",pos=(225,28),size=(65,27))
+        self.btnSave.Bind(wx.EVT_BUTTON,self.Save)
+        self.Show()
+    
+    def Save(self,event):
+        speakers=self.tcFilter.GetValue().strip().replace(" ","")
+        speakers=re.sub("[;；,，]+",";",speakers)
+        speakers="" if speakers==";" else speakers
+        self.configs[self.slot][2][self.index]=speakers
+        self.Parent.RefreshUI() #该方法包含销毁本窗体的语句

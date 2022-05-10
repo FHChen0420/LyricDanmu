@@ -110,7 +110,7 @@ class LyricDanmu(wx.Frame):
         self.playerChaser=RoomPlayerChaser("1")
         # 弹幕监听与转发
         self.ws_dict={}
-        self.sp_configs=[[[None],False] for _ in range(3)]
+        self.sp_configs=[[[None],False,[]] for _ in range(3)]
         self.sp_max_len = None
         self.sp_room_anti_shields = {}
         # 线程池与事件循环
@@ -1200,9 +1200,19 @@ class LyricDanmu(wx.Frame):
             if not self.GetCurrentDanmuConfig(roomid):
                 self.sp_max_len=20
         for cfg in self.sp_configs:
-            to_room,from_rooms,spreading=cfg[0][0],cfg[0][1:],cfg[1]
-            if to_room is None or roomid not in from_rooms or not spreading: continue
-            pre="\u0592"+(speaker if speaker!="" else self.sp_rooms[roomid][1])+"【"
+            to_room,from_rooms,spreading,speaker_filters=cfg[0][0],cfg[0][1:],cfg[1],cfg[2]
+            if not spreading or to_room is None or roomid not in from_rooms: continue
+            speaker=self.sp_rooms[roomid][1] if not speaker else speaker
+            # 如果前缀过滤条件不为空，则只转发指定的前缀
+            speaker_be_filtered=False
+            for from_roomid,allowed_speakers in zip(from_rooms,speaker_filters):
+                if roomid!=from_roomid or allowed_speakers=="": continue
+                if speaker not in allowed_speakers.split(";"):
+                    speaker_be_filtered=True
+                    break
+            if speaker_be_filtered: continue
+            # 弹幕开头添加标识符U+0592避免循环转发（本工具不会转发以U+0592开头的同传弹幕）
+            pre="\u0592"+speaker+"【"
             try:
                 msg=self.sp_room_anti_shields[to_room].deal(pre+content)
             except:
