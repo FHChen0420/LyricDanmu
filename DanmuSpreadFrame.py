@@ -154,6 +154,7 @@ class DanmuSpreadFrame(wx.Frame):
                 cfg[1]=False
         if roomid in self.websockets.keys():
             self.websockets[roomid].ChangeRefCount(-count)
+        self.RefreshUI()
 
     def UnSelectRoom(self,event):
         btnRoom=event.GetEventObject()
