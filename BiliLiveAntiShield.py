@@ -15,7 +15,8 @@ class BiliLiveAntiShield:
         self.__multi_fill=tuple([lambda x,i=i: x.group(1)+self.__fill(x.group(2),i) for i in range(10)])
         self.__deal_list:List[Tuple[Pattern,Replace]]=[]
         for pat,rep in rules.items():
-            self.__deal_list.append((re.compile(pat),rep))
+            try:    self.__deal_list.append((re.compile(pat),rep))
+            except: continue
         for word in words:
             self.__generate_rule(word)
 
@@ -53,9 +54,6 @@ class BiliLiveAntiShield:
     def deal(self,string:str) -> str:
         '''对字符串string进行反屏蔽处理'''
         for i in self.__deal_list:
-            try: 
-                string = i[0].sub(i[1],string)
-            except:
-                #print("【Regex Error】 %s"%(i[0].pattern))
-                continue
+            try:    string = i[0].sub(i[1],string)
+            except: continue
         return string
