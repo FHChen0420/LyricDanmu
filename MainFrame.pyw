@@ -1102,7 +1102,7 @@ class LyricDanmu(wx.Frame):
         :param max_len: 弹幕长度限制
         :param try_times: 大于0表示弹幕发送失败后允许重发
         """
-        if re.match("^%s…?[\s)）」』】’”\"\'\]][\s\U000E0020-\U000E0029】]*$"%pre,msg):  return True
+        if re.match("^…?[\s)）」』】’”\"\'\]][\s\U000E0020-\U000E0029】]*$",msg[len(pre):]):  return True
         origin_msg,cut_idx=msg,None
         if len(msg)>max_len:
             cut_idx=self.GetCutIndex(msg,max_len,len(pre))
