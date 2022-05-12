@@ -506,9 +506,9 @@ class LyricDanmu(wx.Frame):
     def ToggleShieldDebugMode(self,event):
         self.shield_debug_mode=not self.shield_debug_mode
         if self.shield_debug_mode:
-            showInfoDialog("屏蔽词调试模式已开启\n在该模式下，"
-            "经弹幕输入框输入的内容不会进行全局屏蔽词处理，"
-            "且禁用屏蔽词重发机制","调试提醒")
+            showInfoDialog("屏蔽词调试模式已开启\n"
+            "在该模式下，经弹幕输入框输入的内容或歌词内容\n"
+            "不会进行全局屏蔽词处理，且禁用屏蔽词重发机制","调试提醒")
         else:
             showInfoDialog("屏蔽词调试模式已关闭","调试提醒")
 
@@ -1273,7 +1273,7 @@ class LyricDanmu(wx.Frame):
         suf = self.cbbLycSuf.GetValue()
         msg = self.llist[self.lid+line-4][2]
         message = pre + msg
-        if self.shield_changed:
+        if self.shield_changed and not self.shield_debug_mode:
             message = self.room_anti_shield.deal(message)
             message = self.anti_shield.deal(message)
         self.AddDanmuToQueue(self.roomid,message,DM_LYRIC,pre,suf)
@@ -1619,8 +1619,9 @@ class LyricDanmu(wx.Frame):
             lyrics = re.sub(k, v, lyrics)
             self.lyric_raw = re.sub(k,v,self.lyric_raw)
             self.lyric_raw_tl = re.sub(k,v,self.lyric_raw_tl)
-        lyrics = self.room_anti_shield.deal(lyrics)
-        lyrics = self.anti_shield.deal(lyrics)
+        if not self.shield_debug_mode:
+            lyrics = self.room_anti_shield.deal(lyrics)
+            lyrics = self.anti_shield.deal(lyrics)
         lyric_list=lyrics.split("\r\n")
         for i in range(len(lyric_list)):
             tmpData[i][2]=lyric_list[i]
