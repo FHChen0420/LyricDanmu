@@ -104,6 +104,7 @@ class LyricDanmu(wx.Frame):
         self.colabor_mode = int(self.init_two_prefix)
         self.pre_idx = 0
         self.transparent = 255
+        self.shield_debug_mode = False
         # 追帧服务
         self.live_chasing = False
         self.playerChaser=RoomPlayerChaser("1")
@@ -351,12 +352,15 @@ class LyricDanmu(wx.Frame):
         self.hkIncTp=wx.NewIdRef()
         self.hkDecTp=wx.NewIdRef()
         self.hkSimple=wx.NewIdRef()
+        self.hkShield=wx.NewIdRef()
         self.RegisterHotKey(self.hkIncTp,wx.MOD_ALT,wx.WXK_UP)
         self.RegisterHotKey(self.hkDecTp,wx.MOD_ALT,wx.WXK_DOWN)
         self.RegisterHotKey(self.hkSimple,wx.MOD_ALT,wx.WXK_RIGHT)
+        self.RegisterHotKey(self.hkShield,wx.MOD_ALT,ord("P"))
         self.Bind(wx.EVT_HOTKEY,self.IncreaseTransparent,self.hkIncTp)
         self.Bind(wx.EVT_HOTKEY,self.DecreaseTransparent,self.hkDecTp)
         self.Bind(wx.EVT_HOTKEY,self.ToggleSimpleMode,self.hkSimple)
+        self.Bind(wx.EVT_HOTKEY,self.ToggleShieldDebugMode,self.hkShield)
         # MAC系统界面调整
         if self.platform=="mac":
             setFont(self,13)
@@ -498,6 +502,15 @@ class LyricDanmu(wx.Frame):
             self.p0.SetBackgroundColour(self.p1.GetBackgroundColour())
             self.ResizeUI()
             self.tcComment.SetFocus()
+    
+    def ToggleShieldDebugMode(self,event):
+        self.shield_debug_mode=not self.shield_debug_mode
+        if self.shield_debug_mode:
+            showInfoDialog("屏蔽词调试模式已开启\n在该模式下，"
+            "经弹幕输入框输入的内容不会进行全局屏蔽词处理，"
+            "且禁用屏蔽词重发机制","调试提醒")
+        else:
+            showInfoDialog("屏蔽词调试模式已关闭","调试提醒")
 
     def TogglePinUI(self, event):
         self.show_pin = not self.show_pin
@@ -981,8 +994,9 @@ class LyricDanmu(wx.Frame):
         comment = pre + msg
         if len(comment) > self.max_len*2.5:
             return showInfoDialog("弹幕内容过长", "弹幕发送失败")
-        comment = self.room_anti_shield.deal(comment)
-        comment = self.anti_shield.deal(comment)
+        if not self.shield_debug_mode:
+            comment = self.room_anti_shield.deal(comment)
+            comment = self.anti_shield.deal(comment)
         suf = "】" if comment.count("【") > comment.count("】") else ""
         self.AddDanmuToQueue(self.roomid,comment,DM_COMMENT,pre,suf)
         self.tcComment.Clear()
@@ -1147,7 +1161,7 @@ class LyricDanmu(wx.Frame):
                     self.SendDanmu(roomid,remain_msg,src,pre,max_len)
                 return True
             if errmsg in ["f","fire"]: #弹幕含有B站通用屏蔽词或特殊房间屏蔽词，或因B站偶尔抽风导致无法发送
-                if self.f_resend and try_times>0:
+                if self.f_resend and try_times>0 and not self.shield_debug_mode: # 注：屏蔽词调试模式下禁用屏蔽句重发
                     if self.f_resend_mark:
                         self.CallRecord("",roomid,src,"1+",False)
                     new_msg=self.anti_shield_ex.deal(origin_msg) if self.f_resend_deal else origin_msg
