@@ -1223,9 +1223,14 @@ class LyricDanmu(wx.Frame):
         self.sp_error_count+=count
         spreading=self.danmuSpreadFrame.IsSpreading() if spreading is None else spreading
         if not spreading:
+            self.btnSpreadCfg.SetLabel("转发")
             self.btnSpreadCfg.SetForegroundColour("black")
+        elif self.sp_error_count>0:
+            self.btnSpreadCfg.SetLabel(f"🌐×{self.sp_error_count}")
+            self.btnSpreadCfg.SetForegroundColour("red")
         else:
-            self.btnSpreadCfg.SetForegroundColour("medium blue" if self.sp_error_count==0 else "red")
+            self.btnSpreadCfg.SetLabel("转发")
+            self.btnSpreadCfg.SetForegroundColour("medium blue") 
         
     def RunRoomPlayerChaser(self,roomid,loop):
         """启用追帧服务"""
