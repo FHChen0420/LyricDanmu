@@ -222,7 +222,7 @@ class DanmuSpreadFrame(wx.Frame):
                 idx+=1
             for i in range(idx,4):
                 self.lblFilterLst[slot][i].Show(False)
-        self.Parent.btnSpreadCfg.SetForegroundColour("medium blue" if any([cfg[1] for cfg in self.configs]) else "black")
+        self.Parent.SetSpreadButtonState(roomid=None,count=0,spreading=self.IsSpreading())
         if self.spreadFilter:
             self.spreadFilter.Destroy()
         # 目前按钮显示有bug，可能无法立即显示boxsizer中被取消隐藏的按钮，
@@ -233,6 +233,9 @@ class DanmuSpreadFrame(wx.Frame):
         
     def OnClose(self,event):
         self.Show(False)
+    
+    def IsSpreading(self):
+        return any([cfg[1] for cfg in self.configs])
     
     def RecordSucc(self,label):
         self.succ_count+=1

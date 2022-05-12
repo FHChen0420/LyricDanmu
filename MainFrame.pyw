@@ -48,6 +48,7 @@ class LyricDanmu(wx.Frame):
         pub.subscribe(self.RefreshLyric,"lyric")
         pub.subscribe(self.SpreadDanmu,"ws_recv")
         pub.subscribe(self.StartListening,"ws_start")
+        pub.subscribe(self.SetSpreadButtonState,"ws_error")
         pub.subscribe(setWxUIAttr,"ui_change")
         # API
         self.blApi = BiliLiveAPI(self.cookies,self.timeout_s)
@@ -111,6 +112,7 @@ class LyricDanmu(wx.Frame):
         self.sp_configs=[[[None],False,[]] for _ in range(3)]
         self.sp_max_len = None
         self.sp_room_anti_shields = {}
+        self.sp_error_count = 0
         # 线程池与事件循环
         self.pool = ThreadPoolExecutor(max_workers=8)
         self.pool_ws = ThreadPoolExecutor(max_workers=12,thread_name_prefix="DanmuSpreader")
@@ -1215,6 +1217,15 @@ class LyricDanmu(wx.Frame):
     def StartListening(self,roomid):
         """建立与直播间之间的Websocket连接"""
         self.pool_ws.submit(self.ws_dict[roomid].Start)
+    
+    def SetSpreadButtonState(self,roomid=None,count=0,spreading=None):
+        """检查Websocket运行情况，并更新主页面追帧按钮颜色进行提醒"""
+        self.sp_error_count+=count
+        spreading=self.danmuSpreadFrame.IsSpreading() if spreading is None else spreading
+        if not spreading:
+            self.btnSpreadCfg.SetForegroundColour("black")
+        else:
+            self.btnSpreadCfg.SetForegroundColour("medium blue" if self.sp_error_count==0 else "red")
         
     def RunRoomPlayerChaser(self,roomid,loop):
         """启用追帧服务"""

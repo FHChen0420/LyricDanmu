@@ -27,11 +27,12 @@ class BiliLiveWebSocket():
         self.__loop=asyncio.new_event_loop()
         self.__listening=False
         self.__closing=False
+        self.__error=False
 
     async def __connect_to_room(self):
         pkg_len=hex(27+len(self.__roomid))[2:]
         roomid="".join(map(lambda x:hex(ord(x))[2:],list(self.__roomid)))
-        error=False
+        self.__error=False
         while self.__listening:
             try:
                 async with websockets.connect(self.__URI) as websocket:
@@ -44,7 +45,7 @@ class BiliLiveWebSocket():
                                 break
                             except BaseException as e:
                                 print(f"[DEBUG] [{getTime()}] 向直播间{self.__roomid}的心跳包发送失败。TYPE={type(e)}")
-                                logDebug(f"[BiliLiveWebSoekct.send_heart_beat] ROOMID={self.__roomid} DESC={e}")
+                                logDebug(f"[BiliLiveWebSocket.send_heart_beat] ROOMID={self.__roomid} DESC={e}")
                                 await asyncio.sleep(5)
                     enter_room_pkg=self.__ENTERROOM_PKG.format(pkgLen=pkg_len, roomid=roomid)
                     await websocket.send(bytes.fromhex(enter_room_pkg))
@@ -53,23 +54,28 @@ class BiliLiveWebSocket():
                         try:
                             res = await asyncio.wait_for(websocket.recv(),timeout=1)
                             self.__analyse_package(res)
-                            if error:
-                                error = False
+                            if self.__error:
+                                self.__error = False
+                                pub.sendMessage("ws_error",roomid=self.__roomid,count=-1)
                                 print(f"[DEBUG] [{getTime()}] 与直播间{self.__roomid}的连接已恢复。")
                         except asyncio.exceptions.TimeoutError: pass
                         except websockets.ConnectionClosed: break
                     hb_task.cancel()
             except (gaierror,ConnectionRefusedError,asyncio.exceptions.TimeoutError):
-                if not error:
-                    error = True
+                if not self.__error:
+                    self.__error = True
+                    pub.sendMessage("ws_error",roomid=self.__roomid,count=1)
                     print(f"[DEBUG] [{getTime()}] 与直播间{self.__roomid}的连接已中断。")
                 await asyncio.sleep(2)
             except RuntimeError:
                 pass
             except BaseException as e:
-                print(f"[ERROR] [{getTime()}] 与直播间{self.__roomid}的连接发生未知异常。\n TYPE={type(e)}")
-                logDebug(f"[BiliLiveWebSoekct.__connect_to_room] ROOMID={self.__roomid} DESC={e}")
-                await asyncio.sleep(2)
+                if not self.__error:
+                    self.__error = True
+                    pub.sendMessage("ws_error",roomid=self.__roomid,count=1)
+                print(f"[DEBUG] [{getTime()}] 与直播间{self.__roomid}的连接发生未知异常。\n TYPE={type(e)}")
+                logDebug(f"[BiliLiveWebSocket.__connect_to_room] ROOMID={self.__roomid} DESC={e}")
+                await asyncio.sleep(5)
 
     def __analyse_package(self,raw_data):
         packetLen = int(raw_data[:4].hex(),16)
@@ -105,7 +111,7 @@ class BiliLiveWebSocket():
                 return
             except BaseException as e:
                 print(f"[DEBUG] [{getTime()}] 数据包解析失败。\n DATA={jd}\n TYPE={type(e)}")
-                logDebug(f"[BiliLiveWebSoekct.__analyse_package] DATA={jd} DESC={e}")
+                logDebug(f"[BiliLiveWebSocket.__analyse_package] DATA={jd} DESC={e}")
     
     def ChangeRefCount(self,n):
         origin_ref_count=self.__ref_count
@@ -121,6 +127,8 @@ class BiliLiveWebSocket():
             print(f"[ INFO] [{getTime()}] 已连接到直播间{self.__roomid}。")
             self.__loop.run_until_complete(self.__connect_to_room())
             self.__closing=False
+            if self.__error:
+                pub.sendMessage("ws_error",roomid=self.__roomid,count=-1)
             print(f"[ INFO] [{getTime()}] 已主动断开与直播间{self.__roomid}的连接。")
 
     def Stop(self):
