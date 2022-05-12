@@ -133,6 +133,14 @@ def showInfoDialog(content="",title=""):
     dlg.Destroy()
     return False
 
+def logDebug(msg:str):
+    """输出调试日志"""
+    try:
+        path="logs/debug/DEBUG_%s.log"%getTime(fmt="%y-%m")
+        with open(path,"a",encoding="utf-8") as f:
+            f.write("%s｜%s\n"%(getTime(fmt="%m-%d %H:%M:%S"),msg))
+    except: pass
+
 def transformToRegex(string:str,join:str="") -> str:
     """将普通字符串string转换为正则字符串，各字符之间以join来连接"""
     string = re.sub(r"\s+", "", string)

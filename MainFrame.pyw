@@ -1036,7 +1036,7 @@ class LyricDanmu(wx.Frame):
                 liver_name=liver_name.replace(k,v)
             return liver_name,live_title
         except Exception as e:
-            self.LogDebug(f"[GetLiveInfo] {e}")
+            logDebug(f"[GetLiveInfo] {e}")
             return str(roomid),""
 
     def GetCurrentDanmuConfig(self,roomid=None):
@@ -1134,7 +1134,7 @@ class LyricDanmu(wx.Frame):
             # if code==-403: ... #当前直播间开启了全体禁言
             # if code==1003: ... #在当前直播间被禁言
             if code!=0: #其他发送失败情况
-                self.LogDebug(f"[SendDanmu] DATA={str(data)}")
+                logDebug(f"[SendDanmu] DATA={str(data)}")
                 self.CallRecord(msg,roomid,src,"x")
                 return self.CallRecord("(%s)"%errmsg,roomid,src,"-",False)
             if errmsg=="": #弹幕成功发送
@@ -1165,11 +1165,11 @@ class LyricDanmu(wx.Frame):
                     wx.MilliSleep(self.send_interval_ms+200)
                     return self.SendDanmu(roomid,origin_msg,src,pre,max_len,try_times-1)
                 return self.CallRecord(msg,roomid,src,"6")
-            self.LogDebug(f"[SendDanmu] ERRMSG={errmsg}")
+            logDebug(f"[SendDanmu] ERRMSG={errmsg}")
             self.CallRecord(msg,roomid,src,"x")
             return self.CallRecord("(具体信息：%s)"%errmsg,roomid,src,"-",False)
         except requests.exceptions.ConnectionError as e: #网络无连接/远程连接中断
-            self.LogDebug(f"[SendDanmu] TYPE={type(e)} DESC={e}")
+            logDebug(f"[SendDanmu] TYPE={type(e)} DESC={e}")
             if "Connection aborted." in str(e):
                 if try_times>0:
                     wx.MilliSleep(200)
@@ -1180,7 +1180,7 @@ class LyricDanmu(wx.Frame):
         except requests.exceptions.ReadTimeout: #API超时
             return self.CallRecord(msg,roomid,src,"B")
         except BaseException as e: #其他异常
-            self.LogDebug(f"[SendDanmu] TYPE={type(e)} DESC={e}")
+            logDebug(f"[SendDanmu] TYPE={type(e)} DESC={e}")
             self.CallRecord(msg,roomid,src,"X")
             return self.CallRecord("(具体信息：%s)"%str(e),roomid,src,"-",False)
 
@@ -1341,7 +1341,7 @@ class LyricDanmu(wx.Frame):
                 for k,v in self.translate_records.items():
                     if v[1] is None:   continue
                     f.write("%s,%d,%d,%s\n"%(k,v[0],v[1],v[2]))
-        except Exception as e: self.LogDebug(f"[SaveTLRecords] {e}")
+        except Exception as e: logDebug(f"[SaveTLRecords] {e}")
         for k,v in self.translate_records.items():
             if v[1] is None:    continue
             stat_res=self.StatTLRecords(k,v[0],v[1],v[2])
@@ -1374,7 +1374,7 @@ class LyricDanmu(wx.Frame):
                             danmu_count+=1
                             last_ts=ts
             except Exception as e:
-                self.LogDebug(f"[StatTLRecords] ReadError: DATE={date} {e}")
+                logDebug(f"[StatTLRecords] ReadError: DATE={date} {e}")
         if word_num>=self.tl_stat_min_word_num and danmu_count>=self.tl_stat_min_count:
             start_str=getTime(start_ts,fmt="%Y-%m-%d %H:%M:%S")
             duration=(last_ts-start_ts)/60
@@ -1384,7 +1384,7 @@ class LyricDanmu(wx.Frame):
             showInfoDialog("CSV文件被其他软件（如Excel）改动后，保存的编码错误\n请尝试将logs目录下的CSV文件移至他处\n"
             +"Excel编码解决方法：微软Excel->设置CSV保存编码为UTF-8\nWPS Excel->安装CoolCsv插件","保存同传统计结果出错")
         except Exception as e:
-            self.LogDebug(f"[StatTLRecords] WriteError: ROOMID={roomid} {e}")
+            logDebug(f"[StatTLRecords] WriteError: ROOMID={roomid} {e}")
         finally:
             return records
 
@@ -1423,14 +1423,6 @@ class LyricDanmu(wx.Frame):
         """输出歌词发送日志"""
         try:
             path="logs/lyric/LYRIC_%s.log"%getTime(fmt="%y-%m")
-            with open(path,"a",encoding="utf-8") as f:
-                f.write("%s｜%s\n"%(getTime(fmt="%m-%d %H:%M"),msg))
-        except: pass
-
-    def LogDebug(self,msg):
-        """输出调试日志"""
-        try:
-            path="logs/debug/DEBUG_%s.log"%getTime(fmt="%y-%m")
             with open(path,"a",encoding="utf-8") as f:
                 f.write("%s｜%s\n"%(getTime(fmt="%m-%d %H:%M"),msg))
         except: pass
@@ -1891,7 +1883,7 @@ class LyricDanmu(wx.Frame):
                 f.write(content)
             return xml.dom.minidom.parseString(content)
         except Exception as e:
-            self.LogDebug(f"[ConvertLocalSong] filepath={filepath} {e}")
+            logDebug(f"[ConvertLocalSong] filepath={filepath} {e}")
 
     def ReadLocalSongs(self):
         """加载本地歌曲"""
@@ -1904,7 +1896,7 @@ class LyricDanmu(wx.Frame):
             except xml.parsers.expat.ExpatError:
                 DOMTree = self.ConvertLocalSong(filepath)
             except Exception as e:
-                self.LogDebug(f"[ReadLocalSongs(1)] filepath={filepath} {e}")
+                logDebug(f"[ReadLocalSongs(1)] filepath={filepath} {e}")
             if DOMTree is None:     continue
             try:
                 localSong = DOMTree.documentElement
@@ -1914,7 +1906,7 @@ class LyricDanmu(wx.Frame):
                 tags=getNodeValue(localSong,"tags")
                 self.locals[file]=name+";"+artists+";"+lang+";"+tags
             except Exception as e:
-                self.LogDebug(f"[ReadLocalSongs(2)] filepath={filepath} {e}")
+                logDebug(f"[ReadLocalSongs(2)] filepath={filepath} {e}")
 
     def CreateLyricFile(self,name,artists,tags,lyric,has_trans):
         """创建本地歌词文件"""
@@ -1964,7 +1956,7 @@ class LyricDanmu(wx.Frame):
             self.ResizeUI()
             return True
         except Exception as e:
-            self.LogDebug(f"[ShowLocalInfo] file={file} {e}")
+            logDebug(f"[ShowLocalInfo] file={file} {e}")
             return False
 
     def SaveConfig(self):
@@ -2010,7 +2002,7 @@ class LyricDanmu(wx.Frame):
                 f.write("账号标注2=%s\n" % self.account_names[1])
                 f.write("cookie2=%s\n" % self.cookies[1])
         except Exception as e:
-            self.LogDebug(f"[SaveConfig] {e}")
+            logDebug(f"[SaveConfig] {e}")
 
     def SaveData(self):
         """将数据写入对应的配置文件"""
