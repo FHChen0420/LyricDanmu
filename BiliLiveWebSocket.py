@@ -2,7 +2,7 @@
 import asyncio,websockets,zlib,json,re
 from pubsub import pub
 from socket import gaierror
-from util import getTime
+from util import getTime, logDebug
 
 class BiliLiveWebSocket():
     __TL_PATTERN1=r"^【(?P<speaker>[^:：]{1,5})[:：](?P<content>[^】]+)"
@@ -42,6 +42,10 @@ class BiliLiveWebSocket():
                                 await asyncio.sleep(30)
                             except asyncio.exceptions.CancelledError:
                                 break
+                            except BaseException as e:
+                                print(f"[DEBUG] [{getTime()}] 向直播间{self.__roomid}的心跳包发送失败。TYPE={type(e)}")
+                                logDebug(f"[BiliLiveWebSoekct.send_heart_beat] ROOMID={self.__roomid} DESC={e}")
+                                await asyncio.sleep(5)
                     enter_room_pkg=self.__ENTERROOM_PKG.format(pkgLen=pkg_len, roomid=roomid)
                     await websocket.send(bytes.fromhex(enter_room_pkg))
                     hb_task=asyncio.create_task(send_heart_beat())
@@ -63,8 +67,9 @@ class BiliLiveWebSocket():
             except RuntimeError:
                 pass
             except BaseException as e:
-                print(f"[ERROR] [{getTime()}] 与直播间{self.__roomid}的连接发生严重异常。\n TYPE={type(e)} DESC={str(e)}")
-                break
+                print(f"[ERROR] [{getTime()}] 与直播间{self.__roomid}的连接发生未知异常。\n TYPE={type(e)}")
+                logDebug(f"[BiliLiveWebSoekct.__connect_to_room] ROOMID={self.__roomid} DESC={e}")
+                await asyncio.sleep(2)
 
     def __analyse_package(self,raw_data):
         packetLen = int(raw_data[:4].hex(),16)
@@ -94,12 +99,13 @@ class BiliLiveWebSocket():
                         content=mo.group("content"),
                         #uid=info[2][0],
                         #uname=info[2][1],
-                        #ts=info[0][4]/1000,
+                        #timestamp=info[0][4]/1000,
                     )
             except RuntimeError:
                 return
             except BaseException as e:
-                print(f"[DEBUG] [{getTime()}] 数据包解析失败。\n DATA={jd}\n TYPE={type(e)} DESC={str(e)}")
+                print(f"[DEBUG] [{getTime()}] 数据包解析失败。\n DATA={jd}\n TYPE={type(e)}")
+                logDebug(f"[BiliLiveWebSoekct.__analyse_package] DATA={jd} DESC={e}")
     
     def ChangeRefCount(self,n):
         origin_ref_count=self.__ref_count
@@ -115,7 +121,7 @@ class BiliLiveWebSocket():
             print(f"[ INFO] [{getTime()}] 已连接到直播间{self.__roomid}。")
             self.__loop.run_until_complete(self.__connect_to_room())
             self.__closing=False
-            print(f"[ INFO] [{getTime()}] 已断开与直播间{self.__roomid}的连接。")
+            print(f"[ INFO] [{getTime()}] 已主动断开与直播间{self.__roomid}的连接。")
 
     def Stop(self):
         self.__closing=True
