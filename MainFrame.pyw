@@ -1815,7 +1815,7 @@ class LyricDanmu(wx.Frame):
         try:
             with open("marks_wy.txt", "r", encoding="utf-8") as f:
                 for line in f:
-                    mo = re.match(r"\s*(\d+)\s+(S+)", line)
+                    mo = re.match(r"\s*(\d+)\s+(.+)", line)
                     if mo is not None:
                         self.wy_marks[mo.group(1)] = mo.group(2)
         except Exception:
@@ -1823,7 +1823,7 @@ class LyricDanmu(wx.Frame):
         try:
             with open("marks_qq.txt", "r", encoding="utf-8") as f:
                 for line in f:
-                    mo = re.match(r"\s*(\d+)\s+(\S+)", line)
+                    mo = re.match(r"\s*(\d+)\s+(.+)", line)
                     if mo is not None:
                         self.qq_marks[mo.group(1)] = mo.group(2)
         except Exception:
