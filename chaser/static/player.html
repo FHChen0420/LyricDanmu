@@ -25,8 +25,13 @@
             const resp = await fetch('/url')
             const url = (await resp.json()).url
             console.log(`load url ${url}`)
-            var element = document.getElementsByClassName('centeredVideo')[0];
-            element.setAttribute("video-url", url)
+            var player = document.getElementsByClassName('centeredVideo')[0];
+            player.setAttribute("video-url", url)
+            //默认为拉伸窗口，改为标准比例窗口
+            setTimeout(()=>{
+              var stretchButton = document.getElementsByClassName("vjs-stretch-control")[0]
+              stretchButton.click()
+            },3000)
         }
         document.addEventListener('DOMContentLoaded', load);
     </script>
