@@ -1,99 +1,41 @@
 <!DOCTYPE html>
 <html>
-
-<head>
-    <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
-    <title>LivePlayer</title>
-
+  <head>
+    <title>追帧播放器</title>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
+      name="viewport"
+    />
     <style>    
-        .centeredVideo {
-            display: block;
-            width: 100vw;
-            height: 100vh;
-            max-width: 1280px;
-            margin-left: auto;
-            margin-right: auto;
-            margin-bottom: auto;
-        }
-
-        video::-webkit-media-controls-play-button {display: none;}
+      .centeredVideo {
+          display: block;
+          width: 100vw;
+          height: 100vh;
+          max-width: 1280px;
+          margin-left: auto;
+          margin-right: auto;
+          margin-bottom: auto;
+      }
     </style>
-</head>
-
-<body style="background-color: black;">
-    <video name="videoElement" class="centeredVideo" controls autoplay>
-        Your browser is too old which doesn't support HTML5 video.
-    </video>
-
-    <script src="./flv.js"></script>
-    
+    <script src="EasyPlayer-element.min.js"></script>
     <script>
-        async function flv_load() {
-            console.log('isSupported: ' + flvjs.isSupported());
+        async function load() {
             const resp = await fetch('/url')
-            load((await resp.json()).url)
-        }
-
-        function load(url) {
+            const url = (await resp.json()).url
             console.log(`load url ${url}`)
-            var element = document.getElementsByName('videoElement')[0];
-            if (typeof player !== "undefined") {
-                if (player != null) {
-                    player.unload();
-                    player.detachMediaElement();
-                    player.destroy();
-                    player = null;
-                }
-            }
-            player = flvjs.createPlayer({
-                type: 'flv',
-                url: url,
-                isLive: true,
-            }, {
-                cors: true, // 是否跨域
-                enableWorker: true, // 是否多线程工作
-                enableStashBuffer: false, // 是否启用缓存
-                stashInitialSize: 128, // 缓存大小(kb)  默认384kb
-                autoCleanupSourceBuffer: true // 是否自动清理缓存
-            });
-            player.on(flvjs.Events.ERROR, (errorType, errorDetail, errorInfo) => {
-                console.log("errorType:", errorType);
-                console.log("errorDetail:", errorDetail);
-                console.log("errorInfo:", errorInfo);
-            });
-            player.on("statistics_info", function (res) {
-                // console.log(res)
-                const end = element.buffered.end(0)
-                const current = element.currentTime
-                const diff = end - current
-                console.log(`time to latest ${diff}`)
-                const seekDiff = 4
-                const speedDiff = 1
-                const speedMax = 4
-                let currentSpeed = 1
-                if (diff > seekDiff) {
-                    console.log(`seek to chase`)
-                    element.current = end - 1
-                    currentSpeed = Math.max(1, Math.min(seekDiff, 16))
-                } else if (diff > speedDiff) {
-                    console.log(`increse speed`)
-                    currentSpeed = Math.max(1, Math.min(diff, speedMax, 16))
-                }
-                element.playbackRate = currentSpeed
-                if (element.paused) {
-                    player.play()
-                }
-            })
-            player.attachMediaElement(element);
-            player.load();
-            // player.play();
+            var element = document.getElementsByClassName('centeredVideo')[0];
+            element.setAttribute("video-url", url)
         }
-
-        document.addEventListener('DOMContentLoaded', function () {
-            flv_load();
-        });
+        document.addEventListener('DOMContentLoaded', load);
     </script>
-    
-</body>
-
+  </head>
+  <body>
+    <easy-player
+      class="centeredVideo"
+      live="true"
+      muted="false"
+    ></easy-player>
+  </body>
 </html>
