@@ -1224,7 +1224,7 @@ class LyricDanmu(wx.Frame):
             except:
                 self.sp_room_anti_shields[to_room]=self.GetRoomShields(to_room)
                 msg=self.sp_room_anti_shields[to_room].deal(pre+content)
-            msg=self.anti_shield.deal(msg)
+            msg=self.anti_shield.deal(msg[:10]+" ")[:-1]+msg[10:]
             suf="】" if msg.count("【")>msg.count("】") else ""
             self.AddDanmuToQueue(to_room,msg,DM_SPREAD,pre,suf,self.sp_max_len)
     
