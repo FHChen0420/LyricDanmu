@@ -54,6 +54,6 @@ B站直播歌词/同传弹幕发送工具
 + util.py 工具函数
 + constant.py 常量
 + langconv.py & zh_wiki.py 繁体转简体逻辑&数据（Ref: skydark/nstools）
-+ chaser/ B站直播追帧本地服务（By:Sirius）
++ chaser/ B站直播追帧本地服务（Ref: tsingsee/EasyPlayer.js）
 
 ```注意：本项目的文件命名、变量命名并不规范，请勿模仿```
