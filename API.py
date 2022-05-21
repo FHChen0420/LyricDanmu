@@ -290,9 +290,9 @@ class JsdelivrAPI(BaseAPI):
         """Jsdelivr公共CDN的API"""
         super().__init__(timeout)
 
-    def get_latest_bili_live_shield_words(self,timeout=None) -> str:
+    def get_latest_bili_live_shield_words(self,domain="cdn",timeout=None) -> str:
         """获取最新的B站直播屏蔽词处理脚本（Github项目：FHChen0420/bili_live_shield_words）"""
-        url="https://cdn.jsdelivr.net/gh/FHChen0420/bili_live_shield_words@main/BiliLiveShieldWords.py"
+        url=f"https://{domain}.jsdelivr.net/gh/FHChen0420/bili_live_shield_words@main/BiliLiveShieldWords.py"
         if timeout is None: timeout=self.timeout
         res=requests.get(url,headers=self.headers,timeout=timeout)
         return res.text

@@ -644,11 +644,16 @@ class LyricDanmu(wx.Frame):
         if os.path.exists("tmp.tmp"):   return
         with open("tmp.tmp","w",encoding="utf-8") as f:  f.write("")
         UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="获取更新中…")
-        try:
-            code=""
-            data=self.jdApi.get_latest_bili_live_shield_words(timeout=(6,10))
-            code=re.search(r"# <DATA BEGIN>([\s\S]*?)# <DATA END>",data).group(1)
-        except:
+        domains=("fastly","gcore","test1","testingcf","cdn") # 近期国内jsdelivr CDN域名遭污染，优先使用其子域名
+        for domain in domains:
+            try:
+                code=""
+                data=self.jdApi.get_latest_bili_live_shield_words(domain=domain,timeout=(5,5))
+                code=re.search(r"# <DATA BEGIN>([\s\S]*?)# <DATA END>",data).group(1)
+                break
+            except:
+                pass
+        else:
             UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="无法获取更新")
         try:
             if code=="":    return
