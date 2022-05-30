@@ -107,7 +107,8 @@ class LyricDanmu(wx.Frame):
         self.shield_debug_mode = False
         # 追帧服务
         self.live_chasing = False
-        self.playerChaser=RoomPlayerChaser("1")
+        self.playerChaser = RoomPlayerChaser("1")
+        self.playerFrameUseable = self.platform!="win" or wx.html2.WebView.IsBackendAvailable(wx.html2.WebViewBackendEdge)
         # 弹幕监听与转发
         self.ws_dict={}
         self.sp_configs=[[[None],False,[]] for _ in range(3)]
@@ -449,7 +450,7 @@ class LyricDanmu(wx.Frame):
             else:
                 dlg.Destroy()
                 return
-        if self.platform=="win" and not wx.html2.WebView.IsBackendAvailable(wx.html2.WebViewBackendEdge):
+        if not self.playerFrameUseable:
             webbrowser.open("http://127.0.0.1:8080/player.html")
             return
         dlg = wx.MessageDialog(None, "[是] 浏览器打开(推荐)　　　[否] 工具自带窗体打开", "选择追帧显示方式", wx.YES_NO|wx.YES_DEFAULT)
