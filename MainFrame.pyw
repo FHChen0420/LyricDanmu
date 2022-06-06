@@ -645,7 +645,7 @@ class LyricDanmu(wx.Frame):
         if os.path.exists("tmp.tmp"):   return
         with open("tmp.tmp","w",encoding="utf-8") as f:  f.write("")
         UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="获取更新中…")
-        domains=("fastly","gcore","test1","testingcf","cdn") # 近期国内jsdelivr CDN域名遭污染，优先使用其子域名
+        domains=("test1","testingcf","gcore","fastly","cdn") # 近期国内jsdelivr CDN域名遭污染，使用其子域名作为备用
         for domain in domains:
             try:
                 code=""
@@ -1328,7 +1328,7 @@ class LyricDanmu(wx.Frame):
                 if space_idx[1]>=max_len-3: # 预留一些空间便于重发时添加字符
                     cut_idx=space_idx[1]
                 break
-        if cut_idx<=max_len*0.5 and 1+len(msg)-cut_idx+pre_len>max_len: # 如果切得太短，导致剩余部分太长，就多切一点
+        if cut_idx<=max_len*0.65 and 1+len(msg)-cut_idx+pre_len>max_len: # 如果切得太短，导致剩余部分太长，就多切一点
             cut_idx = max_len
         return cut_idx
 
