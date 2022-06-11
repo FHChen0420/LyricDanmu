@@ -33,8 +33,9 @@ B站直播歌词/同传弹幕发送工具
     ```pyinstaller -F -w MainFrame.pyw -n LyricDanmu --add-data "./chaser/static/*:./chaser/static"```
 
 ### 代码列表
-开发环境：Python3.8.10 / Python3.9.1
-第三方库：见requirements.txt
+开发环境：Windows Python3.8.10 / MacOS Python3.9.1 universal2
+第三方库：见[requirements.txt](https://github.com/FHChen0420/LyricDanmu/blob/main/requirements.txt)
+
 + MainFrame.pyw 主界面
 + SongSearchFrame.py 歌词搜索结果界面
 + SongMarkFrame.py 歌词收藏设置界面
@@ -53,7 +54,7 @@ B站直播歌词/同传弹幕发送工具
 + BiliLiveWebSocket.py B站直播websocket类
 + util.py 工具函数
 + constant.py 常量
-+ langconv.py & zh_wiki.py 繁体转简体逻辑&数据（Ref: skydark/nstools）
-+ chaser/ B站直播追帧本地服务（Ref: tsingsee/EasyPlayer.js）
++ langconv.py & zh_wiki.py 繁体转简体逻辑&数据（Ref: [skydark/nstools](https://github.com/skydark/nstools)）
++ chaser/ B站直播追帧本地服务（Ref: [tsingsee/EasyPlayer.js](https://github.com/tsingsee/EasyPlayer.js)）
 
 ```注意：本项目的文件命名、变量命名并不规范，请勿模仿```
