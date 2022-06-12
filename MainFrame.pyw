@@ -170,6 +170,7 @@ class LyricDanmu(wx.Frame):
         self.f_resend = True
         self.f_resend_mark = True
         self.f_resend_deal = True
+        self.app_bottom_danmu = True
 
     def ShowFrame(self, parent):
         """布局并显示各类窗体控件"""
@@ -1131,7 +1132,8 @@ class LyricDanmu(wx.Frame):
             self.recent_danmu.pop(list(self.recent_danmu.keys())[0])
             self.recent_danmu[msg]=0
         try:
-            data=self.blApi.send_danmu(roomid,msg,self.cur_acc)
+            mode = 4 if self.app_bottom_danmu else self.cur_mode # 测试功能：app端显示为底部弹幕
+            data=self.blApi.send_danmu(roomid,msg,mode,number=self.cur_acc)
             if not self.LoginCheck(data): #用户未登入（cookies无效）
                 if self.danmuSpreadFrame.StopAll():
                     showInfoDialog("已自动暂停弹幕转发","提示")
@@ -1800,6 +1802,8 @@ class LyricDanmu(wx.Frame):
                         self.f_resend_mark = v.lower()=="true"
                     elif k == "进一步处理屏蔽句":
                         self.f_resend_deal = v.lower()=="true"
+                    elif k =="app弹幕置底显示":
+                        self.app_bottom_danmu = v.lower()=="true"
         except Exception:
             return showInfoDialog("读取config.txt失败", "启动出错")
         try:
@@ -2020,6 +2024,7 @@ class LyricDanmu(wx.Frame):
                 f.write("请求超时阈值=%d\n" % int(1000*self.timeout_s))
                 f.write("屏蔽句自动重发=%s\n" % self.f_resend)
                 f.write("进一步处理屏蔽句=%s\n" % self.f_resend_deal)
+                f.write("app弹幕置底显示=%s\n" % self.app_bottom_danmu)
                 f.write(titleLine("同传统计配置"))
                 f.write("同传中断阈值=%d\n" % self.tl_stat_break_min)
                 f.write("最低字数要求=%d\n" % self.tl_stat_min_word_num)

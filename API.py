@@ -76,13 +76,13 @@ class BiliLiveAPI(BaseAPI):
         res=self.sessions[number].post(url=url,headers=self.headers,data=data,timeout=timeout)
         return json.loads(res.text)
     
-    def send_danmu(self,roomid,msg,number=0,timeout=None) -> dict:
+    def send_danmu(self,roomid,msg,mode=1,number=0,timeout=None) -> dict:
         """向直播间发送弹幕"""
         url="https://api.live.bilibili.com/msg/send"
         data={
             "color": 16777215,
             "fontsize": 25,
-            "mode": 1,
+            "mode": mode,
             "bubble": 0,
             "msg": msg,
             "roomid": roomid,

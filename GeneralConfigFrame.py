@@ -10,12 +10,12 @@ class GeneralConfigFrame(wx.Frame):
         pos=parent.GetPosition()
         x,y=pos[0]+70,(pos[1]+40) if parent.show_lyric else (pos[1]-320)
         if y<0: y=0
-        wx.Frame.__init__(self, parent, title="应用设置", pos=(x,y), size=(310,405), style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.MINIMIZE_BOX) |wx.FRAME_FLOAT_ON_PARENT)
+        wx.Frame.__init__(self, parent, title="应用设置", pos=(x,y), size=(310,430), style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.MINIMIZE_BOX) |wx.FRAME_FLOAT_ON_PARENT)
         if parent.show_pin:
             self.ToggleWindowStyle(wx.STAY_ON_TOP)
         self.Bind(wx.EVT_CLOSE,self.OnClose)
-        panel=wx.Panel(self,-1,pos=(0,0),size=(310,370))
-        self.p2=wx.Panel(self,-1,pos=(0,370),size=(310,100))
+        panel=wx.Panel(self,-1,pos=(0,0),size=(310,395))
+        self.p2=wx.Panel(self,-1,pos=(0,395),size=(310,100))
         # 歌词前后缀
         wx.StaticText(panel,-1,"歌词前缀",pos=(15,10))
         wx.StaticText(panel,-1,"歌词后缀",pos=(15,40))
@@ -90,20 +90,22 @@ class GeneralConfigFrame(wx.Frame):
         self.ckbNoProxy.SetValue(parent.no_proxy)
         self.ckbRichRcd = wx.CheckBox(panel,-1,"彩色弹幕记录", pos=(180,320))
         self.ckbRichRcd.SetValue(parent.enable_rich_record)
+        self.ckbAppBottom = wx.CheckBox(panel,-1,"APP弹幕置底显示", pos=(80,345))
+        self.ckbAppBottom.SetValue(parent.app_bottom_danmu)
         wx.StaticText(panel,-1,"⍰",pos=(275,320)).SetToolTip(
             "默认双前缀模式：默认使用\"\"和\"【\"作为评论可选前缀，推荐同传勾选\n"+
             "禁用系统代理：若科学上网时本工具报网络异常错误，则请尝试勾选\n"+
             "彩色弹幕记录：使用富文本格式显示各类弹幕记录(重启后生效)")
         # 账号切换
         self.btnAccounts=[]
-        wx.StaticText(panel,-1,"账号切换",pos=(15,344))
+        wx.StaticText(panel,-1,"账号切换",pos=(15,369))
         for i in range(2):
             acc_name="账号%d"%(i+1) if parent.account_names[i]=="" else parent.account_names[i]
-            btn=wx.Button(panel,-1,acc_name,pos=(75+i*90,344),size=(85,22),name=str(i))
+            btn=wx.Button(panel,-1,acc_name,pos=(75+i*90,369),size=(85,22),name=str(i))
             btn.Bind(wx.EVT_BUTTON,self.SwitchAccount)
             btn.Bind(wx.EVT_RIGHT_DOWN,self.ShowCookieEdit)
             self.btnAccounts.append(btn)
-        wx.StaticText(panel,-1,"⍰",pos=(275,344)).SetToolTip(
+        wx.StaticText(panel,-1,"⍰",pos=(275,369)).SetToolTip(
             "左键：切换账号　　右键：修改账号\n"+
             "Cookie获取方法：\n"+
             "浏览器进入B站主页，按F12打开开发者工具，选择Network栏\n"+
@@ -142,7 +144,7 @@ class GeneralConfigFrame(wx.Frame):
         self.tcAccName.SetValue(self.parent.account_names[acc_no])
         self.tcCookie.SetValue(self.parent.cookies[acc_no])
         self.p2.Show(True)
-        self.SetSize(310,470)
+        self.SetSize(310,495)
         self.tcCookie.SetFocus()
         self.tcCookie.SelectAll()
         self.btnSaveAcc.SetName(str(acc_no))
@@ -206,6 +208,7 @@ class GeneralConfigFrame(wx.Frame):
         parent.f_resend=self.ckbFResend.GetValue()
         parent.f_resend_deal=self.ckbFRDeal.GetValue()
         parent.f_resend_mark=self.ckbFRMark.GetValue()
+        parent.app_bottom_danmu=self.ckbAppBottom.GetValue()
         os.environ["NO_PROXY"]="*" if parent.no_proxy else ""
         parent.RefreshLyric()
         if self.parent.customTextFrame:
