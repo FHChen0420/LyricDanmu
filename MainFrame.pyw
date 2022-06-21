@@ -353,14 +353,17 @@ class LyricDanmu(wx.Frame):
         self.hkDecTp=wx.NewIdRef()
         self.hkSimple=wx.NewIdRef()
         self.hkShield=wx.NewIdRef()
+        self.hkCusText=wx.NewIdRef()
         self.RegisterHotKey(self.hkIncTp,wx.MOD_ALT,wx.WXK_UP)
         self.RegisterHotKey(self.hkDecTp,wx.MOD_ALT,wx.WXK_DOWN)
         self.RegisterHotKey(self.hkSimple,wx.MOD_ALT,wx.WXK_RIGHT)
         self.RegisterHotKey(self.hkShield,wx.MOD_ALT,ord("P"))
+        self.RegisterHotKey(self.hkCusText,wx.MOD_ALT,ord("C"))
         self.Bind(wx.EVT_HOTKEY,self.IncreaseTransparent,self.hkIncTp)
         self.Bind(wx.EVT_HOTKEY,self.DecreaseTransparent,self.hkDecTp)
         self.Bind(wx.EVT_HOTKEY,self.ToggleSimpleMode,self.hkSimple)
         self.Bind(wx.EVT_HOTKEY,self.ToggleShieldDebugMode,self.hkShield)
+        self.Bind(wx.EVT_HOTKEY,self.ShowCustomTextFrame,self.hkCusText)
         # MAC系统界面调整
         if self.platform=="mac":
             setFont(self,13)
