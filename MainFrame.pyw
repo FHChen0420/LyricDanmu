@@ -1470,7 +1470,7 @@ class LyricDanmu(wx.Frame):
         if res["code"]==-101 or "登录" in res["message"]:
             self.OnStopBtn(None)
             return showInfoDialog("账号配置不可用，请修改Cookie配置\n"+
-                "方法一：点击“应用设置”按钮，右键“账号切换”处的按钮进行修改\n"+
+                "方法一：点击“应用设置”按钮，在“账号”页面进行修改\n"+
                 "方法二：关闭工具后，打开工具目录下的config.txt，修改cookie项", "错误")
         return True
      
@@ -1802,7 +1802,7 @@ class LyricDanmu(wx.Frame):
                         self.f_resend_mark = v.lower()=="true"
                     elif k == "进一步处理屏蔽句":
                         self.f_resend_deal = v.lower()=="true"
-                    elif k =="app弹幕置底显示":
+                    elif k == "app弹幕置底显示":
                         self.app_bottom_danmu = v.lower()=="true"
         except Exception:
             return showInfoDialog("读取config.txt失败", "启动出错")
