@@ -1,6 +1,8 @@
 import wx
 import re
 
+from util import showInfoDialog
+
 class ShieldConfigFrame(wx.Frame):
     def __init__(self,parent):
         self.parent=parent
@@ -62,25 +64,19 @@ class ShieldConfigFrame(wx.Frame):
         rooms=self.tcRoom.GetValue().replace(" ","")
         rooms=re.sub("[,，;；]",",",rooms)
         if len(before)==0:
-            dlg = wx.MessageDialog(None, "屏蔽词不能为空", "添加屏蔽规则出错", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return
+            return showInfoDialog("屏蔽词不能为空", "添加屏蔽规则出错")
         if before==after:
-            dlg = wx.MessageDialog(None, "屏蔽前后无变化", "添加屏蔽规则出错", wx.OK)
-            dlg.ShowModal()
-            dlg.Destroy()
-            return
+            return showInfoDialog("屏蔽前后无变化", "添加屏蔽规则出错")
+        if not re.match("^[\d,]*$",rooms):
+            return showInfoDialog("房间号格式有误", "添加屏蔽规则出错")
         index=0
         for k in self.parent.custom_shields.keys():
             if before==k:
                 dlg = wx.MessageDialog(None, "屏蔽词已在列表中，是否更新处理规则？", "提示", wx.YES_NO|wx.YES_DEFAULT)
-                if dlg.ShowModal()==wx.ID_YES:
-                    dlg.Destroy()
-                    break
-                else:
-                    dlg.Destroy()
-                    return
+                update = dlg.ShowModal()==wx.ID_YES
+                dlg.Destroy()
+                if update: break
+                else: return
             index+=1
         if index>=self.list.GetItemCount():
             self.list.InsertItem(index, "")
@@ -89,10 +85,7 @@ class ShieldConfigFrame(wx.Frame):
         self.list.SetItem(index,3,rooms if rooms!="" else "(ALL)")
         self.list.Select(index)
         parent.custom_shields[before]=[shield_type,after.replace("\\","\\\\"),rooms]
-        parent.GetRoomShields(parent.roomid)
-        parent.shield_changed = True
-        if parent.customTextFrame:
-            parent.customTextFrame.shield_changed = True
+        self.UpdateRoomShield(rooms)
         self.tcBefore.Clear()
         self.tcAfter.Clear()
         self.tcRoom.Clear()
@@ -115,12 +108,10 @@ class ShieldConfigFrame(wx.Frame):
         index=self.list.GetFirstSelected()
         if index==-1:   return
         before=self.list.GetItem(index,1).GetText()
+        rooms=self.list.GetItem(index,3).GetText()
         self.list.DeleteItem(index)
         parent.custom_shields.pop(before)
-        parent.GetRoomShields(parent.roomid)
-        parent.shield_changed = True
-        if parent.customTextFrame:
-            parent.customTextFrame.shield_changed = True
+        self.UpdateRoomShield("" if rooms=="(ALL)" else rooms)
 
     def OnItemSelected(self,event):
         self.btnEdit.Enable()
@@ -150,3 +141,14 @@ class ShieldConfigFrame(wx.Frame):
 
     def UpdateGlobalShield(self,event):
         self.parent.pool.submit(self.parent.ThreadOfUpdateGlobalShields)
+    
+    def UpdateRoomShield(self,roomids):
+        room_anti_shields:dict=self.parent.room_anti_shields
+        room_keys = room_anti_shields.keys()
+        if roomids=="":
+            for roomid in room_keys:
+                self.parent.GetRoomShields(roomid,update=True)
+        else:
+            for roomid in roomids.split(","):
+                if roomid in room_keys:
+                    self.parent.GetRoomShields(roomid,update=True)

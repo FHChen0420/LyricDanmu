@@ -4,7 +4,6 @@ from constant import DM_CUSTOM_TEXT
 class CustomTextFrame(wx.Frame):
     def __init__(self,parent):
         self.parent=parent
-        self.shield_changed = False
         self.ShowFrame(parent)
         self.RecvLyric(parent.custom_texts[0])
     
@@ -59,10 +58,7 @@ class CustomTextFrame(wx.Frame):
         self.RecvLyric(self.parent.custom_texts[index])
 
     def RecvLyric(self,data):
-        self.shield_changed = False
-        content=data["content"].strip()
-        content=self.parent.room_anti_shield.deal(content)
-        content=self.parent.anti_shield.deal(content)
+        content=self.parent.AntiShield(data["content"].strip())
         self.llist=[line for line in content.split("\n") if line.strip()!=""]
         self.llist.insert(0,"<BEGIN>")
         self.llist.append("<END>")
@@ -97,10 +93,7 @@ class CustomTextFrame(wx.Frame):
         if not self.NextLyric(None):    return
         pre,suf = "",""
         msg = self.lblLyrics[1-parent.lyric_offset].GetLabel()
-        message = pre + msg
-        if self.shield_changed:
-            message = parent.room_anti_shield.deal(message)
-            message = parent.anti_shield.deal(message)
+        message = parent.AntiShield(pre+msg)
         parent.AddDanmuToQueue(parent.roomid,message,DM_CUSTOM_TEXT,pre,suf)
         parent.AddHistory(msg)
     

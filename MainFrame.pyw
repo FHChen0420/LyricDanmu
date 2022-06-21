@@ -98,7 +98,6 @@ class LyricDanmu(wx.Frame):
         self.recent_history = []
         self.tmp_history = []
         self.running = True
-        self.shield_changed = False
         self.history_state = False
         self.history_idx = 0
         self.colabor_mode = int(self.init_two_prefix)
@@ -113,7 +112,6 @@ class LyricDanmu(wx.Frame):
         self.ws_dict={}
         self.sp_configs=[[[None],False,[]] for _ in range(3)]
         self.sp_max_len = None
-        self.sp_room_anti_shields = {}
         self.sp_error_count = 0
         # 线程池与事件循环
         self.pool = ThreadPoolExecutor(max_workers=8)
@@ -163,7 +161,7 @@ class LyricDanmu(wx.Frame):
         self.show_stat_on_close=False
         self.anti_shield = BiliLiveAntiShield({},[])
         self.anti_shield_ex = BiliLiveAntiShield({},[])
-        self.room_anti_shield = BiliLiveAntiShield({},[])
+        self.room_anti_shields = {}
         self.init_two_prefix=False
         self.enable_rich_record=False
         self.record_fontsize=9 if self.platform=="win" else 13
@@ -575,7 +573,6 @@ class LyricDanmu(wx.Frame):
         else:
             self.roomid = None
             self.room_name = None
-            self.room_anti_shield=self.GetRoomShields()
             UIChange(self.btnRoom1,label="选择直播间")
             UIChange(self.btnRoom2,label="选择直播间")
         UIChange(self.btnRoom1,enabled=True)
@@ -1001,9 +998,7 @@ class LyricDanmu(wx.Frame):
         comment = pre + msg
         if len(comment) > self.max_len*2.5:
             return showInfoDialog("弹幕内容过长", "弹幕发送失败")
-        if not self.shield_debug_mode:
-            comment = self.room_anti_shield.deal(comment)
-            comment = self.anti_shield.deal(comment)
+        comment = self.AntiShield(comment)
         suf = "】" if comment.count("【") > comment.count("】") else ""
         self.AddDanmuToQueue(self.roomid,comment,DM_COMMENT,pre,suf)
         self.tcComment.Clear()
@@ -1045,7 +1040,6 @@ class LyricDanmu(wx.Frame):
         if self.auto_sending: self.OnStopBtn(None)
         self.roomid=roomid
         self.playerChaser.roomId=roomid
-        self.room_anti_shield=self.GetRoomShields(roomid)
         self.pool.submit(self.ThreadOfGetDanmuConfig)
 
     def GetLiveInfo(self,roomid):
@@ -1227,12 +1221,7 @@ class LyricDanmu(wx.Frame):
             if speaker_be_filtered: continue
             # 弹幕开头添加标识符U+0592避免循环转发（本工具不会转发以U+0592开头的同传弹幕）
             pre="\u0592"+speaker+"【"
-            try:
-                msg=self.sp_room_anti_shields[to_room].deal(pre+content)
-            except:
-                self.sp_room_anti_shields[to_room]=self.GetRoomShields(to_room)
-                msg=self.sp_room_anti_shields[to_room].deal(pre+content)
-            msg=self.anti_shield.deal(msg[:10]+" ")[:-1]+msg[10:]
+            msg=self.AntiShield(pre+content,to_room)
             suf="】" if msg.count("【")>msg.count("】") else ""
             self.AddDanmuToQueue(to_room,msg,DM_SPREAD,pre,suf,self.sp_max_len)
     
@@ -1280,10 +1269,7 @@ class LyricDanmu(wx.Frame):
         pre = self.cbbLycPre.GetValue()
         suf = self.cbbLycSuf.GetValue()
         msg = self.llist[self.lid+line-4][2]
-        message = pre + msg
-        if self.shield_changed and not self.shield_debug_mode:
-            message = self.room_anti_shield.deal(message)
-            message = self.anti_shield.deal(message)
+        message = self.AntiShield(pre+msg)
         self.AddDanmuToQueue(self.roomid,message,DM_LYRIC,pre,suf)
         self.AddHistory(msg)
 
@@ -1334,11 +1320,13 @@ class LyricDanmu(wx.Frame):
             cut_idx = max_len
         return cut_idx
 
-    def GetRoomShields(self,roomid=None):
-        """获取指定房间的自定义屏蔽处理规则"""
-        rules,words={},[]
+    def GetRoomShields(self,roomid=None,update=False):
+        """获取或更新指定房间的自定义屏蔽处理规则"""
         if roomid is None:
             return BiliLiveAntiShield({},[])
+        if not update and roomid in self.room_anti_shields.keys():
+            return self.room_anti_shields[roomid]
+        rules,words={},[]
         for k,v in self.custom_shields.items():
             if v[2]!="" and roomid not in re.split("[,;，；]",v[2]): continue
             if v[0]==1:
@@ -1349,7 +1337,17 @@ class LyricDanmu(wx.Frame):
             else:
                 pat="(?i)"+transformToRegex(k," ?")
                 rules[pat]=lambda x:x.group()[0]+"\U000e0020"+x.group()[1:]
-        return BiliLiveAntiShield(rules,words)
+        shield = self.room_anti_shields[roomid] = BiliLiveAntiShield(rules,words)
+        return shield
+
+    def AntiShield(self,text,roomid=None):
+        """对文本进行B站直播弹幕屏蔽词处理"""
+        if not self.shield_debug_mode:
+            if roomid is None:
+                roomid=self.roomid
+            text=self.GetRoomShields(roomid).deal(text)
+            text=self.anti_shield.deal(text)
+        return text
 
     def AddHistory(self,message):
         """将弹幕内容保存到近期弹幕历史记录中"""
@@ -1602,7 +1600,6 @@ class LyricDanmu(wx.Frame):
     def RecvLyric(self,data):
         """解析歌词数据并显示在歌词面板"""
         self.init_lock = False
-        self.shield_changed = False
         self.OnStopBtn(None)
         self.sldLrc.Show(True)
         self.has_trans=data["has_trans"]
@@ -1627,17 +1624,14 @@ class LyricDanmu(wx.Frame):
             lyrics = re.sub(k, v, lyrics)
             self.lyric_raw = re.sub(k,v,self.lyric_raw)
             self.lyric_raw_tl = re.sub(k,v,self.lyric_raw_tl)
-        if not self.shield_debug_mode:
-            lyrics = self.room_anti_shield.deal(lyrics)
-            lyrics = self.anti_shield.deal(lyrics)
+        lyrics=self.AntiShield(lyrics)
         lyric_list=lyrics.split("\r\n")
         for i in range(len(lyric_list)):
             tmpData[i][2]=lyric_list[i]
         if self.add_song_name and data["name"]!="" and len(tmpData)>0:
             tl=(tmpData[-1][1]+3) if tmpData[-1][1]>=0 else -1
             tl_str=getTimeLineStr(tl,1) if tl>=0 else ""
-            name_info=self.room_anti_shield.deal("歌名："+data["name"])
-            name_info=self.anti_shield.deal(name_info)
+            name_info=self.AntiShield("歌名："+data["name"])
             tmpData.append(["",tl,"",""])
             tmpData.append([tl_str,tl,name_info,""])
             if self.has_trans:
