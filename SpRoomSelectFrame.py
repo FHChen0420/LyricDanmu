@@ -121,6 +121,16 @@ class SpRoomSelectFrame(wx.Frame):
             return showInfoDialog("主播简称不能包含分号或逗号", "提示")
         if len(sname)>5:
             return showInfoDialog("主播简称过长", "提示")
+        if len(roomid)<5:
+            try:
+                data=self.Parent.Parent.blApi.get_room_info(roomid,(1,1))
+                actual_roomid=str(data["data"]["room_info"]["room_id"])
+                if actual_roomid!=roomid:
+                    showInfoDialog(f"检测到短房间号[{roomid}]，已自动获取真实房间号[{actual_roomid}]", "提示")
+                    roomid=actual_roomid
+            except Exception:
+                return showInfoDialog(f"检测到短房间号[{roomid}]，但无法获取真实房间号，请重试\n"+
+                "Tip:可在本页面直接搜索主播名称来直接获取真实房间号", "提示")
         if roomid not in self.sp_rooms.keys() and self.select!="":
             self.Parent.Parent.sp_rooms=self.Parent.sp_rooms=self.sp_rooms=\
                 editDictItem(self.sp_rooms,self.select,roomid,[rname,sname])

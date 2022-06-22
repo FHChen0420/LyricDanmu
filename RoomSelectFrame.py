@@ -86,9 +86,19 @@ class RoomSelectFrame(wx.Frame):
         if roomid=="":
             return showInfoDialog("未填写房间号", "提示")
         if not re.match(r"^\d+$",roomid):
-            return showInfoDialog("房间号格式不对", "提示")
+            return showInfoDialog("房间号格式有误", "提示")
         if rname=="":
             return showInfoDialog("未填写房间名称", "提示")
+        if len(roomid)<5:
+            try:
+                data=self.Parent.blApi.get_room_info(roomid,timeout=(1,1))
+                actual_roomid=str(data["data"]["room_info"]["room_id"])
+                if actual_roomid!=roomid:
+                    showInfoDialog(f"检测到短房间号[{roomid}]，已自动获取真实房间号[{actual_roomid}]", "提示")
+                    roomid=actual_roomid
+            except Exception:
+                return showInfoDialog(f"检测到短房间号[{roomid}]，但无法获取真实房间号，请重试\n"+
+                "Tip:可在本页面直接搜索主播名称来直接获取真实房间号", "提示")
         if roomid not in self.rooms.keys() and self.select!="":
             self.Parent.rooms=self.rooms=editDictItem(self.rooms,self.select,roomid,rname)
         else:
