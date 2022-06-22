@@ -51,7 +51,7 @@ class LyricDanmu(wx.Frame):
         pub.subscribe(self.SetSpreadButtonState,"ws_error")
         pub.subscribe(setWxUIAttr,"ui_change")
         # API
-        self.blApi = BiliLiveAPI(self.cookies,self.timeout_s)
+        self.blApi = BiliLiveAPI(self.cookies,(self.timeout_s,5))
         self.wyApi = NetEaseMusicAPI()
         self.qqApi = QQMusicAPI()
         self.jdApi = JsdelivrAPI()
@@ -141,7 +141,7 @@ class LyricDanmu(wx.Frame):
         self.prefixs = ["【♪","【♬","【❀","【❄️"]
         self.suffixs = ["","】"]
         self.send_interval_ms = 750
-        self.timeout_s = 5
+        self.timeout_s = 3.05
         self.default_src = "wy"
         self.search_num = 18
         self.page_limit = 6
@@ -653,7 +653,7 @@ class LyricDanmu(wx.Frame):
         for domain in domains:
             try:
                 code=""
-                data=self.jdApi.get_latest_bili_live_shield_words(domain=domain,timeout=(5,5))
+                data=self.jdApi.get_latest_bili_live_shield_words(domain=domain)
                 code=re.search(r"# <DATA BEGIN>([\s\S]*?)# <DATA END>",data).group(1)
                 break
             except:

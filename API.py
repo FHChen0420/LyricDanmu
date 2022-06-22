@@ -6,13 +6,13 @@ CN_IP=( "110.42", "222.206", "220.180", "180.163", "113.100", #北京 山东 福
         "125.83", "183.140", "49.78",   "106.230", "223.150") #重庆 浙江 江苏 江西 湖南
 
 class BaseAPI:
-    def __init__(self,timeout=5):
+    def __init__(self,timeout=(3.05,5)):
         self.timeout=timeout
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36 Edg/92.0.902.78",
         }
     
-    def set_default_timeout(self,timeout=5):
+    def set_default_timeout(self,timeout=(3.05,5)):
         self.timeout=timeout
     
     def attach_cn_ip(self,headers:dict) -> dict:
@@ -22,7 +22,7 @@ class BaseAPI:
         return new_headers
 
 class BiliLiveAPI(BaseAPI):
-    def __init__(self,cookies:Union[List[str],str],timeout=5):
+    def __init__(self,cookies:Union[List[str],str],timeout=(3.05,5)):
         """B站直播相关API"""
         super().__init__(timeout)
         self.headers = dict(self.headers,
@@ -195,7 +195,7 @@ class BiliLiveAPI(BaseAPI):
         return cookie
 
 class NetEaseMusicAPI(BaseAPI):
-    def __init__(self,timeout=5):
+    def __init__(self,timeout=(3.05,5)):
         """网易云音乐API"""
         super().__init__(timeout)
 
@@ -240,7 +240,7 @@ class NetEaseMusicAPI(BaseAPI):
         return json.loads(res.text)
     
 class QQMusicAPI(BaseAPI):
-    def __init__(self,timeout=5):
+    def __init__(self,timeout=(3.05,5)):
         """QQ音乐API"""
         super().__init__(timeout)
         self.headers = dict(self.headers,
@@ -286,7 +286,7 @@ class QQMusicAPI(BaseAPI):
         return json.loads(res.text)
 
 class JsdelivrAPI(BaseAPI):
-    def __init__(self, timeout=5):
+    def __init__(self, timeout=(6.05,5)):
         """Jsdelivr公共CDN的API"""
         super().__init__(timeout)
 
