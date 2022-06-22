@@ -676,8 +676,9 @@ class MainFrame(wx.Frame):
         except:
             UIChange(self.shieldConfigFrame.btnUpdateGlobal,label="云端数据有误")
         finally:
-            try:    os.remove("tmp.tmp")
-            except BaseException: pass
+            if os.path.exists("tmp.tmp"):
+                try: os.remove("tmp.tmp")
+                except: pass
 
     def ThreadOfShowMsgDlg(self,content,title):
         """（子线程）显示消息弹窗"""

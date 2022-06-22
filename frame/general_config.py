@@ -11,7 +11,7 @@ class GeneralConfigFrame(wx.Frame):
     def ShowFrame(self,parent):
         pos=parent.GetPosition()
         x,y=pos[0]+70,(pos[1]+40 if parent.show_lyric else max(0,pos[1]-80))
-        wx.Frame.__init__(self, parent, title="应用设置", pos=(x,y), size=(310,285), style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.MINIMIZE_BOX) |wx.FRAME_FLOAT_ON_PARENT)
+        wx.Frame.__init__(self, parent, title="应用设置", pos=(x,y), size=(310,295), style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.MINIMIZE_BOX) |wx.FRAME_FLOAT_ON_PARENT)
         if parent.show_pin:
             self.ToggleWindowStyle(wx.STAY_ON_TOP)
         self.Bind(wx.EVT_CLOSE,self.OnClose)
