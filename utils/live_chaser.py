@@ -1,10 +1,9 @@
 import aiohttp
 import jsonpath
 from aiohttp import web
-try:    
-    from utils.util import resource_path
-except: 
-    def resource_path(path): return path
+   
+from utils.util import resource_path, showInfoDialog
+
 
 async def _fetchFlvUrl(roomId: str) -> str:
     async with aiohttp.ClientSession() as session:
@@ -27,8 +26,12 @@ class RoomPlayerChaser:
         async def _getUrl(request):
             print(f'room id {self.roomId}')
             return web.json_response({'url': await _fetchFlvUrl(self.roomId)})
-        self.routes.static('/', resource_path('../static/'))
-        self.app.add_routes(self.routes)
+        path, method = resource_path('../static/','./static')
+        self.routes.static('/', path)
+        try:
+            self.app.add_routes(self.routes)
+        except:
+            showInfoDialog(f"追帧相关的静态资源路径有误，请反馈给开发者\nPATH:{path}\nTYPE:{method}","提示")
 
     def serve(self, port):
         web.run_app(self.app, port=port, handle_signals=False)

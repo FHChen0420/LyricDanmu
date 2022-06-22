@@ -239,10 +239,17 @@ def openFile(path,platform="win"):
         else: subprocess.call(["open",path])
     except: raise
 
-def resource_path(relative_path):
-    '''返回资源绝对路径(针对pyinstaller打包用)'''
-    if getattr(sys, 'frozen', False): 
-        dirname = os.path.dirname(sys.executable)
+def resource_path(code_path, exe_path):
+    '''返回资源绝对路径
+
+    :param: code_path: 在代码层级，资源关于<调用该资源的文件>的相对路径
+    :param: exe_path: 打包为可执行文件后，资源关于<程序入口>的相对路径(本项目程序入口为main.pyw)
+    '''
+    if getattr(sys, 'frozen', False):
+        tmp_path = getattr(sys, '_MEIPASS', None) 
+        if tmp_path:
+            return os.path.join(tmp_path, exe_path), "sys._MEIPASS" # 打包为exe/app后会调用
+        else:
+            return os.path.join(os.getcwd(), exe_path), "os.getcwd()" # 暂时没遇到过这种情况
     else:
-        dirname = os.path.dirname(__file__)
-    return os.path.join(dirname, relative_path)
+        return os.path.join(os.path.dirname(__file__), code_path), "dirname(__file__)" # 以代码形式运行会调用
