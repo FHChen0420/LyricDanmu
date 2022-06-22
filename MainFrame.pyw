@@ -169,6 +169,7 @@ class LyricDanmu(wx.Frame):
         self.f_resend_mark = True
         self.f_resend_deal = True
         self.app_bottom_danmu = True
+        self.cancel_danmu_after_failed = True
 
     def ShowFrame(self, parent):
         """布局并显示各类窗体控件"""
@@ -518,6 +519,8 @@ class LyricDanmu(wx.Frame):
     def TogglePinUI(self, event):
         self.show_pin = not self.show_pin
         self.ToggleWindowStyle(wx.STAY_ON_TOP)
+        self.danmuSpreadFrame.ToggleWindowStyle(wx.STAY_ON_TOP)
+        self.shieldConfigFrame.ToggleWindowStyle(wx.STAY_ON_TOP)
         self.btnTop.SetForegroundColour("black" if self.show_pin else "gray")
 
     def ToggleLyricUI(self, event):
@@ -1113,10 +1116,11 @@ class LyricDanmu(wx.Frame):
         :param try_times: 大于0表示弹幕发送失败后允许重发
         """
         if re.match("^…?[\s)）」』】’”\"\'\]][\s\U000E0020-\U000E0029】]*$",msg[len(pre):]):  return True
-        origin_msg,cut_idx=msg,None
-        if len(msg)>max_len:
-            cut_idx=self.GetCutIndex(msg,max_len,len(pre))
-            msg=msg[:cut_idx]
+        origin_msg,remain_msg,succ_send=msg,"",False
+        if len(origin_msg)>max_len:
+            cut_idx=self.GetCutIndex(origin_msg,max_len,len(pre))
+            msg=origin_msg[:cut_idx]
+            remain_msg="…"+origin_msg[cut_idx:]
         if msg in self.recent_danmu.keys():
             num=self.recent_danmu[msg]
             self.recent_danmu[msg]=num+1
@@ -1134,38 +1138,37 @@ class LyricDanmu(wx.Frame):
             if not self.LoginCheck(data): #用户未登入（cookies无效）
                 if self.danmuSpreadFrame.StopAll():
                     showInfoDialog("已自动暂停弹幕转发","提示")
-                return self.CallRecord(msg,roomid,src,"7")
+                self.CallRecord(msg,roomid,src,"7")
+                return False
             errmsg,code=data["msg"],data["code"]
             if code==10030: #弹幕发送频率过高
                 if try_times>0:
                     self.CallRecord("",roomid,src,"3+",False)
                     wx.MilliSleep(self.send_interval_ms)
-                    return self.SendDanmu(roomid,origin_msg,src,pre,max_len,try_times-2)
-                return self.CallRecord(msg,roomid,src,"3")
-            if code==10031: #短期内发送了两条内容完全相同的弹幕
-                return self.CallRecord(msg,roomid,src,"4")
-            if code==11000: #弹幕被吞了（具体原因未知）
+                    succ_send=self.SendDanmu(roomid,msg,src,pre,max_len,try_times-2)
+                else:
+                    self.CallRecord(msg,roomid,src,"3")
+            elif code==10031: #短期内发送了两条内容完全相同的弹幕
+                self.CallRecord(msg,roomid,src,"4")
+            elif code==11000: #弹幕被吞了（具体原因未知）
                 if try_times>0:
                     self.CallRecord("",roomid,src,"5+",False)
                     wx.MilliSleep(self.send_interval_ms)
-                    return self.SendDanmu(roomid,origin_msg,src,pre,max_len,try_times-2)
-                return self.CallRecord(msg,roomid,src,"5")
-            # if code==-500: ... #弹幕长度超出限制
-            # if code==-102: ... #本次直播需要购票观看
-            # if code==-403: ... #当前直播间开启了全体禁言
-            # if code==1003: ... #在当前直播间被禁言
-            if code!=0: #其他发送失败情况
+                    succ_send=self.SendDanmu(roomid,origin_msg,src,pre,max_len,try_times-2)
+                else:
+                    self.CallRecord(msg,roomid,src,"5")
+            # elif code==-500: ... #弹幕长度超出限制
+            # elif code==-102: ... #本次直播需要购票观看
+            # elif code==-403: ... #当前直播间开启了全体禁言
+            # elif code==1003: ... #在当前直播间被禁言
+            elif code!=0: #其他发送失败情况
                 logDebug(f"[SendDanmu] DATA={str(data)}")
                 self.CallRecord(msg,roomid,src,"x")
-                return self.CallRecord("(%s)"%errmsg,roomid,src,"-",False)
-            if errmsg=="": #弹幕成功发送
+                self.CallRecord("(%s)"%errmsg,roomid,src,"-",False)
+            elif errmsg=="": #弹幕成功发送
                 self.CallRecord(msg,roomid,src,"0")
-                if cut_idx is not None: # 过长弹幕切割后的前半段成功发送后，继续发送后半段
-                    remain_msg=pre+"…"+origin_msg[cut_idx:]
-                    wx.MilliSleep(self.send_interval_ms)
-                    self.SendDanmu(roomid,remain_msg,src,pre,max_len)
-                return True
-            if errmsg in ["f","fire"]: #弹幕含有B站通用屏蔽词或特殊房间屏蔽词，或因B站偶尔抽风导致无法发送
+                succ_send=True
+            elif errmsg in ("f","fire"): #弹幕含有B站通用屏蔽词或特殊房间屏蔽词，或因B站偶尔抽风导致无法发送
                 if self.f_resend and try_times>0 and not self.shield_debug_mode: # 注：屏蔽词调试模式下禁用屏蔽句重发
                     if self.f_resend_mark:
                         self.CallRecord("",roomid,src,"1+",False)
@@ -1173,37 +1176,48 @@ class LyricDanmu(wx.Frame):
                     if new_msg!=origin_msg:
                         self.LogShielded(msg)
                     wx.MilliSleep(self.send_interval_ms+30)
-                    return self.SendDanmu(roomid,new_msg,src,pre,max_len,try_times-2)
-                self.LogShielded(msg)
-                self.CallRecord(msg,roomid,src,"1")
-                return False
-            if errmsg=="k": #弹幕含有当前直播间所设置的屏蔽词
+                    succ_send=self.SendDanmu(roomid,new_msg,src,pre,max_len,try_times-2)
+                else:
+                    self.LogShielded(msg)
+                    self.CallRecord(msg,roomid,src,"1")
+            elif errmsg=="k": #弹幕含有当前直播间所设置的屏蔽词
                 self.CallRecord(msg,roomid,src,"2")
-                return False
-            if errmsg=="max limit exceeded": #当前房间弹幕流量过大，导致弹幕发送失败
+            elif errmsg=="max limit exceeded": #当前房间弹幕流量过大，导致弹幕发送失败
                 if try_times>0 or (src==DM_SPREAD and try_times==0):
                     self.CallRecord("",roomid,src,"6+",False)
                     wx.MilliSleep(self.send_interval_ms+200)
-                    return self.SendDanmu(roomid,origin_msg,src,pre,max_len,try_times-1)
-                return self.CallRecord(msg,roomid,src,"6")
-            logDebug(f"[SendDanmu] ERRMSG={errmsg}")
-            self.CallRecord(msg,roomid,src,"x")
-            return self.CallRecord("(具体信息：%s)"%errmsg,roomid,src,"-",False)
+                    succ_send=self.SendDanmu(roomid,origin_msg,src,pre,max_len,try_times-1)
+                else:
+                    self.CallRecord(msg,roomid,src,"6")
+            else:
+                logDebug(f"[SendDanmu] ERRMSG={errmsg}")
+                self.CallRecord(msg,roomid,src,"x")
+                self.CallRecord("(具体信息：%s)"%errmsg,roomid,src,"-",False)
         except requests.exceptions.ConnectionError as e: #网络无连接/远程连接中断
             logDebug(f"[SendDanmu] TYPE={type(e)} DESC={e}")
             if "Connection aborted." in str(e):
                 if try_times>0:
                     wx.MilliSleep(200)
-                    return self.SendDanmu(roomid,origin_msg,src,pre,max_len,try_times-1)
-                return self.CallRecord(msg,roomid,src,"C")
-            self.pool.submit(self.ThreadOfShowMsgDlg,"网络连接出错","弹幕发送失败")
-            return self.CallRecord(msg,roomid,src,"A")
+                    succ_send=self.SendDanmu(roomid,origin_msg,src,pre,max_len,try_times-1)
+                else:
+                    self.CallRecord(msg,roomid,src,"C")
+            else:
+                self.pool.submit(self.ThreadOfShowMsgDlg,"网络连接出错","弹幕发送失败")
+                self.CallRecord(msg,roomid,src,"A")
         except requests.exceptions.ReadTimeout: #API超时
-            return self.CallRecord(msg,roomid,src,"B")
+            self.CallRecord(msg,roomid,src,"B")
         except BaseException as e: #其他异常
             logDebug(f"[SendDanmu] TYPE={type(e)} DESC={e}")
             self.CallRecord(msg,roomid,src,"X")
-            return self.CallRecord("(具体信息：%s)"%str(e),roomid,src,"-",False)
+            self.CallRecord("(具体信息：%s)"%str(e),roomid,src,"-",False)
+        finally:
+            if remain_msg != "":
+                if not succ_send and self.cancel_danmu_after_failed:
+                    self.CallRecord(remain_msg,roomid,src,"Z")
+                else:
+                    wx.MilliSleep(self.send_interval_ms)
+                    self.SendDanmu(roomid,remain_msg,src,pre,max_len)
+            return succ_send
 
     def SpreadDanmu(self,roomid,speaker,content):
         """转发同传弹幕"""
@@ -1478,7 +1492,6 @@ class LyricDanmu(wx.Frame):
     def CallRecord(self,msg,roomid,src,res,log=True):
         """（子线程中使用）调用主线程的方法来更新弹幕记录"""
         wx.CallAfter(pub.sendMessage,"record",msg=msg,roomid=roomid,src=src,res=res,log=log)
-        return False
     
     def SaveAccountInfo(self,acc_no,acc_name,cookie):
         """保存B站账号信息"""
@@ -1801,6 +1814,8 @@ class LyricDanmu(wx.Frame):
                         self.f_resend_deal = v.lower()=="true"
                     elif k == "app弹幕置底显示":
                         self.app_bottom_danmu = v.lower()=="true"
+                    elif k == "截断发送失败弹幕":
+                        self.cancel_danmu_after_failed = v.lower()=="true"
         except Exception:
             return showInfoDialog("读取config.txt失败", "启动出错")
         try:
@@ -1847,10 +1862,10 @@ class LyricDanmu(wx.Frame):
                             rep=re.sub(r"#[1-9]","",rep)
                         else:   rep=mo.group(2)[0]+"`"+mo.group(2)[1:]
                     else:   rep=mo.group(3).replace("·","`").replace("\\","\\\\")
-                    rooms=mo.group(4)
+                    rooms=mo.group(4).strip(",")
                     if mo.group(2) in self.custom_shields.keys(): #合并房间列表
                         old_rooms=self.custom_shields[mo.group(2)][2]
-                        rooms=(old_rooms+","+rooms) if old_rooms!="" and rooms!="" else ""
+                        rooms=",".join(set((old_rooms+","+rooms).split(","))) if old_rooms!="" and rooms!="" else ""
                     self.custom_shields[mo.group(2)]=[int(mo.group(1)),rep,rooms]
         except Exception:
             showInfoDialog("读取shields.txt失败", "提示")
@@ -2021,6 +2036,7 @@ class LyricDanmu(wx.Frame):
                 f.write("请求超时阈值=%d\n" % int(1000*self.timeout_s))
                 f.write("屏蔽句自动重发=%s\n" % self.f_resend)
                 f.write("进一步处理屏蔽句=%s\n" % self.f_resend_deal)
+                f.write("截断发送失败弹幕=%s\n" % self.cancel_danmu_after_failed)
                 f.write("app弹幕置底显示=%s\n" % self.app_bottom_danmu)
                 f.write(titleLine("同传统计配置"))
                 f.write("同传中断阈值=%d\n" % self.tl_stat_break_min)

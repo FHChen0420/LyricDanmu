@@ -83,22 +83,22 @@ class GeneralConfigFrame(wx.Frame):
         self.sldTmt = wx.Slider(p2, -1, int(10 * parent.timeout_s), 20, 100, pos=(70, 38), size=(170, 30),style=wx.SL_HORIZONTAL)
         self.sldTmt.Bind(wx.EVT_SLIDER, self.OnTimeoutChange)
         # 屏蔽句重发
-        wx.StaticText(p2,-1,"屏蔽句重发",pos=(10,70))
+        wx.StaticText(p2,-1,"屏蔽处理",pos=(15,70))
         self.ckbFResend = wx.CheckBox(p2,-1,"弹幕被屏蔽时尝试重发", pos=(80,70))
         self.ckbFResend.SetValue(parent.f_resend)
         self.ckbFRDeal = wx.CheckBox(p2,-1,"重发时进一步处理内容", pos=(80,92))
         self.ckbFRDeal.SetValue(parent.f_resend_deal)
         self.ckbFRMark = wx.CheckBox(p2,-1,"重发时显示标识", pos=(80,114))
         self.ckbFRMark.SetValue(parent.f_resend_mark)
-        # 弹幕位置
-        wx.StaticText(p2,-1,"弹幕位置",pos=(15,145))
-        self.ckbAppBottom = wx.CheckBox(p2,-1,"APP端弹幕置底显示", pos=(80,145))
+        # 其它设置
+        wx.StaticText(p2,-1,"其它设置",pos=(15,140))
+        self.ckbCancelSend = wx.CheckBox(p2,-1,"长句发送失败时撤回后续内容",pos=(80,140))
+        self.ckbCancelSend.SetValue(parent.cancel_danmu_after_failed)
+        self.ckbAppBottom = wx.CheckBox(p2,-1,"APP端弹幕置底显示", pos=(80,162))
         self.ckbAppBottom.SetValue(parent.app_bottom_danmu)
-        # 通用设置
-        wx.StaticText(p2,-1,"代理设置",pos=(15,175))
-        self.ckbNoProxy = wx.CheckBox(p2,-1,"禁用系统代理", pos=(80,175))
+        self.ckbNoProxy = wx.CheckBox(p2,-1,"禁用系统代理", pos=(80,184))
         self.ckbNoProxy.SetValue(parent.no_proxy)
-        wx.StaticText(p2,-1,"若VPN环境下报网络异常，请勾选",pos=(80,195)).SetForegroundColour("grey")
+        wx.StaticText(p2,-1,"若VPN环境下报网络异常，请勾选",pos=(80,200)).SetForegroundColour("grey")
         ### Tab3 界面配置
         # 启动设置
         wx.StaticText(p3,-1,"启动设置",pos=(15,10))
@@ -258,6 +258,7 @@ class GeneralConfigFrame(wx.Frame):
         parent.app_bottom_danmu=self.ckbAppBottom.GetValue()
         parent.show_stat_on_close=self.ckbStatShow.GetValue()
         parent.record_fontsize=int(self.cbbFontsize.GetValue())
+        parent.cancel_danmu_after_failed=self.ckbCancelSend.GetValue()
         os.environ["NO_PROXY"]="*" if parent.no_proxy else ""
         parent.RefreshLyric()
         if self.parent.customTextFrame:
