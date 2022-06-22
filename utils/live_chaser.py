@@ -2,7 +2,7 @@ import aiohttp
 import jsonpath
 from aiohttp import web
 try:    
-    from util import resource_path
+    from utils.util import resource_path
 except: 
     def resource_path(path): return path
 
@@ -27,7 +27,7 @@ class RoomPlayerChaser:
         async def _getUrl(request):
             print(f'room id {self.roomId}')
             return web.json_response({'url': await _fetchFlvUrl(self.roomId)})
-        self.routes.static('/', resource_path('./chaser/static/'))
+        self.routes.static('/', resource_path('../static/'))
         self.app.add_routes(self.routes)
 
     def serve(self, port):

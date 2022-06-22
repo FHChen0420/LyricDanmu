@@ -1,7 +1,7 @@
 import wx
 import re
 
-from util import showInfoDialog
+from utils.util import showInfoDialog
 
 class ShieldConfigFrame(wx.Frame):
     def __init__(self,parent):

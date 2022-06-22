@@ -2,7 +2,7 @@
 import asyncio,websockets,zlib,json,re
 from pubsub import pub
 from socket import gaierror
-from util import getTime, logDebug
+from utils.util import getTime, logDebug
 
 class BiliLiveWebSocket():
     __TL_PATTERN1=r"^【(?P<speaker>[^:：]{1,5})[:：](?P<content>[^】]+)"

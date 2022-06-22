@@ -1,7 +1,7 @@
 import wx,re
-from SpRoomSelectFrame import SpRoomSelectFrame
-from BiliLiveWebSocket import BiliLiveWebSocket
-from util import UIChange
+from frame.spread_room_select import SpRoomSelectFrame
+from utils.live_websocket import BiliLiveWebSocket
+from utils.util import UIChange
 
 class DanmuSpreadFrame(wx.Frame):
     def __init__(self, parent):

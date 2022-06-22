@@ -5,22 +5,22 @@ import xml.dom.minidom
 from concurrent.futures import ThreadPoolExecutor,as_completed
 from pubsub import pub
 
-from SongSearchFrame import SongSearchFrame
-from RoomSelectFrame import RoomSelectFrame
-from ColorFrame import ColorFrame
-from GeneralConfigFrame import GeneralConfigFrame
-from RecordFrame import RecordFrame
-from ShieldConfigFrame import ShieldConfigFrame
-from CustomTextFrame import CustomTextFrame
-from BiliLiveAntiShield import BiliLiveAntiShield
-from DanmuSpreadFrame import DanmuSpreadFrame
-from PlayerFrame import PlayerFrame
-from chaser.live_chaser import RoomPlayerChaser
-from API import *
-from constant import *
-from util import *
+from frame.song_search import SongSearchFrame
+from frame.room_select import RoomSelectFrame
+from frame.color_select import ColorSelectFrame
+from frame.general_config import GeneralConfigFrame
+from frame.danmu_record import DanmuRecordFrame
+from frame.shield_config import ShieldConfigFrame
+from frame.custom_text import CustomTextFrame
+from frame.danmu_spread import DanmuSpreadFrame
+from frame.live_player import LivePlayerFrame
+from utils.live_anti_shield import BiliLiveAntiShield
+from utils.live_chaser import RoomPlayerChaser
+from utils.api import *
+from utils.util import *
+from const.constant import *
 
-class LyricDanmu(wx.Frame):
+class MainFrame(wx.Frame):
 
     LD_VERSION = "v1.5.1"
 
@@ -35,14 +35,14 @@ class LyricDanmu(wx.Frame):
         if self.no_proxy: os.environ["NO_PROXY"]="*"
         # 子窗体
         self.songSearchFrame = None     # 歌词搜索结果界面
-        self.colorFrame = None          # 弹幕颜色选择界面
+        self.colorSelectFrame = None    # 弹幕颜色选择界面
         self.generalConfigFrame = None  # 应用设置界面
         self.customTextFrame = None     # 预设文本界面
-        self.playerFrame = None         # 追帧窗口
+        self.livePlayerFrame = None     # 追帧窗口
         self.danmuSpreadFrame = None    # 弹幕转发配置界面
         self.shieldConfigFrame = None   # 自定义屏蔽词配置界面
         self.roomSelectFrame = None     # 房间选择界面
-        self.recordFrame = None         # 弹幕发送记录界面
+        self.danmuRecordFrame = None    # 弹幕发送记录界面
         # 消息订阅
         pub.subscribe(self.UpdateRecord,"record")
         pub.subscribe(self.RefreshLyric,"lyric")
@@ -298,7 +298,7 @@ class LyricDanmu(wx.Frame):
             setFont(self.btnDmCfg2,13,name="微软雅黑")
         self.btnDmCfg1.Disable()
         self.btnDmCfg2.Disable()
-        self.btnDmCfg1.Bind(wx.EVT_BUTTON, self.ShowColorFrame)
+        self.btnDmCfg1.Bind(wx.EVT_BUTTON, self.ShowColorSelectFrame)
         self.btnDmCfg2.Bind(wx.EVT_BUTTON, self.ChangeDanmuPosition)
         # 同传前缀与模式设置
         self.btnColaborCfg = wx.Button(self.p3, -1, "单人模式+" if self.init_two_prefix else "单人模式", pos=(115, 3), size=(87, 32))
@@ -308,7 +308,7 @@ class LyricDanmu(wx.Frame):
         self.btnGeneralCfg.Bind(wx.EVT_BUTTON,self.ShowGeneralConfigFrame)
         # 弹幕记录按钮
         self.btnShowRecord = wx.Button(self.p3, -1, "弹幕记录", pos=(115, 40), size=(87, 32))
-        self.btnShowRecord.Bind(wx.EVT_BUTTON,self.ShowRecordFrame)
+        self.btnShowRecord.Bind(wx.EVT_BUTTON,self.ShowDanmuRecordFrame)
         # 屏蔽词管理按钮
         self.btnShieldCfg=wx.Button(self.p3,-1,"屏蔽词管理",pos=(215, 40), size=(87, 32))
         self.btnShieldCfg.Bind(wx.EVT_BUTTON,self.ShowShieldConfigFrame)
@@ -389,7 +389,7 @@ class LyricDanmu(wx.Frame):
         self.danmuSpreadFrame = DanmuSpreadFrame(self)
         self.shieldConfigFrame = ShieldConfigFrame(self)
         self.roomSelectFrame = RoomSelectFrame(self)
-        self.recordFrame = RecordFrame(self)
+        self.danmuRecordFrame = DanmuRecordFrame(self)
         if self.platform=="mac":
             self.ShowRoomSelectFrame(None)
 
@@ -420,15 +420,15 @@ class LyricDanmu(wx.Frame):
         self.danmuSpreadFrame.Restore()
         self.danmuSpreadFrame.Raise()
 
-    def ShowRecordFrame(self,event):
-        self.recordFrame.Show()
-        self.recordFrame.Restore()
-        self.recordFrame.Raise()
+    def ShowDanmuRecordFrame(self,event):
+        self.danmuRecordFrame.Show()
+        self.danmuRecordFrame.Restore()
+        self.danmuRecordFrame.Raise()
 
-    def ShowColorFrame(self,event):
-        if self.colorFrame is not None:
-            self.colorFrame.Destroy()
-        self.colorFrame=ColorFrame(self)
+    def ShowColorSelectFrame(self,event):
+        if self.colorSelectFrame is not None:
+            self.colorSelectFrame.Destroy()
+        self.colorSelectFrame=ColorSelectFrame(self)
 
     def ShowColaborPart(self,event):
         self.p4.Show(True)
@@ -461,8 +461,8 @@ class LyricDanmu(wx.Frame):
         if res==wx.ID_YES:
             webbrowser.open("http://127.0.0.1:8080/player.html")
         elif res==wx.ID_NO:
-            if self.playerFrame: self.playerFrame.Raise()
-            else:   self.playerFrame=PlayerFrame(self)
+            if self.livePlayerFrame: self.livePlayerFrame.Raise()
+            else:   self.livePlayerFrame=LivePlayerFrame(self)
         dlg.Destroy()
     
     def ExitColaborPart(self,event):
@@ -930,13 +930,13 @@ class LyricDanmu(wx.Frame):
         self.pool.submit(self.ThreadOfSetDanmuConfig,None,trans_dict[str(self.cur_mode)])
 
     def OnMove(self,event):
-        if self.colorFrame is not None:
-            self.colorFrame.Show(False)
+        if self.colorSelectFrame is not None:
+            self.colorSelectFrame.Show(False)
 
     def OnFocus(self,event):
         panel=event.GetEventObject().GetParent()
-        if self.colorFrame is not None and panel!=self.colorFrame.panel:
-            self.colorFrame.Show(False)
+        if self.colorSelectFrame is not None and panel!=self.colorSelectFrame.panel:
+            self.colorSelectFrame.Show(False)
 
     def OnPasteComment(self,event):
         """粘贴文本到弹幕发送框时触发。如果文本含有换行符，则进行相应处理"""
@@ -1383,7 +1383,7 @@ class LyricDanmu(wx.Frame):
                 self.danmuSpreadFrame.RecordFail()
         else:
             (pre,color)=(getTime(cur_time)+"｜","black") if res=="0" else ERR_INFO[res]
-            self.recordFrame.AppendText("\n"+pre+msg,color)
+            self.danmuRecordFrame.AppendText("\n"+pre+msg,color)
         if log:
             self.LogDanmu(msg,roomid,src,res,cur_time)
     
@@ -2096,9 +2096,3 @@ class LyricDanmu(wx.Frame):
                 f.write("</texts>")
                 f.flush()
         except: pass
-
-
-if __name__ == '__main__':
-    app = wx.App()
-    frame = LyricDanmu()
-    app.MainLoop()

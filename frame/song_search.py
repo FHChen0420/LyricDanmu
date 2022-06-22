@@ -3,10 +3,11 @@ import re
 import requests
 import xml.dom.minidom
 from math import ceil
-from langconv import Converter
-from SongMarkFrame import SongMarkFrame
-from util import UIChange,setFont,getNodeValue,isEmpty,showInfoDialog,wxCopy
-from constant import CN_LYRIC_PREPROCESS_RULES,LYRIC_IGNORE_RULES
+
+from frame.song_mark import SongMarkFrame
+from utils.langconv import Converter
+from utils.util import UIChange,setFont,getNodeValue,isEmpty,showInfoDialog,wxCopy
+from const.constant import CN_LYRIC_PREPROCESS_RULES,LYRIC_IGNORE_RULES
 
 class SongSearchFrame(wx.Frame):
     def __init__(self, parent, src, words, mark_ids, local_names):

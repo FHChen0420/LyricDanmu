@@ -1,7 +1,7 @@
 import wx
 import wx.html2
 
-class PlayerFrame(wx.Frame):
+class LivePlayerFrame(wx.Frame):
     def __init__(self, parent):
         wx.Frame.__init__(self, parent, -1, "LivePlayer", size=(960,540),style=wx.DEFAULT_FRAME_STYLE)
         backend=wx.html2.WebViewBackendEdge if parent.platform=="win" else wx.html2.WebViewBackendWebKit

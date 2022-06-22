@@ -26,35 +26,54 @@ B站直播歌词/同传弹幕发送工具
 ### Pyinstaller打包指令
 + Windows(64位)：
 
-    ```pyinstaller -F -w MainFrame.pyw -n LyricDanmu --add-data "./chaser/static/*;./chaser/static" --add-data "./dll/x64/*;."```
+    ```pyinstaller -F -w main.pyw -n LyricDanmu --add-data "./static/*;./static" --add-data "./dll/x64/*;."```
 
 + MacOS(M1芯片可能会存在打包失败的情况，请尝试使用Rosetta运行)：
 
-    ```pyinstaller -F -w MainFrame.pyw -n LyricDanmu --add-data "./chaser/static/*:./chaser/static"```
+    ```pyinstaller -F -w main.pyw -n LyricDanmu --add-data "./static/*:./static"```
 
-### 代码列表
+### 项目结构
 开发环境：Windows Python3.8.10 / MacOS Python3.9.1 universal2
+
 第三方库：见[requirements.txt](https://github.com/FHChen0420/LyricDanmu/blob/main/requirements.txt)
 
-+ MainFrame.pyw 主界面
-+ SongSearchFrame.py 歌词搜索结果界面
-+ SongMarkFrame.py 歌词收藏设置界面
-+ RoomSelectFrame.py 直播间选择界面（用于进入房间）
-+ SpRoomSelectFrame.py 直播间选择界面（用于转发弹幕）
-+ DanmuSpreadFrame.py 弹幕转发配置界面
-+ LiveUserSearchFrame.py 直播用户搜索界面
-+ GeneralConfigFrame.py 应用通用设置界面
-+ ShieldConfigFrame.py 屏蔽词管理界面
-+ CustomTextFrame.py 预设文本界面
-+ RecordFrame.py 弹幕发送记录界面
-+ ColorFrame.py 弹幕颜色选择框
-+ PlayerFrame.py 直播画面播放窗体
-+ API.py 接口类
-+ BiliLiveAntiShield.py B站直播屏蔽字处理类
-+ BiliLiveWebSocket.py B站直播websocket类
-+ util.py 工具函数
-+ constant.py 常量
-+ langconv.py & zh_wiki.py 繁体转简体逻辑&数据（Ref: [skydark/nstools](https://github.com/skydark/nstools)）
-+ chaser/ B站直播追帧本地服务（Ref: [tsingsee/EasyPlayer.js](https://github.com/tsingsee/EasyPlayer.js)）
+主要代码：
 
-```注意：本项目的文件命名、变量命名并不规范，请勿模仿```
+```
+│  main.pyw                     程序入口
+│          
+├─const                         <常量目录>
+│  │  constant.py               自定义常量类
+│  │  zh_wiki.py                汉字简繁转化数据
+│          
+├─frame                         <界面目录>
+│  │  color_select.py           弹幕颜色选择界面
+│  │  custom_text.py            预设文本发送界面
+│  │  danmu_record.py           弹幕发送记录界面
+│  │  danmu_spread.py           弹幕转发配置界面
+│  │  general_config.py         应用设置界面
+│  │  liveroom_search.py        直播间搜索界面
+│  │  live_player.py            直播画面播放界面
+│  │  main.py                   主界面
+│  │  room_select.py            进入房间选择界面
+│  │  shield_config.py          屏蔽词管理界面
+│  │  song_mark.py              歌词收藏设置界面
+│  │  song_search.py            歌词搜索结果界面
+│  │  spread_room_select.py     转发房间选择界面
+│      
+├─utils                         <工具目录>
+│  │  api.py                    接口类
+│  │  langconv.py               汉字简繁转化工具
+│  │  live_anti_shield.py       B站直播弹幕屏蔽词处理工具
+│  │  live_chaser.py            B站直播追帧工具
+│  │  live_websocket.py         B站直播websocket工具
+│  │  util.py                   自定义工具类
+```
+
+引用项目：
+
++ B站直播弹幕屏蔽词处理工具：[FHChen0420/bili_live_shield_words](https://github.com/FHChen0420/bili_live_shield_words)
++ 汉字简繁转化工具：[skydark/nstools](https://github.com/skydark/nstools)
++ 视频直播播放器：[tsingsee/EasyPlayer.js](https://github.com/tsingsee/EasyPlayer.js)
+
+```注意：本项目的函数命名、变量命名并不规范，请勿模仿```

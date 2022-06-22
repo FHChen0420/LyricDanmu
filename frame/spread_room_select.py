@@ -1,6 +1,6 @@
 import wx,re
-from LiveUserSearchFrame import LiveUserSearchFrame
-from util import showInfoDialog,editDictItem
+from frame.liveroom_search import LiveroomSearchFrame
+from utils.util import showInfoDialog,editDictItem
 
 class SpRoomSelectFrame(wx.Frame):
     def __init__(self, parent, slot, index):
@@ -11,7 +11,7 @@ class SpRoomSelectFrame(wx.Frame):
         self.index=index
         self.select=""
         self.disable_rids=[]
-        self.liveUserSearchFrame=None
+        self.liveroomSearchFrame=None
         self.GetDisableList()
         self.ShowFrame(parent)
     
@@ -152,11 +152,11 @@ class SpRoomSelectFrame(wx.Frame):
     
     def SearchRoom(self,event):
         keyword=self.tcRoomName.GetValue().strip()
-        if self.liveUserSearchFrame:
-            self.liveUserSearchFrame.Raise()
-            self.liveUserSearchFrame.Search(keyword)
+        if self.liveroomSearchFrame:
+            self.liveroomSearchFrame.Raise()
+            self.liveroomSearchFrame.Search(keyword)
         else:
-            self.liveUserSearchFrame=LiveUserSearchFrame(self,keyword)
+            self.liveroomSearchFrame=LiveroomSearchFrame(self,keyword)
     
     def RecvSearchResult(self,roomid,rname):
         if roomid in self.sp_rooms.keys():

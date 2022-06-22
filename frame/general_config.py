@@ -1,7 +1,7 @@
 import wx
 import os
 
-from util import showInfoDialog
+from utils.util import showInfoDialog
 
 class GeneralConfigFrame(wx.Frame):
     def __init__(self,parent):

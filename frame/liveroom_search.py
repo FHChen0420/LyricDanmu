@@ -1,8 +1,8 @@
 import wx,requests,re
-from API import BiliLiveAPI
-from util import showInfoDialog
+from utils.api import BiliLiveAPI
+from utils.util import showInfoDialog
 
-class LiveUserSearchFrame(wx.Frame):
+class LiveroomSearchFrame(wx.Frame):
     MAX_RESULT=6
     def __init__(self, parent, keyword=""):
         self.blApi=BiliLiveAPI("")

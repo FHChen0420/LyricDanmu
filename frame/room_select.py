@@ -1,13 +1,13 @@
 import wx,re
-from LiveUserSearchFrame import LiveUserSearchFrame
-from util import showInfoDialog,editDictItem
+from frame.liveroom_search import LiveroomSearchFrame
+from utils.util import showInfoDialog,editDictItem
 
 class RoomSelectFrame(wx.Frame):
     def __init__(self, parent):
         self.show_pin=parent.show_pin
         self.rooms=parent.rooms
         self.select=""
-        self.liveUserSearchFrame=None
+        self.liveroomSearchFrame=None
         self.ShowFrame(parent)
     
     def ShowFrame(self,parent):
@@ -120,11 +120,11 @@ class RoomSelectFrame(wx.Frame):
 
     def SearchRoom(self,event):
         keyword=self.tcRoomName.GetValue().strip()
-        if self.liveUserSearchFrame:
-            self.liveUserSearchFrame.Raise()
-            self.liveUserSearchFrame.Search(keyword)
+        if self.liveroomSearchFrame:
+            self.liveroomSearchFrame.Raise()
+            self.liveroomSearchFrame.Search(keyword)
         else:
-            self.liveUserSearchFrame=LiveUserSearchFrame(self,keyword)
+            self.liveroomSearchFrame=LiveroomSearchFrame(self,keyword)
     
     def RecvSearchResult(self,roomid,rname):
         if roomid in self.rooms.keys():

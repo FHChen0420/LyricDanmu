@@ -1,5 +1,5 @@
 import wx
-from constant import DM_CUSTOM_TEXT
+from const.constant import DM_CUSTOM_TEXT
 
 class CustomTextFrame(wx.Frame):
     def __init__(self,parent):
