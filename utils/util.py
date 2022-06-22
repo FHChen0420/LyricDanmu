@@ -242,7 +242,7 @@ def openFile(path,platform="win"):
 def resource_path(relative_path):
     '''返回资源绝对路径(针对pyinstaller打包用)'''
     if getattr(sys, 'frozen', False): 
-        dirname= os.path.dirname(sys.executable) # 以可执行文件形式运行时调用
+        dirname = os.path.dirname(sys.executable)
     else:
-        os.path.dirname(__file__) # 以代码形式运行时调用
+        dirname = os.path.dirname(__file__)
     return os.path.join(dirname, relative_path)
