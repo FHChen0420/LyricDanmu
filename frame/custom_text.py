@@ -10,9 +10,9 @@ class CustomTextFrame(wx.Frame):
         self.RecvLyric(parent.custom_texts[0])
     
     def ShowFrame(self,parent):
-        pos=parent.GetPosition()
-        x=pos[0]
-        y=pos[1]+190
+        pos,ds=parent.GetPosition(),wx.DisplaySize()
+        x,y=pos[0],pos[1]+190
+        if y+170>ds[1]:   y=ds[1]-170
         wx.Frame.__init__(self, parent, title="预设文本", pos=(x,y), size=(450,170), style=wx.DEFAULT_FRAME_STYLE^ (wx.RESIZE_BORDER|wx.MAXIMIZE_BOX|wx.MINIMIZE_BOX)|wx.FRAME_FLOAT_ON_PARENT)
         if parent.show_pin:
             self.ToggleWindowStyle(wx.STAY_ON_TOP)

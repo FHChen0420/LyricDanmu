@@ -6,11 +6,11 @@ import sys
 import time
 import webbrowser
 import xml.dom.minidom
+from concurrent.futures import as_completed, ThreadPoolExecutor
 
 import requests
 import wx
 import wx.html2
-from concurrent.futures import as_completed, ThreadPoolExecutor
 from pubsub import pub
 
 from const.constant import *
