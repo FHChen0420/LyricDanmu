@@ -31,7 +31,7 @@ from utils.util import *
 
 class MainFrame(wx.Frame):
 
-    LD_VERSION = "v1.5.1"
+    LD_VERSION = "v1.5.2"
 
     def __init__(self, parent=None):
         """B站直播同传/歌词弹幕发送工具"""
@@ -43,89 +43,90 @@ class MainFrame(wx.Frame):
         if not self.ReadFile(): return
         if self.no_proxy: os.environ["NO_PROXY"]="*"
         # 子窗体
-        self.songSearchFrame = None     # 歌词搜索结果界面
-        self.colorSelectFrame = None    # 弹幕颜色选择界面
-        self.generalConfigFrame = None  # 应用设置界面
-        self.customTextFrame = None     # 预设文本界面
-        self.livePlayerFrame = None     # 追帧窗口
-        self.danmuSpreadFrame = None    # 弹幕转发配置界面
-        self.shieldConfigFrame = None   # 自定义屏蔽词配置界面
-        self.roomSelectFrame = None     # 房间选择界面
-        self.danmuRecordFrame = None    # 弹幕发送记录界面
+        self.songSearchFrame = None                                 # 歌词搜索结果界面
+        self.colorSelectFrame = None                                # 弹幕颜色选择界面
+        self.generalConfigFrame = None                              # 应用设置界面
+        self.customTextFrame = None                                 # 预设文本界面
+        self.livePlayerFrame = None                                 # 追帧窗口
+        self.danmuSpreadFrame = None                                # 弹幕转发配置界面
+        self.shieldConfigFrame = None                               # 自定义屏蔽词配置界面
+        self.roomSelectFrame = None                                 # 房间选择界面
+        self.danmuRecordFrame = None                                # 弹幕发送记录界面
         # 消息订阅
-        pub.subscribe(self.UpdateRecord,"record")
-        pub.subscribe(self.RefreshLyric,"lyric")
-        pub.subscribe(self.SpreadDanmu,"ws_recv")
-        pub.subscribe(self.StartListening,"ws_start")
-        pub.subscribe(self.SetSpreadButtonState,"ws_error")
-        pub.subscribe(setWxUIAttr,"ui_change")
+        pub.subscribe(self.UpdateRecord,"record")                   # 消息：接收到弹幕记录
+        pub.subscribe(self.RefreshLyric,"lyric")                    # 消息：接收到歌词
+        pub.subscribe(self.SpreadDanmu,"ws_recv")                   # 消息：监听到同传弹幕
+        pub.subscribe(self.StartListening,"ws_start")               # 消息：开始监听房间内的弹幕
+        pub.subscribe(self.SetSpreadButtonState,"ws_error")         # 消息：监听过程中出现错误
+        pub.subscribe(setWxUIAttr,"ui_change")                      # 消息：界面控件属性待修改
         # API
-        self.blApi = BiliLiveAPI(self.cookies,(self.timeout_s,5))
-        self.wyApi = NetEaseMusicAPI()
-        self.qqApi = QQMusicAPI()
-        self.jdApi = JsdelivrAPI()
+        self.blApi = BiliLiveAPI(self.cookies,(self.timeout_s,5))   # B站账号与直播相关接口
+        self.wyApi = NetEaseMusicAPI()                              # 网易云音乐接口
+        self.qqApi = QQMusicAPI()                                   # QQ音乐接口
+        self.jdApi = JsdelivrAPI()                                  # Jsdelivr CDN接口
         # 界面参数
-        self.show_config = not self.init_show_lyric
-        self.show_lyric = self.init_show_lyric
-        self.show_import = False
-        self.show_pin = True
-        self.show_msg_dlg = False
-        self.show_simple = False
+        self.show_config = not self.init_show_lyric                 # 是否展开功能面板
+        self.show_lyric = self.init_show_lyric                      # 是否展开歌词面板
+        self.show_import = False                                    # 是否显示歌词导入面板
+        self.show_pin = True                                        # 是否置顶窗口
+        self.show_msg_dlg = False                                   # 是否有未关闭的“网络异常”消息弹窗
+        self.show_simple = False                                    # 是否启用简版模式
+        self.init_lock = True                                       # 是否锁定歌词面板部分按钮
         # B站配置参数
-        self.cur_acc = 0
-        self.roomid = None
-        self.room_name = None
-        self.colors={}
-        self.modes={}
-        self.cur_color=0
-        self.cur_mode=0
+        self.cur_acc = 0                                            # 账号编号（0或1）
+        self.roomid = None                                          # 直播间号
+        self.room_name = None                                       # 直播间名称
+        self.colors = {}                                            # 用户可用的弹幕颜色
+        self.modes = {}                                             # 用户可用的弹幕位置
+        self.cur_color = 0                                          # 用户正在使用的弹幕颜色编号
+        self.cur_mode = 1                                           # 用户正在使用的弹幕位置编号
         # 歌词参数
-        self.init_lock = True
-        self.cur_song_name=""
-        self.last_song_name=""
-        self.has_trans=False
-        self.has_timeline=False
-        self.auto_sending = False
-        self.auto_pausing = False
-        self.lyric_raw=""
-        self.lyric_raw_tl=""
-        self.timelines=[]
-        self.llist=[]
-        self.olist=[]
-        self.lyc_mod = 1
-        self.lid=0
-        self.oid=0
-        self.lmax=0
-        self.omax=0
-        self.cur_t=0
-        self.pause_t=0
-        self.timeline_base=0
+        self.cur_song_name = ""                                     # 歌曲名称
+        self.last_song_name = ""                                    # 上一次发送的歌曲名称
+        self.has_trans = False                                      # 歌词是否有翻译
+        self.has_timeline = False                                   # 歌词是否有时间轴
+        self.auto_sending = False                                   # 是否处于歌词自动播放模式
+        self.auto_pausing = False                                   # 是否处于歌词自动播放的暂停状态
+        self.lyric_raw=""                                           # 歌词原文本（不含时间轴）
+        self.lyric_raw_tl=""                                        # 歌词原文本（含时间轴）
+        self.timelines=[]                                           # 歌词时间轴列表
+        self.llist=[]                                               # 歌词数据列表
+        self.olist=[]                                               # 歌词原文索引列表
+        self.lyc_mod = 1                                            # 歌词发送模式（0=原文，1=中文，2=双语）
+        self.lid=0                                                  # 当前歌词行对应的歌词数据索引
+        self.oid=0                                                  # 当前歌词行对应的原文索引
+        self.lmax=0                                                 # 歌词数据列表大小
+        self.omax=0                                                 # 歌词原文索引列表大小
+        self.cur_t=0                                                # 歌词自动播放的当前进度    
+        self.pause_t=0                                              # 歌词自动播放过程中暂停时的进度
+        self.timeline_base=0                                        # 歌词自动播放的起始进度
         # 其他参数
-        self.tmp_clipboard=""
-        self.recent_danmu = {"_%d_"%i:0 for i in range(5)}
-        self.danmu_queue = []
-        self.recent_history = []
-        self.tmp_history = []
-        self.running = True
-        self.history_state = False
-        self.history_idx = 0
-        self.colabor_mode = int(self.init_two_prefix)
-        self.pre_idx = 0
-        self.transparent = 255
-        self.shield_debug_mode = False
+        self.tmp_clipboard=""                                       # 临时剪贴板内容
+        self.recent_danmu = {"_%d_"%i:0 for i in range(5)}          # 近期发送的弹幕字典（{弹幕内容：内容重复次数}）
+        self.danmu_queue = []                                       # 待发送弹幕队列
+        self.recent_history = []                                    # 评论框历史记录列表
+        self.tmp_history = []                                       # 评论框历史记录列表（临时）
+        self.running = True                                         # 工具是否正在运行
+        self.history_state = False                                  # 是否正在调用评论框历史记录
+        self.history_idx = 0                                        # 当前所选的评论框历史记录对应的索引
+        self.colabor_mode = int(self.init_two_prefix)               # Tab键能切换的前缀个数-1 （范围0~4）
+        self.pre_idx = -1                                           # 当前评论框前缀的索引
+        self.transparent = 255                                      # 主窗口透明度
+        self.shield_debug_mode = False                              # 是否启用屏蔽词调试模式
         # 追帧服务
-        self.live_chasing = False
-        self.playerChaser = RoomPlayerChaser("1")
-        self.playerFrameUseable = self.platform!="win" or wx.html2.WebView.IsBackendAvailable(wx.html2.WebViewBackendEdge)
+        self.live_chasing = False                                   # 追帧服务是否正在运行
+        self.playerChaser = RoomPlayerChaser("1")                   # 追帧工具
+        self.playerFrameUseable = self.platform!="win" \
+            or wx.html2.WebView.IsBackendAvailable(wx.html2.WebViewBackendEdge) # 当前系统是否支持自带窗口显示网页内容
         # 弹幕监听与转发
-        self.ws_dict={}
-        self.sp_configs=[[[None],False,[]] for _ in range(3)]
-        self.sp_max_len = None
-        self.sp_error_count = 0
+        self.ws_dict={}                                             # websocket字典
+        self.sp_configs=[[[None],False,[]] for _ in range(3)]       # 同传转发配置列表
+        self.sp_max_len = None                                      # 同传转发时的弹幕长度限制
+        self.sp_error_count = 0                                     # 当前未正常运行的websocket连接数
         # 线程池与事件循环
-        self.pool = ThreadPoolExecutor(max_workers=8)
-        self.pool_ws = ThreadPoolExecutor(max_workers=12,thread_name_prefix="DanmuSpreader")
-        self.loop = asyncio.new_event_loop()
+        self.pool = ThreadPoolExecutor(max_workers=8)               # 通用线程池
+        self.pool_ws = ThreadPoolExecutor(max_workers=12,thread_name_prefix="DanmuSpreader") # 转发用线程池
+        self.loop = asyncio.new_event_loop()                        # 追帧用事件循环
         # 显示界面与启动线程
         self.ShowFrame(parent)
         if self.need_update_global_shields:
@@ -134,51 +135,51 @@ class MainFrame(wx.Frame):
 
     def DefaultConfig(self):
         """加载默认配置"""
-        self.rooms={}
-        self.sp_rooms={}
-        self.wy_marks = {}
-        self.qq_marks = {}
-        self.locals = {}
-        self.custom_shields = {}
-        self.custom_texts = []
-        self.danmu_log_dir = {}
-        self.translate_records = {}
-        self.translate_stat = []
-        self.max_len = 30
-        self.prefix = "【♪"
-        self.suffix = "】"
-        self.prefixs = ["【♪","【♬","【❀","【❄️"]
-        self.suffixs = ["","】"]
-        self.send_interval_ms = 750
-        self.timeout_s = 3.05
-        self.default_src = "wy"
-        self.search_num = 18
-        self.page_limit = 6
-        self.lyric_offset = 0
-        self.enable_lyric_merge = True
-        self.lyric_merge_threshold_s = 5.0
-        self.add_song_name = False
-        self.init_show_lyric = True
-        self.init_show_record = False
-        self.no_proxy = True
-        self.account_names=["",""]
-        self.cookies=["",""]
-        self.need_update_global_shields = True
-        self.tl_stat_break_min=10
-        self.tl_stat_min_count=20
-        self.tl_stat_min_word_num=200
-        self.show_stat_on_close=False
-        self.anti_shield = BiliLiveAntiShield({},[])
-        self.anti_shield_ex = BiliLiveAntiShield({},[])
-        self.room_anti_shields = {}
-        self.init_two_prefix=False
-        self.enable_rich_record=False
-        self.record_fontsize=9 if self.platform=="win" else 13
-        self.f_resend = True
-        self.f_resend_mark = True
-        self.f_resend_deal = True
-        self.app_bottom_danmu = True
-        self.cancel_danmu_after_failed = True
+        self.rooms={}                                               # 房间字典（进入房间）
+        self.sp_rooms={}                                            # 房间字典（转发弹幕）
+        self.wy_marks = {}                                          # 网易云歌词收藏字典
+        self.qq_marks = {}                                          # QQ音乐歌词收藏字典
+        self.locals = {}                                            # 本地歌词字典
+        self.custom_shields = {}                                    # 自定义屏蔽词字典
+        self.custom_texts = []                                      # 预设文本列表
+        self.danmu_log_dir = {}                                     # 弹幕日志目录列表
+        self.translate_records = {}                                 # 同传内容记录字典
+        self.translate_stat = []                                    # 同传统计列表
+        self.max_len = 30                                           # 用户的弹幕长度限制
+        self.prefix = "【♪"                                         # 歌词前缀
+        self.suffix = "】"                                          # 歌词后缀
+        self.prefixs = ["【♪","【♬","【❀","【❄️"]                  # 歌词前缀备选
+        self.suffixs = ["","】"]                                    # 歌词后缀备选
+        self.send_interval_ms = 750                                 # 弹幕发送间隔（毫秒）
+        self.timeout_s = 3.05                                       # 弹幕发送超时阈值（秒）
+        self.default_src = "wy"                                     # 歌词搜索默认来源
+        self.search_num = 18                                        # 歌词搜索总条数
+        self.page_limit = 6                                         # 歌词搜索每页显示条数
+        self.lyric_offset = 0                                       # 歌词高亮偏移（0=当前播放行，1=待发送歌词）
+        self.enable_lyric_merge = True                              # 是否启用歌词合并
+        self.lyric_merge_threshold_s = 5.0                          # 歌词合并阈值
+        self.add_song_name = False                                  # 是否在曲末添加歌名
+        self.init_show_lyric = True                                 # 是否在启动时展开歌词面板
+        self.init_show_record = False                               # 是否在启动时打开弹幕记录窗口
+        self.no_proxy = True                                        # 是否禁用系统代理
+        self.account_names=["",""]                                  # B站账号标注名称列表
+        self.cookies=["",""]                                        # B站账号Cookie列表
+        self.need_update_global_shields = True                      # 是否需要更新屏蔽词库
+        self.tl_stat_break_min=10                                   # 同传统计允许的最大中断时长（分钟）
+        self.tl_stat_min_count=20                                   # 同传统计要求的最低同传弹幕条数
+        self.tl_stat_min_word_num=200                               # 同传统计要求的最低同传弹幕总字数
+        self.show_stat_on_close=False                               # 是否在退出工具时显示同传统计
+        self.anti_shield = BiliLiveAntiShield({},[])                # 全局屏蔽词处理工具
+        self.anti_shield_ex = BiliLiveAntiShield({},[])             # 全局屏蔽词额外处理工具
+        self.room_anti_shields = {}                                 # 房间屏蔽词处理工具字典
+        self.init_two_prefix=False                                  # 是否将空前缀与【前缀作为默认的评论框前缀备选
+        self.enable_rich_record=False                               # 是否启用富文本弹幕记录窗口
+        self.record_fontsize=9 if self.platform=="win" else 13      # 弹幕记录窗口文字大小
+        self.f_resend = True                                        # 弹幕触发全局屏蔽时是否自动重发
+        self.f_resend_mark = True                                   # 弹幕重发时是否显示标识
+        self.f_resend_deal = True                                   # 弹幕重发时是否对内容进行额外处理
+        self.app_bottom_danmu = True                                # 是否将发出的弹幕在APP端置底
+        self.cancel_danmu_after_failed = True                       # 长句前半段发送失败后是否取消后半段的发送
 
     def ShowFrame(self, parent):
         """布局并显示各类窗体控件"""
