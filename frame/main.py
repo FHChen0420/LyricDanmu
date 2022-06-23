@@ -447,6 +447,8 @@ class MainFrame(wx.Frame):
         self.btnGeneralCfg.Show(False)
         self.btnShowRecord.Show(False)
         self.btnShieldCfg.Show(False)
+        self.btnSpreadCfg.Show(False)
+        self.btnChaser.Show(False)
         self.btnExtLrc.Show(False)
         self.btnTop.Show(False)
     
@@ -486,6 +488,8 @@ class MainFrame(wx.Frame):
         self.btnGeneralCfg.Show(True)
         self.btnShowRecord.Show(True)
         self.btnShieldCfg.Show(True)
+        self.btnSpreadCfg.Show(True)
+        self.btnChaser.Show(True)
         self.btnExtLrc.Show(True)
         self.btnTop.Show(True)
 
