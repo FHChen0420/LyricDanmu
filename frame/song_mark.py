@@ -1,5 +1,7 @@
-import wx
 import re
+
+import wx
+
 
 class SongMarkFrame(wx.Frame):
     def __init__(self, parent, src, song_id, tags, btn):
@@ -50,4 +52,3 @@ class SongMarkFrame(wx.Frame):
             self.Parent.txtMsg.SetLabel("已取消收藏")
             self.Destroy()
         dlg.Destroy()
-

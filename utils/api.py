@@ -1,11 +1,16 @@
-import requests, re, json, time
+import json
+import re
+import time
 from random import randint
-from typing import Union,List
+from typing import List, Union
 
-CN_IP=( "110.42", "222.206", "220.180", "180.163", "113.100", #北京 山东 福建 上海 广东
-        "125.83", "183.140", "49.78",   "106.230", "223.150") #重庆 浙江 江苏 江西 湖南
+import requests
+
 
 class BaseAPI:
+    CN_IP=( "110.42", "222.206", "220.180", "180.163", "113.100", #北京 山东 福建 上海 广东
+            "125.83", "183.140", "49.78",   "106.230", "223.150") #重庆 浙江 江苏 江西 湖南
+
     def __init__(self,timeout=(3.05,5)):
         self.timeout=timeout
         self.headers = {
@@ -17,7 +22,7 @@ class BaseAPI:
     
     def attach_cn_ip(self,headers:dict) -> dict:
         new_headers= dict(headers)
-        ip=CN_IP[randint(0,len(CN_IP)-1)]+"."+str(randint(10,250))+"."+str(randint(10,250))
+        ip=self.CN_IP[randint(0,len(self.CN_IP)-1)]+"."+str(randint(10,250))+"."+str(randint(10,250))
         new_headers["X-Real-IP"]=ip
         return new_headers
 

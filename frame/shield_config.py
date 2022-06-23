@@ -1,7 +1,9 @@
-import wx
 import re
 
-from utils.util import showInfoDialog
+import wx
+
+from utils.util import bindHint, showInfoDialog
+
 
 class ShieldConfigFrame(wx.Frame):
     def __init__(self,parent):
@@ -29,7 +31,7 @@ class ShieldConfigFrame(wx.Frame):
             index+=1
         self.btnEdit=wx.Button(panel,-1,"修  改",pos=(10,175),size=(60,24))
         self.btnDelete=wx.Button(panel,-1,"删  除",pos=(80,175),size=(60,24))
-        self.btnUpdateGlobal=wx.Button(panel,-1,"-更新屏蔽词库-",pos=(160,175),size=(110,24))
+        self.btnUpdateGlobal=wx.Button(panel,-1,"-获取最新词库-",pos=(160,175),size=(110,24))
         wx.StaticText(panel,-1,"处理前",pos=(10,207))
         self.tcBefore=wx.TextCtrl(panel,-1,"",pos=(55,205),size=(130,24))
         wx.StaticText(panel,-1,"处理后",pos=(10,237))
@@ -38,12 +40,13 @@ class ShieldConfigFrame(wx.Frame):
         wx.StaticText(panel,-1,"房间号",pos=(10,267))
         self.tcRoom=wx.TextCtrl(panel,-1,"",pos=(55,265),size=(130,24))
         self.btnInsert=wx.Button(panel,-1,"添  加",pos=(190,265),size=(80,24))
-        wx.StaticText(panel,-1,"⍰",pos=(250,207)).SetToolTip(
-            "自定义屏蔽字规则详见说明文件\n"+
-            "屏蔽字对应的房间号为空时视为对所有房间生效\n"+
-            "有多个房间号时请使用逗号或分号隔开\n"+
-            "点击[更新屏蔽词库]将会同步云端的全局屏蔽词库\n"+
-            "屏蔽词库与用户自定义的屏蔽词无关")
+        bindHint(wx.StaticText(panel,-1,"[?]",pos=(248,207)),
+            "自定义屏蔽词规则详见说明文件\n \n"
+            "屏蔽词对应的房间号为空时视为对所有房间生效\n"
+            "有多个房间号时请使用逗号或分号隔开\n \n"
+            "点击[获取最新词库]将会同步云端的屏蔽词库至本地\n"
+            "云端屏蔽词库与用户自定义的屏蔽词无关"
+        )
         self.btnDelete.Disable()
         self.btnEdit.Disable()
         self.tcAfter.Disable()

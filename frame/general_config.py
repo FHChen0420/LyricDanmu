@@ -1,7 +1,9 @@
-import wx
 import os
 
-from utils.util import showInfoDialog
+import wx
+
+from utils.util import bindHint
+
 
 class GeneralConfigFrame(wx.Frame):
     def __init__(self,parent):
@@ -40,13 +42,11 @@ class GeneralConfigFrame(wx.Frame):
         self.rdSrcWY=wx.RadioButton(p1,-1,"网易云",pos=(135,70),style=wx.RB_GROUP)
         self.rdSrcQQ=wx.RadioButton(p1,-1,"QQ音乐",pos=(195,70))
         self.rdSrcWY.SetValue(True) if parent.default_src=="wy" else self.rdSrcQQ.SetValue(True)
-        txtSearchHint = wx.StaticText(p1,-1,"[?]",pos=(272,70))
-        txtSearchHint.Bind(wx.EVT_LEFT_DOWN, lambda event: showInfoDialog(
+        bindHint(wx.StaticText(p1,-1,"[?]",pos=(272,70)),
             "歌词前后缀备选：使用\",\"分隔各项\n" +
-            "歌词搜索条数：范围5~30\n每页显示条数：范围5~8\n\n"+
-            "歌词前后缀更改将在工具重启后生效", "帮助"
-        ))
-        txtSearchHint.SetForegroundColour("DARK TURQUOISE")
+            "歌词搜索条数：范围5~30\n每页显示条数：范围5~8\n \n"
+            "歌词前后缀更改将在工具重启后生效"
+        )
         self.tcSearchNum=wx.TextCtrl(p1,-1,str(parent.search_num),pos=(135,98),size=(40,22))
         self.tcPgSize=wx.TextCtrl(p1,-1,str(parent.page_limit),pos=(250,98),size=(40,22))
         # 歌词高亮
@@ -58,13 +58,11 @@ class GeneralConfigFrame(wx.Frame):
         wx.StaticText(p1,-1,"歌词处理",pos=(15,160))
         self.ckbLrcMrg = wx.CheckBox(p1,-1,"启用歌词合并", pos=(80,160))
         self.ckbAddSongName = wx.CheckBox(p1,-1,"曲末显示歌名", pos=(178,160))
-        txtLyricHint = wx.StaticText(p1,-1,"[?]",pos=(272,160))
-        txtLyricHint.Bind(wx.EVT_LEFT_DOWN, lambda event: showInfoDialog(
-            "歌词合并：将短歌词拼接显示并发送，仅对有时轴的歌词生效\n"+
-            "合并阈值：合并歌词时，最多允许拼接多少秒以内的歌词\n"+
-            "曲末显示歌名：在歌词末尾添加形如“歌名：XXX”的记录", "帮助"
-        ))
-        txtLyricHint.SetForegroundColour("DARK TURQUOISE")
+        bindHint(wx.StaticText(p1,-1,"[?]",pos=(272,160)),
+            "歌词合并：将短歌词拼接显示并发送，仅对有时轴的歌词生效\n"
+            "合并阈值：合并歌词时，最多允许拼接多少秒以内的歌词\n"
+            "曲末显示歌名：在歌词末尾添加形如“歌名：XXX”的记录"
+        )
         wx.StaticText(p1,-1,"合并阈值",pos=(15,190))
         self.lblLrcMrg = wx.StaticText(p1, -1, "%4.1f s" %(parent.lyric_merge_threshold_s), pos=(240, 188))
         self.sldLrcMrg = wx.Slider(p1, -1, int(10 * parent.lyric_merge_threshold_s), 30, 80, pos=(70, 188), size=(170, 30),style=wx.SL_HORIZONTAL)
@@ -149,16 +147,14 @@ class GeneralConfigFrame(wx.Frame):
             self.tcAccNames.append(tcAccName)
             self.tcAccCookies.append(tcAccCookie)
             self.btnAccEdits.append(btnAccEdit)
-        txtCookieHint = wx.StaticText(p4,-1,"[如何获取Cookie]",pos=(170, 195))
-        txtCookieHint.Bind(wx.EVT_LEFT_DOWN, lambda event: showInfoDialog(
-            "浏览器进入B站主页，按F12打开开发者工具，选择Network栏\n"+
-            "刷新页面，点击被捕获的第一条记录\n"+
-            "点击该记录的Headers栏，找到cookie项\n"+
-            "复制粘贴到文本框中并关闭配置窗口\n\n"+
-            "如果经常切换B站账号，那么建议使用浏览器无痕模式获取cookie",
-            "Cookie获取方法"
-        ))
-        txtCookieHint.SetForegroundColour("DARK TURQUOISE")
+        bindHint(wx.StaticText(p4,-1,"[如何获取Cookie]",pos=(170, 195)),
+            "Cookie获取方法\n\n"
+            "浏览器进入B站主页，按F12打开开发者工具，选择Network栏\n"
+            "刷新页面，点击被捕获的第一条记录\n"
+            "点击该记录的Headers栏，找到cookie项\n"
+            "复制粘贴到文本框中并关闭配置窗口\n \n"
+            "如果经常切换B站账号，那么建议使用浏览器无痕模式获取cookie"
+        )
         ### 整合
         self.nb.AddPage(p2,"弹幕",True)
         self.nb.AddPage(p1,"歌词")

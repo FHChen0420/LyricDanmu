@@ -1,6 +1,8 @@
 # coding:utf-8
 import re
-from typing import Callable, Match, Pattern, Union, Tuple, List, Dict
+from typing import Callable, Dict, List, Match, Pattern, Tuple, Union  
+
+
 Replace=Union[str,Callable[[Match],str]]
 
 class BiliLiveAntiShield:

@@ -1,6 +1,11 @@
-import wx,requests,re
+import re
+
+import requests
+import wx
+
 from utils.api import BiliLiveAPI
 from utils.util import showInfoDialog
+
 
 class LiveroomSearchFrame(wx.Frame):
     MAX_RESULT=6

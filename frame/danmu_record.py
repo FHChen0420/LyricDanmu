@@ -1,5 +1,11 @@
-import wx,os,webbrowser,time
-from utils.util import openFile, setFont,wxCopy,getTime,showInfoDialog
+import time
+import os
+import webbrowser
+
+import wx
+
+from utils.util import getTime, openFile, setFont, showInfoDialog, wxCopy 
+
 
 class DanmuRecordFrame(wx.Frame):
     def __init__(self,parent):
@@ -100,4 +106,3 @@ class DanmuRecordFrame(wx.Frame):
             self.style.SetTextColour(color)
             self.tcRecord.SetDefaultStyle(self.style)
         self.tcRecord.AppendText(content)
-

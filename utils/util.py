@@ -1,7 +1,15 @@
-import re, time, wx, socket, unicodedata
-import subprocess, sys, os
+import os
+import re
+import socket
+import subprocess
+import sys
+import time
+import unicodedata
 from typing import Optional
+
+import wx
 from pubsub import pub
+
 
 def isEmpty(string) -> bool:
     """判断字符串是否为空"""
@@ -133,6 +141,13 @@ def showInfoDialog(content="",title=""):
     dlg.Destroy()
     return False
 
+def bindHint(obj:wx.Control,hint:str):
+    """为wx控件绑定事件，点击后弹出帮助窗口"""
+    if not obj: return
+    obj.Bind(wx.EVT_LEFT_DOWN, lambda event: showInfoDialog(hint,"帮助"))
+    obj.SetForegroundColour("DARK TURQUOISE")
+    obj.SetCursor(wx.Cursor(wx.CURSOR_HAND))
+
 def logDebug(msg:str):
     """输出调试日志"""
     try:
@@ -141,7 +156,7 @@ def logDebug(msg:str):
             f.write("%s｜%s\n"%(getTime(fmt="%m-%d %H:%M:%S"),msg))
     except: pass
 
-def transformToRegex(string:str,join:str="") -> str:
+def transformToRegex(string,join="") -> str:
     """将普通字符串string转换为正则字符串，各字符之间以join来连接"""
     string = re.sub(r"\s+", "", string)
     pattern = re.sub(r"([+.*?^$|(){}\[\]\\])",r"\\\1","∷".join(string))
@@ -232,24 +247,20 @@ def updateCsvFile(file_path:str,key_index:int,new_records:dict,max_size:int=1024
             if k not in old_records.keys():
                 f.write(v.strip()+"\n")
 
-def openFile(path,platform="win"):
+def openFile(path:str, platform="win"):
     """打开文件"""
     try:
         if platform=="win": os.startfile(path)
         else: subprocess.call(["open",path])
     except: raise
 
-def resource_path(code_path, exe_path):
+def resource_path(code_path:str, exe_path:str) -> str:
     '''返回资源绝对路径
 
     :param: code_path: 在代码层级，资源关于<调用该资源的文件>的相对路径
-    :param: exe_path: 打包为可执行文件后，资源关于<程序入口>的相对路径(本项目程序入口为main.pyw)
+    :param: exe_path: 打包为可执行文件后，资源关于<程序入口>的相对路径
     '''
     if getattr(sys, 'frozen', False):
-        tmp_path = getattr(sys, '_MEIPASS', None) 
-        if tmp_path:
-            return os.path.join(tmp_path, exe_path), "sys._MEIPASS" # 打包为exe/app后会调用
-        else:
-            return os.path.join(os.getcwd(), exe_path), "os.getcwd()" # 暂时没遇到过这种情况
+        return os.path.join(getattr(sys, '_MEIPASS', None), exe_path) # 打包为可执行文件后会调用
     else:
-        return os.path.join(os.path.dirname(__file__), code_path), "dirname(__file__)" # 以代码形式运行会调用
+        return os.path.join(os.path.dirname(__file__), code_path) # 以代码形式运行会调用

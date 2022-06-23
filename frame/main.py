@@ -1,24 +1,33 @@
 # coding: utf-8
-import re, os, time, sys, asyncio, webbrowser
-import wx, wx.html2, requests
+import asyncio
+import os
+import re
+import sys
+import time
+import webbrowser
 import xml.dom.minidom
-from concurrent.futures import ThreadPoolExecutor,as_completed
+
+import requests
+import wx
+import wx.html2
+from concurrent.futures import as_completed, ThreadPoolExecutor
 from pubsub import pub
 
-from frame.song_search import SongSearchFrame
-from frame.room_select import RoomSelectFrame
+from const.constant import *
 from frame.color_select import ColorSelectFrame
-from frame.general_config import GeneralConfigFrame
-from frame.danmu_record import DanmuRecordFrame
-from frame.shield_config import ShieldConfigFrame
 from frame.custom_text import CustomTextFrame
+from frame.danmu_record import DanmuRecordFrame
 from frame.danmu_spread import DanmuSpreadFrame
+from frame.general_config import GeneralConfigFrame
 from frame.live_player import LivePlayerFrame
+from frame.room_select import RoomSelectFrame
+from frame.shield_config import ShieldConfigFrame
+from frame.song_search import SongSearchFrame
+from utils.api import *
 from utils.live_anti_shield import BiliLiveAntiShield
 from utils.live_chaser import RoomPlayerChaser
-from utils.api import *
 from utils.util import *
-from const.constant import *
+
 
 class MainFrame(wx.Frame):
 
@@ -341,9 +350,10 @@ class MainFrame(wx.Frame):
         self.ckbTabMod = wx.CheckBox(self.p4,-1,"Tab切换",pos=(162,43))
         self.ckbTabMod.SetForegroundColour("gray")
         self.ckbTabMod.SetValue(True)
-        wx.StaticText(self.p4,-1,"⍰",pos=(230,40)).SetToolTip(
-            "联动模式下使用Tab键切换前缀，切换范围取决于联动人数\n" +
-            "也可以直接使用Alt+数字键1~5来切换到指定的前缀\n")
+        bindHint(wx.StaticText(self.p4,-1,"[?]",pos=(228,42)),
+            "联动模式下使用Tab键切换前缀，切换范围取决于联动人数\n"
+            "也可以直接使用Alt+数字键1~5来切换到指定的前缀"
+        )
         self.cbbClbMod = wx.ComboBox(self.p4, pos=(250, 6), size=(72, -1), style=wx.CB_READONLY, choices=["不切换", "双前缀", "三前缀", "四前缀", "五前缀"])
         self.cbbClbMod.SetSelection(self.colabor_mode)
         self.cbbClbMod.Bind(wx.EVT_COMBOBOX, self.SetColaborMode)
@@ -1485,8 +1495,8 @@ class MainFrame(wx.Frame):
         """根据接口返回码判断B站账号配置是否有效"""
         if res["code"]==-101 or "登录" in res["message"]:
             self.OnStopBtn(None)
-            return showInfoDialog("账号配置不可用，请修改Cookie配置\n"+
-                "方法一：点击“应用设置”按钮，在“账号”页面进行修改\n"+
+            return showInfoDialog("账号配置不可用，请修改Cookie配置\n"
+                "方法一：点击“应用设置”按钮，在“账号”页面进行修改\n"
                 "方法二：关闭工具后，打开工具目录下的config.txt，修改cookie项", "错误")
         return True
      

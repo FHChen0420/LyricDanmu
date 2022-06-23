@@ -26,11 +26,11 @@ B站直播歌词/同传弹幕发送工具
 ### Pyinstaller打包指令
 + Windows(64位)：
 
-    ```pyinstaller -F -w main.pyw -n LyricDanmu --add-data "./static/*;./static" --add-data "./dll/x64/*;."```
+    ```pyinstaller -F -w app.pyw -n LyricDanmu --add-data "./static/*;./static" --add-data "./dll/x64/*;."```
 
 + MacOS(M1芯片可能会存在打包失败的情况，请尝试使用Rosetta运行)：
 
-    ```pyinstaller -F -w main.pyw -n LyricDanmu --add-data "./static/*:./static"```
+    ```pyinstaller -F -w app.pyw -n LyricDanmu --add-data "./static/*:./static"```
 
 ### 项目结构
 开发环境：Windows Python3.8.10 / MacOS Python3.9.1 universal2
@@ -40,7 +40,7 @@ B站直播歌词/同传弹幕发送工具
 主要代码：
 
 ```
-│  main.pyw                     程序入口
+│  app.pyw                      程序入口
 │          
 ├─const                         <常量目录>
 │  │  constant.py               自定义常量类

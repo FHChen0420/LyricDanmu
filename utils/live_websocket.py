@@ -1,8 +1,15 @@
 #coding=utf-8
-import asyncio,websockets,zlib,json,re
-from pubsub import pub
+import asyncio
+import json
+import re
+import websockets
+import zlib
 from socket import gaierror
+
+from pubsub import pub
+
 from utils.util import getTime, logDebug
+
 
 class BiliLiveWebSocket():
     __TL_PATTERN1=r"^【(?P<speaker>[^:：]{1,5})[:：](?P<content>[^】]+)"

@@ -1,5 +1,7 @@
 import wx
+
 from utils.util import getRgbColor
+
 
 class ColorSelectFrame(wx.Frame):
     def __init__(self, parent):

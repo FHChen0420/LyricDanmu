@@ -1,6 +1,10 @@
-import wx,re
+import re
+
+import wx
+
 from frame.liveroom_search import LiveroomSearchFrame
-from utils.util import showInfoDialog,editDictItem
+from utils.util import editDictItem, showInfoDialog
+
 
 class SpRoomSelectFrame(wx.Frame):
     def __init__(self, parent, slot, index):
