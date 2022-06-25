@@ -1,7 +1,9 @@
 #coding=utf-8
 import asyncio
+import certifi
 import json
 import re
+import ssl
 import websockets
 import zlib
 from socket import gaierror
@@ -39,10 +41,12 @@ class BiliLiveWebSocket():
     async def __connect_to_room(self):
         pkg_len=hex(27+len(self.__roomid))[2:]
         roomid="".join(map(lambda x:hex(ord(x))[2:],list(self.__roomid)))
+        ssl_context = ssl.create_default_context()
+        ssl_context.load_verify_locations(certifi.where())
         self.__error=False
         while self.__listening:
             try:
-                async with websockets.connect(self.__URI) as websocket:
+                async with websockets.connect(self.__URI, ssl=ssl_context) as websocket:
                     async def send_heart_beat():
                         while self.__listening:
                             try:
