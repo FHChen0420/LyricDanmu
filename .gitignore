@@ -1,5 +1,6 @@
 __pycache__
-\.idea
+.idea
+.vscode
 build
 dist
 songs
