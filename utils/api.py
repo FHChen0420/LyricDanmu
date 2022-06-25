@@ -186,6 +186,23 @@ class BiliLiveAPI(BaseAPI):
         res=requests.get(url=url,headers=self.headers,params=params,timeout=timeout)
         return json.loads(res.text)
     
+    def get_login_url(self,timeout=None):
+        """获取登录链接"""
+        url="https://passport.bilibili.com/qrcode/getLoginUrl"
+        if timeout is None: timeout=self.timeout
+        res=requests.get(url=url,headers=self.headers,timeout=timeout)
+        return json.loads(res.text)
+    
+    def get_login_info(self,oauthKey,timeout=None):
+        """检查登录链接状态，获取登录信息"""
+        url="https://passport.bilibili.com/qrcode/getLoginInfo"
+        data={
+            "oauthKey": oauthKey,
+        }
+        if timeout is None: timeout=self.timeout
+        res=requests.post(url=url,headers=self.headers,data=data,timeout=timeout)
+        return json.loads(res.text)
+    
     def update_cookie(self,cookie:str,number=0) -> str:
         """更新账号Cookie信息
         :返回cookie中buvid3,SESSDATA,bili_jct三项的合并内容"""

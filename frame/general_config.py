@@ -2,12 +2,13 @@ import os
 
 import wx
 
+from frame.bili_qrcode import BiliQrCodeFrame
 from utils.util import bindHint
 
 
 class GeneralConfigFrame(wx.Frame):
     def __init__(self,parent):
-        self.parent=parent
+        self.qrcodeFrame=None
         self.ShowFrame(parent)
     
     def ShowFrame(self,parent):
@@ -128,6 +129,7 @@ class GeneralConfigFrame(wx.Frame):
         self.btnAccSwitches=[]
         self.tcAccNames=[]
         self.tcAccCookies=[]
+        self.btnQrLogins=[]
         self.btnAccEdits=[]
         wx.StaticText(p4,-1,"账号切换",pos=(15, 14))
         for i in range(2):
@@ -135,9 +137,11 @@ class GeneralConfigFrame(wx.Frame):
             btnAccSwitch=wx.Button(p4,-1,acc_name,pos=(75+i*100, 10),size=(90,25),name=str(i))
             btnAccSwitch.Bind(wx.EVT_BUTTON,self.SwitchAccount)
             wx.StaticText(p4,-1,"账号名称",pos=(15,50+80*i))
-            tcAccName=wx.TextCtrl(p4,-1,parent.account_names[i],pos=(75,47+80*i),size=(135,22))
+            tcAccName=wx.TextCtrl(p4,-1,parent.account_names[i],pos=(75,47+80*i),size=(80,22))
             tcAccName.Disable()
-            btnAccEdit=wx.Button(p4,-1,"编辑",pos=(215,47+80*i),size=(50,22),name=str(i))
+            btnQrLogin=wx.Button(p4,-1,"扫码登录",pos=(160,47+80*i),size=(60,22),name=str(i))
+            btnQrLogin.Bind(wx.EVT_BUTTON, self.ShowQrCodeFrame)
+            btnAccEdit=wx.Button(p4,-1,"编辑",pos=(225,47+80*i),size=(40,22),name=str(i))
             btnAccEdit.Bind(wx.EVT_BUTTON,self.EditOrSaveAccount)
             wx.StaticText(p4,-1,"Cookie",pos=(20,82+80*i))
             tcAccCookie=wx.TextCtrl(p4,-1,parent.cookies[i],pos=(75,73+80*i),size=(190,38),style=wx.TE_MULTILINE|wx.TE_PROCESS_ENTER)
@@ -146,15 +150,8 @@ class GeneralConfigFrame(wx.Frame):
             self.btnAccSwitches.append(btnAccSwitch)
             self.tcAccNames.append(tcAccName)
             self.tcAccCookies.append(tcAccCookie)
+            self.btnQrLogins.append(btnQrLogin)
             self.btnAccEdits.append(btnAccEdit)
-        bindHint(wx.StaticText(p4,-1,"[如何获取Cookie]",pos=(170, 195)),
-            "Cookie获取方法\n\n"
-            "浏览器进入B站主页，按F12打开开发者工具，选择Network栏\n"
-            "刷新页面，点击被捕获的第一条记录\n"
-            "点击该记录的Headers栏，找到cookie项\n"
-            "复制粘贴到文本框中并关闭配置窗口\n \n"
-            "如果经常切换B站账号，那么建议使用浏览器无痕模式获取cookie"
-        )
         ### 整合
         self.nb.AddPage(p2,"弹幕",True)
         self.nb.AddPage(p1,"歌词")
@@ -165,43 +162,63 @@ class GeneralConfigFrame(wx.Frame):
     def OnIntervalChange(self, event):
         itv = self.sldItv.GetValue()
         self.lblItv.SetLabel("%4d ms" % (itv * 10))
-        self.parent.send_interval_ms = 10 * self.sldItv.GetValue()
+        self.Parent.send_interval_ms = 10 * self.sldItv.GetValue()
     
     def OnTimeoutChange(self, event):
         tmt = self.sldTmt.GetValue()
         self.lblTmt.SetLabel("%4.1f s" % (tmt * 0.1))
-        self.parent.timeout_s = 0.1 * self.sldTmt.GetValue()
-        self.parent.blApi.set_default_timeout(self.parent.timeout_s)
+        self.Parent.timeout_s = 0.1 * self.sldTmt.GetValue()
+        self.Parent.blApi.set_default_timeout(self.Parent.timeout_s)
     
     def OnLrcMergeThChange(self, event):
         mrg = self.sldLrcMrg.GetValue()
         self.lblLrcMrg.SetLabel("%4.1f s" % (mrg * 0.1))
-        self.parent.lyric_merge_threshold_s = 0.1 * self.sldLrcMrg.GetValue()
+        self.Parent.lyric_merge_threshold_s = 0.1 * self.sldLrcMrg.GetValue()
     
+    def EditAccount(self,acc_no):
+        self.tcAccNames[acc_no].Enable()
+        self.tcAccCookies[acc_no].Enable()
+        self.btnAccEdits[acc_no].SetLabel("保存")
+    
+    def SaveAccount(self,acc_no):
+        acc_name=self.tcAccNames[acc_no].GetValue().strip()
+        acc_name="账号%d"%(acc_no+1) if acc_name=="" else acc_name
+        cookie=self.tcAccCookies[acc_no].GetValue().strip()
+        self.btnAccSwitches[acc_no].SetLabel(acc_name)
+        self.Parent.SaveAccountInfo(acc_no,acc_name,cookie)
+        self.tcAccNames[acc_no].Disable()
+        self.tcAccCookies[acc_no].Disable()
+        self.btnAccEdits[acc_no].SetLabel("编辑")
+
     def EditOrSaveAccount(self,event):
-        btn:wx.Button = event.GetEventObject()
-        acc_no=int(btn.GetName())
+        btn = event.GetEventObject()
+        acc_no = int(btn.GetName())
         if btn.GetLabel()=="编辑":
-            self.tcAccNames[acc_no].Enable()
-            self.tcAccCookies[acc_no].Enable()
-            btn.SetLabel("保存")
+            self.EditAccount(acc_no)
         else:
-            acc_name=self.tcAccNames[acc_no].GetValue().strip()
-            acc_name="账号%d"%(acc_no+1) if acc_name=="" else acc_name
-            cookie=self.tcAccCookies[acc_no].GetValue().strip()
-            self.btnAccSwitches[acc_no].SetLabel(acc_name)
-            self.parent.SaveAccountInfo(acc_no,acc_name,cookie)
-            self.tcAccNames[acc_no].Disable()
-            self.tcAccCookies[acc_no].Disable()
-            btn.SetLabel("编辑")
+            self.SaveAccount(acc_no)
             
     def SwitchAccount(self,event):
         acc_no=int(event.GetEventObject().GetName())
-        self.parent.SwitchAccount(acc_no)
-        self.OnClose(None)
+        self.Parent.SwitchAccount(acc_no)
+        self.Close()
+    
+    def ShowQrCodeFrame(self,event):
+        acc_no=int(event.GetEventObject().GetName())
+        for btn in self.btnQrLogins:
+            btn.Disable()
+        self.qrcodeFrame=BiliQrCodeFrame(self,acc_no)
+
+    def SetLoginInfo(self,cookie,acc_no):
+        self.tcAccCookies[acc_no].SetValue(cookie)
+        self.SaveAccount(acc_no)
+        self.Parent.SwitchAccount(acc_no)
+    
+    def SelectPage(self,page_index):
+        self.nb.SetSelection(page_index)
 
     def OnClose(self,event):
-        parent=self.parent
+        parent=self.Parent
         parent.prefix=self.tcDfPre.GetValue().strip()
         parent.suffix=self.tcDfSuf.GetValue().strip()
         parent.prefixs=self.tcPreList.GetValue().strip().split(",")
@@ -257,6 +274,8 @@ class GeneralConfigFrame(wx.Frame):
         parent.cancel_danmu_after_failed=self.ckbCancelSend.GetValue()
         os.environ["NO_PROXY"]="*" if parent.no_proxy else ""
         parent.RefreshLyric()
-        if self.parent.customTextFrame:
-            self.parent.customTextFrame.RefreshLyric()
+        if parent.customTextFrame:
+            parent.customTextFrame.RefreshLyric()
+        if self.qrcodeFrame and not self.qrcodeFrame.cancel:
+            self.qrcodeFrame.Close()
         self.Destroy()
