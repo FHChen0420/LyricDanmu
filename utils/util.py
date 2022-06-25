@@ -11,7 +11,7 @@ import wx
 
 
 def call_after(func):
-    """(装饰器)使得方法可以在子线程中被正常地调用"""
+    """(装饰器)使用wx.CallAfter()包裹GUI方法，使其可在子线程中被正常地调用"""
     def wrapper(*args,**kargs):
         return wx.CallAfter(func,*args,**kargs)
     return wrapper
@@ -62,7 +62,7 @@ def getTimeLineStr(seconds,style=0) -> str:
     fmt="%02d:%04.1f" if style==0 else "%2d:%02d"
     return fmt%(min,sec)
 
-@CallAfter
+@call_after
 def UIChange(obj:wx.Control,label=None,color:Optional[wx.Colour]=None,enabled=None):
     """设置wxUI部件的显示文本、前景色、是否启用"""
     try:
@@ -71,10 +71,6 @@ def UIChange(obj:wx.Control,label=None,color:Optional[wx.Colour]=None,enabled=No
         if label is not None:   obj.SetLabel(label)
         if enabled is not None: obj.Enable(enabled)
     except RuntimeError: pass
-
-# def UIChange(obj:wx.Control,label=None,color:Optional[wx.Colour]=None,enabled=None):
-#     """（子线程内请使用）调用主线程函数来设置wxUI部件的显示文本、前景色、是否启用"""
-#     wx.CallAfter(setWxUIAttr,obj,label,color,enabled)
 
 def setFont(obj:wx.Control,size,bold=False,name=None):
     """设置wxUI部件的字体大小、是否加粗、字体名称"""
@@ -208,7 +204,6 @@ def getStrWidth(string) -> int:
         if unicodedata.east_asian_width(char) in ["W","F"]: width+=2
         else: width+=1
     return width
-    #return sum([2 if unicodedata.east_asian_width(char) in ["W","F"] else 1 for char in string])
 
 def isPortUsed(ip:str="127.0.0.1", port:int=8080) -> bool:
     """检查端口是否已被占用"""
