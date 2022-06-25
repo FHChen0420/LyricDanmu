@@ -229,12 +229,7 @@ class DanmuSpreadFrame(wx.Frame):
         self.Parent.SetSpreadButtonState(roomid=None,count=0,spreading=self.IsSpreading())
         if self.spreadFilter:
             self.spreadFilter.Destroy()
-        # 目前按钮显示有bug，可能无法立即显示boxsizer中被取消隐藏的按钮，
-        # 需要对boxsizer进行resize才能立即生效（在线等一个更好的方法）
-        # self.sizer.Layout() # 有下面两行的话这行可以不加
-        self.panel.SetSize(0,0)
-        self.panel.SetSize(420,315)
-        
+
     def OnClose(self,event):
         self.Show(False)
     

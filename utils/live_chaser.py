@@ -2,7 +2,7 @@ from aiohttp import ClientSession, web
 
 import jsonpath
 
-from utils.util import resource_path, showInfoDialog
+from utils.util import getResourcePath, showInfoDialog
 
 
 async def _fetchFlvUrl(roomId: str) -> str:
@@ -26,7 +26,7 @@ class RoomPlayerChaser:
         async def _getUrl(request):
             print(f'room id {self.roomId}')
             return web.json_response({'url': await _fetchFlvUrl(self.roomId)})
-        path = resource_path('../static/','./static')
+        path = getResourcePath('../static/','./static')
         self.routes.static('/', path)
         try:
             self.app.add_routes(self.routes)

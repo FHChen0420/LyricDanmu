@@ -8,8 +8,13 @@ import unicodedata
 from typing import Optional
 
 import wx
-from pubsub import pub
 
+
+def call_after(func):
+    """(装饰器)使得方法可以在子线程中被正常地调用"""
+    def wrapper(*args,**kargs):
+        return wx.CallAfter(func,*args,**kargs)
+    return wrapper
 
 def isEmpty(string) -> bool:
     """判断字符串是否为空"""
@@ -57,7 +62,8 @@ def getTimeLineStr(seconds,style=0) -> str:
     fmt="%02d:%04.1f" if style==0 else "%2d:%02d"
     return fmt%(min,sec)
 
-def setWxUIAttr(obj:wx.Control,label=None,color:Optional[wx.Colour]=None,enabled=None):
+@CallAfter
+def UIChange(obj:wx.Control,label=None,color:Optional[wx.Colour]=None,enabled=None):
     """设置wxUI部件的显示文本、前景色、是否启用"""
     try:
         if not obj: return # wx.Window部件在销毁时为False而不是None
@@ -66,10 +72,9 @@ def setWxUIAttr(obj:wx.Control,label=None,color:Optional[wx.Colour]=None,enabled
         if enabled is not None: obj.Enable(enabled)
     except RuntimeError: pass
 
-def UIChange(obj:wx.Control,label=None,color:Optional[wx.Colour]=None,enabled=None):
-    """（请在子线程中使用）调用主线程函数来设置wxUI部件的显示文本、前景色、是否启用"""
-    if not obj: return
-    wx.CallAfter(pub.sendMessage,"ui_change",obj=obj,label=label,color=color,enabled=enabled)
+# def UIChange(obj:wx.Control,label=None,color:Optional[wx.Colour]=None,enabled=None):
+#     """（子线程内请使用）调用主线程函数来设置wxUI部件的显示文本、前景色、是否启用"""
+#     wx.CallAfter(setWxUIAttr,obj,label,color,enabled)
 
 def setFont(obj:wx.Control,size,bold=False,name=None):
     """设置wxUI部件的字体大小、是否加粗、字体名称"""
@@ -254,7 +259,7 @@ def openFile(path:str, platform="win"):
         else: subprocess.call(["open",path])
     except: raise
 
-def resource_path(code_path:str, exe_path:str) -> str:
+def getResourcePath(code_path:str, exe_path:str) -> str:
     '''返回资源绝对路径
 
     :param: code_path: 在代码层级，资源关于<调用该资源的文件>的相对路径
