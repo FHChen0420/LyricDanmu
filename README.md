@@ -48,6 +48,7 @@ B站直播歌词/同传弹幕发送工具
 │  │  zh_wiki.py                汉字简繁转化数据
 │          
 ├─frame                         <界面目录>
+│  │  bili_qrcode.py            扫码登录界面
 │  │  color_select.py           弹幕颜色选择界面
 │  │  custom_text.py            预设文本发送界面
 │  │  danmu_record.py           弹幕发送记录界面
@@ -56,7 +57,6 @@ B站直播歌词/同传弹幕发送工具
 │  │  liveroom_search.py        直播间搜索界面
 │  │  live_player.py            直播画面播放界面
 │  │  main.py                   主界面
-│  │  bili_qrcode.py            扫码登录界面
 │  │  room_select.py            进入房间选择界面
 │  │  shield_config.py          屏蔽词管理界面
 │  │  song_mark.py              歌词收藏设置界面
