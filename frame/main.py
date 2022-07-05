@@ -1227,10 +1227,10 @@ class MainFrame(wx.Frame):
         finally:
             if remain_msg != "":
                 if not succ_send and self.cancel_danmu_after_failed:
-                    self.UpdateRecord(remain_msg,roomid,src,"Z")
+                    self.UpdateRecord(pre+remain_msg,roomid,src,"Z")
                 else:
                     wx.MilliSleep(self.send_interval_ms)
-                    self.SendDanmu(roomid,remain_msg,src,pre,max_len)
+                    self.SendDanmu(roomid,pre+remain_msg,src,pre,max_len)
             return succ_send
 
     def SpreadDanmu(self,roomid,speaker,content):
