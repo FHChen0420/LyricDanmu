@@ -53,7 +53,7 @@ class SongSearchFrame(wx.Frame):
                     data=self.wyApi.get_song_info(song_id,changeIP=True)
                 else:
                     song_mid=song_id.split(";")[0]
-                    data=self.qqApi.get_song_info(song_mid,changeIP=True)
+                    data=self.qqApi.get_song_info(song_mid)
                 if data["code"] != (200 if src=="W" else 0):
                     raise Exception("Code: "+str(data["code"]))
                 if len(data["songs" if src=="W" else "data"])==0:
@@ -120,7 +120,7 @@ class SongSearchFrame(wx.Frame):
 
     def GetNetworkSongsQQ(self, words, mark_ids):
         try:
-            data=self.qqApi.search_songs(words,limit=self.search_num,changeIP=True)
+            data=self.qqApi.search_songs(words,limit=self.search_num)
             if data["code"] != 0:
                 return showInfoDialog("获取歌曲列表失败", "搜索出错")
             if data["subcode"]!=0 and len(self.all_songs)==0:
@@ -280,7 +280,7 @@ class SongSearchFrame(wx.Frame):
 
     def GetLyricTypeQQ(self, song_mid, txt):
         try:
-            data=self.qqApi.get_lyric(song_mid,changeIP=True)
+            data=self.qqApi.get_lyric(song_mid)
             if data["code"] == -1901:
                 return UIChange(obj=txt,color="red",label="无词")
             if data["code"] != 0:
@@ -410,7 +410,7 @@ class SongSearchFrame(wx.Frame):
             self.txtMsg.SetLabel("获取歌词中...")
             info=event.GetEventObject().GetName().split(";",2)
             song_mid,name = info[1],info[2]
-            data=self.qqApi.get_lyric(song_mid,changeIP=True)
+            data=self.qqApi.get_lyric(song_mid)
             if data["code"] == -1901:
                 self.txtMsg.SetForegroundColour("red")
                 self.txtMsg.SetLabel("目标歌曲无歌词")
@@ -537,7 +537,7 @@ class SongSearchFrame(wx.Frame):
             self.songMarkFrame.Destroy()
         if label=="☆":
             try:
-                data=self.qqApi.get_song_info(song_id,changeIP=True)
+                data=self.qqApi.get_song_info(song_id)
                 if data["code"] != 0:
                     return showInfoDialog("无法获取歌曲信息，请重试", "获取歌曲信息出错")
                 song=data["data"][0]

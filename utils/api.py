@@ -8,23 +8,14 @@ import requests
 
 
 class BaseAPI:
-    CN_IP=( "110.42", "222.206", "220.180", "180.163", "113.100", #北京 山东 福建 上海 广东
-            "125.83", "183.140", "49.78",   "106.230", "223.150") #重庆 浙江 江苏 江西 湖南
-
     def __init__(self,timeout=(3.05,5)):
         self.timeout=timeout
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36 Edg/92.0.902.78",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.63 Safari/537.36 Edg/102.0.1245.30",
         }
     
     def set_default_timeout(self,timeout=(3.05,5)):
         self.timeout=timeout
-    
-    def attach_cn_ip(self,headers:dict) -> dict:
-        new_headers= dict(headers)
-        ip=self.CN_IP[randint(0,len(self.CN_IP)-1)]+"."+str(randint(10,250))+"."+str(randint(10,250))
-        new_headers["X-Real-IP"]=ip
-        return new_headers
 
 class BiliLiveAPI(BaseAPI):
     def __init__(self,cookies:Union[List[str],str],timeout=(3.05,5)):
@@ -217,6 +208,9 @@ class BiliLiveAPI(BaseAPI):
         return cookie
 
 class NetEaseMusicAPI(BaseAPI):
+    CN_IP=( "110.42", "222.206", "220.180", "180.163", "113.100", #北京 山东 福建 上海 广东
+            "125.83", "183.140", "49.78",   "106.230", "223.150") #重庆 浙江 江苏 江西 湖南
+
     def __init__(self,timeout=(3.05,5)):
         """网易云音乐API"""
         super().__init__(timeout)
@@ -261,27 +255,57 @@ class NetEaseMusicAPI(BaseAPI):
         res=requests.get(url=url,headers=headers,params=params,timeout=timeout)
         return json.loads(res.text)
     
+    def attach_cn_ip(self,headers:dict) -> dict:
+        new_headers= dict(headers)
+        ip=self.CN_IP[randint(0,len(self.CN_IP)-1)]+"."+str(randint(10,250))+"."+str(randint(10,250))
+        new_headers["X-Real-IP"]=ip
+        return new_headers
+    
 class QQMusicAPI(BaseAPI):
     def __init__(self,timeout=(3.05,5)):
         """QQ音乐API"""
         super().__init__(timeout)
         self.headers = dict(self.headers,
-            Referer="https://y.qq.com/portal/player.html")
+            Host="c.y.qq.com",
+            Referer="https://c.y.qq.com/",
+            Origin="https://y.qq.com")
 
-    def search_songs(self,keyword,limit=10,timeout=None,changeIP=False) -> dict:
+    def search_songs(self,keyword,limit=10,timeout=None) -> dict:
         """按关键字搜索歌曲"""
         url="https://c.y.qq.com/soso/fcgi-bin/client_search_cp"
         params= {
             "w": keyword,
             "n": limit,
             "format": "json",
+
+            "p": 1,
+            "catZhida": 1,
+            "remoteplace": 'txt.yqq.song',
+            "outCharset": 'utf-8',
+            "ct": 24,
+            "qqmusic_ver": 1298,
+            "t": 0,
+            "aggr": 1,
+            "cr": 1,
+            "lossless": 0,
+            "flag_qc": 0,
+            "platform": 'yqq.json',
+            "g_tk": 1124214810,
+            "loginUin": '0',
+            "hostUin": 0,
+            "inCharset": 'utf8',
+            "notice": 0,
+            "needNewCode": 0,
         }
         if timeout is None: timeout=self.timeout
-        headers=self.attach_cn_ip(self.headers) if changeIP else self.headers
-        res=requests.get(url=url,headers=headers,params=params,timeout=timeout)
-        return json.loads(res.text)
+        for _ in range(10):
+            res=requests.get(url=url,headers=self.headers,params=params,timeout=timeout)
+            if res.status_code==200: # 不规范
+                return json.loads(res.text)
+            time.sleep(0.05)
+        return {"code": None}
     
-    def get_lyric(self,song_mid,timeout=None,changeIP=False) -> dict:
+    def get_lyric(self,song_mid,timeout=None) -> dict:
         """根据歌曲MID获取歌词"""
         url="https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg"
         params= {
@@ -291,11 +315,10 @@ class QQMusicAPI(BaseAPI):
             "format": "json",
         }
         if timeout is None: timeout=self.timeout
-        headers=self.attach_cn_ip(self.headers) if changeIP else self.headers
-        res=requests.get(url=url,headers=headers,params=params,timeout=timeout)
+        res=requests.get(url=url,headers=self.headers,params=params,timeout=timeout)
         return json.loads(res.text)
     
-    def get_song_info(self,song_id,timeout=None,changeIP=False) -> dict:
+    def get_song_info(self,song_id,timeout=None) -> dict:
         """根据歌曲ID获取歌曲信息"""
         url="https://c.y.qq.com/v8/fcg-bin/fcg_play_single_song.fcg"
         params= {
@@ -303,8 +326,7 @@ class QQMusicAPI(BaseAPI):
             "format": "json",
         }
         if timeout is None: timeout=self.timeout
-        headers=self.attach_cn_ip(self.headers) if changeIP else self.headers
-        res=requests.get(url=url,headers=headers,params=params,timeout=timeout)
+        res=requests.get(url=url,headers=self.headers,params=params,timeout=timeout)
         return json.loads(res.text)
 
 class JsdelivrAPI(BaseAPI):
