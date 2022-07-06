@@ -1,6 +1,6 @@
 import wx
 
-from const.constant import DM_CUSTOM_TEXT
+from const.constant import DanmuSrc
 
 
 class CustomTextFrame(wx.Frame):
@@ -96,7 +96,7 @@ class CustomTextFrame(wx.Frame):
         pre,suf = "",""
         msg = self.lblLyrics[1-parent.lyric_offset].GetLabel()
         message = parent.AntiShield(pre+msg)
-        parent.AddDanmuToQueue(parent.roomid,message,DM_CUSTOM_TEXT,pre,suf)
+        parent.AddDanmuToQueue(parent.roomid,message,DanmuSrc.CUSTOM_TEXT,pre,suf)
         parent.AddHistory(msg)
     
     def ShowEditPanel(self,event):
