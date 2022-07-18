@@ -1,18 +1,19 @@
 import json
 import re
 import time
-from random import randint
+from random import randint, random
 from typing import List, Union
 
 import requests
 
 
 class BaseAPI:
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.63 Safari/537.36 Edg/102.0.1245.30",
+    }
     def __init__(self,timeout=(3.05,5)):
         self.timeout=timeout
-        self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.63 Safari/537.36 Edg/102.0.1245.30",
-        }
+        
     
     def set_default_timeout(self,timeout=(3.05,5)):
         self.timeout=timeout
@@ -262,48 +263,177 @@ class NetEaseMusicAPI(BaseAPI):
         return new_headers
     
 class QQMusicAPI(BaseAPI):
-    def __init__(self,timeout=(3.05,5)):
+    def __init__(self,cookie,timeout=(3.05,5)):
         """QQ音乐API"""
         super().__init__(timeout)
-        self.headers = dict(self.headers,
-            Host="c.y.qq.com",
-            Referer="https://c.y.qq.com/",
+        self.headers = dict(BaseAPI.headers,
+            Referer="https://y.qq.com/",
             Origin="https://y.qq.com")
+        self.headers_login = dict(BaseAPI.headers,
+            Host="ssl.ptlogin2.qq.com",
+            Referer="https://xui.ptlogin2.qq.com/")
+        self.__session=requests.session()
+        self.set_cookie(cookie)
+        self.__ptqrtoken=""
+        self.__login_sig=""
 
+    def __get_token(self, string, offset=5381):
+        """加密函数，用于计算g_tk等值"""
+        e = offset
+        for c in string:
+            e += (e << 5) + ord(c)
+        return 0x7fffffff & e
+    
+    # def __get_uuid(self):
+    #     """生成uuid并保存到cookie中(非必需)"""
+    #     def _replace(x):
+    #         i = randint(0,15)
+    #         i = i | 0 if x.group()=="x" else i & 0x3 | 0x8
+    #         return "0123456789abcdef"[i]
+    #     template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
+    #     uuid = re.sub("[xy]",_replace,template).upper()
+    #     self.__session.cookies.set("ui",uuid,domain=".graph.qq.com",path="/")
+    #     return uuid
+
+    def _xlogin(self):
+        """获取pt_login_sig"""
+        url="https://xui.ptlogin2.qq.com/cgi-bin/xlogin"
+        params={
+            "appid": 716027609,
+            "daid": 383,
+            "style": 33,
+            "login_text": "登录",
+            "hide_title_bar": 1,
+            "hide_border": 1,
+            "target": "self",
+            "s_url": "https://graph.qq.com/oauth2.0/login_jump",
+            "pt_3rd_aid": 100497308,
+            "pt_feedback_link": "https://support.qq.com/products/77942?customInfo=.appid100497308",
+            "theme": 2,
+            "verify_theme": "",
+        }
+        self.__session.get(url=url,params=params,timeout=(3.05,5))
+        self.__login_sig=self.__session.cookies.get("pt_login_sig")
+    
+    def get_login_qrcode(self):
+        """获取登录二维码"""
+        url="https://ssl.ptlogin2.qq.com/ptqrshow"
+        params= {
+            "appid": 716027609,
+            "e": 2,
+            "l": "M",
+            "s": 3,
+            "d": 72,
+            "v": 4,
+            "t": random(),
+            "daid": 383,
+            "pt_3rd_aid": 100497308,
+        }
+        res=self.__session.get(url=url,headers=self.headers_login,params=params,timeout=(3.05,5))
+        qrsig=self.__session.cookies.get("qrsig")
+        self.__ptqrtoken=self.__get_token(qrsig, 0)
+        return res
+    
+    def get_login_info(self):
+        """查询扫码登录状态"""
+        url="https://ssl.ptlogin2.qq.com/ptqrlogin"
+        params={
+            "u1": "https://graph.qq.com/oauth2.0/login_jump",
+            "ptqrtoken": self.__ptqrtoken,
+            "ptredirect": 0,
+            "h": 1,
+            "t": 1,
+            "g": 1,
+            "from_ui": 1,
+            "ptlang": 2052,
+            "action": "0-0-%d"%int(time.time()*1000),
+            "js_ver": 22071217,
+            "js_type": 1,
+            "login_sig": self.__login_sig,
+            "pt_uistyle": 40,
+            "aid": 716027609,
+            "daid": 383,
+            "pt_3rd_aid": 100497308,
+            "has_onekey": 1,
+            "o1vId": "f49360ebaddf6358d888317a4e8aa604",
+        }
+        res=self.__session.get(url=url,headers=self.headers_login,params=params,timeout=(3.05,5))
+        return res
+    
+    def authorize(self,check_sig_url):
+        """扫码并确认后，调用此函数获取完整cookie"""
+        self.__session.get(url=check_sig_url,timeout=(3.05,5))
+        p_skey=self.__session.cookies.get("p_skey")
+        auth_url="https://graph.qq.com/oauth2.0/authorize"
+        auth_data={
+            "response_type": "code",
+            "client_id": 100497308,
+            "redirect_uri": "https://y.qq.com/portal/wx_redirect.html?login_type=1&surl=https://y.qq.com/",
+            "scope": "all",
+            "state": "state",
+            "switch": "",
+            "from_ptlogin": 1,
+            "src": 1,
+            "update_auth": 1,
+            "openapi": "80901010_1030",
+            "g_tk": self.__get_token(p_skey),
+            "auth_time": int(time.time()*1000),
+            "ui": "", # self.__get_uuid(),
+        }
+        auth_res=self.__session.post(url=auth_url,data=auth_data,timeout=(3.05,5))
+        location=auth_res.history[0].headers["location"]
+        code=re.search("code=([0-9A-F]+)",location).group(1)
+        login_srv_url="https://u.y.qq.com/cgi-bin/musicu.fcg"
+        login_srv_json_data={
+            "comm": {
+                "g_tk": 5381,
+                "platform": "yqq",
+                "ct": 24,
+                "cv": 0
+            },
+            "req": {
+                "module": "QQConnectLogin.LoginServer",
+                "method": "QQLogin",
+                "param": {
+                    "code": code
+                }
+            }
+        }
+        self.__session.post(url=login_srv_url,headers=self.headers,json=login_srv_json_data,timeout=(3.05,5))
+        
     def search_songs(self,keyword,limit=10,timeout=None) -> dict:
         """按关键字搜索歌曲"""
-        url="https://c.y.qq.com/soso/fcgi-bin/client_search_cp"
-        params= {
-            "w": keyword,
-            "n": limit,
-            "format": "json",
-
-            "p": 1,
-            "catZhida": 1,
-            "remoteplace": 'txt.yqq.song',
-            "outCharset": 'utf-8',
-            "ct": 24,
-            "qqmusic_ver": 1298,
-            "t": 0,
-            "aggr": 1,
-            "cr": 1,
-            "lossless": 0,
-            "flag_qc": 0,
-            "platform": 'yqq.json',
-            "g_tk": 1124214810,
-            "loginUin": '0',
-            "hostUin": 0,
-            "inCharset": 'utf8',
-            "notice": 0,
-            "needNewCode": 0,
+        url="https://u.y.qq.com/cgi-bin/musicu.fcg"
+        json_data = {
+            "comm": {
+                "cv": 4747474,
+                "ct": 24,
+                "format": "json",
+                "inCharset": "utf-8",
+                "outCharset": "utf-8",
+                "notice": 0,
+                "platform": "yqq.json",
+                "needNewCode": 1,
+                "uin": 0,
+                "g_tk_new_20200303": 1244134330, #任意
+                "g_tk": 1244134330 #任意
+            },
+            "req_1": {
+                "method": "DoSearchForQQMusicDesktop",
+                "module": "music.search.SearchCgiService",
+                "param": {
+                    "remoteplace": "txt.yqq.top",
+                    "searchid": "",
+                    "search_type": 0,
+                    "query": keyword.encode("utf-8").decode('unicode_escape'),
+                    "page_num": 1,
+                    "num_per_page": limit
+                }
+            }
         }
         if timeout is None: timeout=self.timeout
-        for _ in range(10):
-            res=requests.get(url=url,headers=self.headers,params=params,timeout=timeout)
-            if res.status_code==200: # 不规范
-                return json.loads(res.text)
-            time.sleep(0.05)
-        return {"code": None}
+        res=self.__session.post(url=url,headers=self.headers,json=json_data,timeout=timeout)
+        return json.loads(res.text)
     
     def get_lyric(self,song_mid,timeout=None) -> dict:
         """根据歌曲MID获取歌词"""
@@ -328,6 +458,18 @@ class QQMusicAPI(BaseAPI):
         if timeout is None: timeout=self.timeout
         res=requests.get(url=url,headers=self.headers,params=params,timeout=timeout)
         return json.loads(res.text)
+    
+    def get_cookie(self):
+        uin = self.__session.cookies.get("uin",domain=".qq.com")
+        qm_keyst = self.__session.cookies.get("qm_keyst",domain=".qq.com")
+        return f"uin={uin if uin else ''};qm_keyst={qm_keyst if qm_keyst else ''}"
+    
+    def set_cookie(self,cookie:str):
+        cookie = re.sub(r"\s+", "", cookie)
+        mo1 = re.search(r"uin=([^;]+)", cookie)
+        mo2 = re.search(r"qm_keyst=([^;]+)", cookie)
+        if mo1: self.__session.cookies.set("uin",mo1.group(1),domain=".qq.com")
+        if mo2: self.__session.cookies.set("qm_keyst",mo2.group(1),domain=".qq.com")
 
 class JsdelivrAPI(BaseAPI):
     def __init__(self, timeout=(6.05,5)):

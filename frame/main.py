@@ -59,7 +59,7 @@ class MainFrame(wx.Frame):
         # API
         self.blApi = BiliLiveAPI(self.cookies,(self.timeout_s,5))   # B站账号与直播相关接口
         self.wyApi = NetEaseMusicAPI()                              # 网易云音乐接口
-        self.qqApi = QQMusicAPI()                                   # QQ音乐接口
+        self.qqApi = QQMusicAPI(self.qq_cookie)                     # QQ音乐接口
         self.jdApi = JsdelivrAPI()                                  # Jsdelivr CDN接口
         # 界面参数
         self.show_config = not self.init_show_lyric                 # 是否展开功能面板
@@ -97,6 +97,7 @@ class MainFrame(wx.Frame):
         self.cur_t=0                                                # 歌词自动播放的当前进度    
         self.pause_t=0                                              # 歌词自动播放过程中暂停时的进度
         self.timeline_base=0                                        # 歌词自动播放的起始进度
+        self.qq_lock=False                                          # 是否暂时禁用QQ音乐搜歌交互
         # 其他参数
         self.tmp_clipboard=""                                       # 临时剪贴板内容
         self.recent_danmu = {"_%d_"%i:0 for i in range(5)}          # 近期发送的弹幕字典（{弹幕内容：内容重复次数}）
@@ -161,6 +162,7 @@ class MainFrame(wx.Frame):
         self.no_proxy = True                                        # 是否禁用系统代理
         self.account_names=["",""]                                  # B站账号标注名称列表
         self.cookies=["",""]                                        # B站账号Cookie列表
+        self.qq_cookie = ""                                         # QQ音乐Cookie
         self.need_update_global_shields = True                      # 是否需要更新屏蔽词库
         self.tl_stat_break_min=10                                   # 同传统计允许的最大中断时长（分钟）
         self.tl_stat_min_count=20                                   # 同传统计要求的最低同传弹幕条数
@@ -991,6 +993,7 @@ class MainFrame(wx.Frame):
     def SearchLyric(self, event):
         """搜索歌词（优先级：本地歌词>收藏歌词>非收藏歌词）"""
         src=event.GetEventObject().GetName()
+        if src=="qq" and self.qq_lock:  return
         words = self.tcSearch.GetValue().strip().replace("\\","")
         if words in ["","*"]:   return
         if self.songSearchFrame:
@@ -1815,6 +1818,8 @@ class MainFrame(wx.Frame):
                         self.cookies[0] = v
                     elif k == "cookie2":
                         self.cookies[1] = v
+                    elif k == "qq音乐cookie":
+                        self.qq_cookie = v
                     elif k == "同传中断阈值":
                         self.tl_stat_break_min = min(max(int(v),5),30)
                     elif k == "最低字数要求":
@@ -2081,6 +2086,7 @@ class MainFrame(wx.Frame):
                 f.write("cookie=%s\n" % self.cookies[0])
                 f.write("账号标注2=%s\n" % self.account_names[1])
                 f.write("cookie2=%s\n" % self.cookies[1])
+                f.write("qq音乐cookie=%s\n" % self.qqApi.get_cookie())
         except Exception as e:
             logDebug(f"[SaveConfig] {e}")
 

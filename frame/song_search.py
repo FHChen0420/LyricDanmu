@@ -6,6 +6,7 @@ import requests
 import wx
 
 from const.constant import CN_LYRIC_PREPROCESS_RULES, LYRIC_IGNORE_RULES
+from frame.qqmusic_qrcode import QQMusicQrCodeFrame
 from frame.song_mark import SongMarkFrame
 from utils.langconv import Converter
 from utils.util import getNodeValue, isEmpty, setFont, showInfoDialog, UIChange, wxCopy
@@ -121,20 +122,29 @@ class SongSearchFrame(wx.Frame):
     def GetNetworkSongsQQ(self, words, mark_ids):
         try:
             data=self.qqApi.search_songs(words,limit=self.search_num)
-            if data["code"] != 0:
+            if data["code"] != 0 or data["req_1"]["code"] != 0:
                 return showInfoDialog("获取歌曲列表失败", "搜索出错")
-            if data["subcode"]!=0 and len(self.all_songs)==0:
-                return showInfoDialog("找不到相关歌曲", "提示")
+            qq_songs=data["req_1"]["data"]["body"]["song"]["list"]
+            if len(qq_songs)==0:
+                try:
+                    test_data=self.qqApi.search_songs("七里香",limit=3)
+                    assert len(test_data["req_1"]["data"]["body"]["song"]["list"])==3
+                except: # 登录过期的情况
+                    showInfoDialog("QQ音乐登录已过期，请使用手机QQ扫码登录", "提示")
+                    QQMusicQrCodeFrame(self.parent)
+                    return False
+                else: # 关键词太偏的情况
+                    if len(self.all_songs)==0:
+                        return showInfoDialog("找不到相关歌曲", "提示")
             self.recommond = None
-            qq_songs=data["data"]["song"]["list"]
             for qq_song in qq_songs:
-                if "Q%d"%qq_song["songid"] in mark_ids:  continue
+                if "Q%d"%qq_song["id"] in mark_ids:  continue
                 song={
-                    "id": "%d;%s"%(qq_song["songid"],qq_song["songmid"]), #id;mid
-                    "name": qq_song["songname"],
+                    "id": "%d;%s"%(qq_song["id"],qq_song["mid"]), #id;mid
+                    "name": qq_song["name"],
                     "artists": [{"name": x["name"]} for x in qq_song["singer"]],
-                    "alias": [],
-                    "album": {"name": qq_song["albumname"]},
+                    "alias": [qq_song["subtitle"]] if qq_song["subtitle"] else [],
+                    "album": {"name": qq_song["album"]["name"]},
                 }
                 self.all_songs.append(song)
             self.ShowFrame(self.parent)
