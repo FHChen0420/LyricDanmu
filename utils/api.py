@@ -263,7 +263,7 @@ class NetEaseMusicAPI(BaseAPI):
         return new_headers
     
 class QQMusicAPI(BaseAPI):
-    def __init__(self,cookie,timeout=(3.05,5)):
+    def __init__(self,cookie="",timeout=(3.05,5)):
         """QQ音乐API"""
         super().__init__(timeout)
         self.headers = dict(BaseAPI.headers,
@@ -400,9 +400,21 @@ class QQMusicAPI(BaseAPI):
             }
         }
         self.__session.post(url=login_srv_url,headers=self.headers,json=login_srv_json_data,timeout=(3.05,5))
-        
-    def search_songs(self,keyword,limit=10,timeout=None) -> dict:
-        """按关键字搜索歌曲"""
+    
+    def search_songs_v1(self,keyword,limit=10,timeout=None) -> dict:
+        """按关键字搜索歌曲(无需登录)"""
+        url="https://c.y.qq.com/soso/fcgi-bin/client_search_cp"
+        params = {
+            "w": keyword,
+            "n": limit,
+            "format": "json",
+        }
+        if timeout is None: timeout=self.timeout
+        res=requests.get(url=url,headers=self.headers,params=params,timeout=timeout)
+        return json.loads(res.text) if res.status_code==0 else {"code": res.status_code}
+
+    def search_songs_v2(self,keyword,limit=10,timeout=None) -> dict:
+        """按关键字搜索歌曲(需登录)"""
         url="https://u.y.qq.com/cgi-bin/musicu.fcg"
         json_data = {
             "comm": {

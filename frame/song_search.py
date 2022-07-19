@@ -26,8 +26,10 @@ class SongSearchFrame(wx.Frame):
         self.GetMarkSongs(mark_ids)
         if src=="wy":
             self.GetNetworkSongsWY(words, mark_ids)
+        elif parent.qq_new_api:
+            self.GetNetworkSongsQQ_v2(words, mark_ids)
         else:
-            self.GetNetworkSongsQQ(words, mark_ids)
+            self.GetNetworkSongsQQ_v1(words, mark_ids)
 
     def GetLocalSongs(self,local_names):
         if len(local_names) == 0: return
@@ -98,7 +100,7 @@ class SongSearchFrame(wx.Frame):
         try:
             data=self.wyApi.search_songs(words,limit=self.search_num,changeIP=True)
             if data["code"] != 200:
-                return showInfoDialog("获取歌曲列表失败", "搜索出错")
+                return showInfoDialog("获取网易云歌曲列表失败", "搜索出错")
             if "abroad" in data.keys():
                 return showInfoDialog("轮换IP出错，请反馈给作者", "搜索出错")
             elif "songs" not in data["result"] and len(self.all_songs)==0:
@@ -119,11 +121,41 @@ class SongSearchFrame(wx.Frame):
             return showInfoDialog("解析错误，请重试", "搜索出错")
         return True
 
-    def GetNetworkSongsQQ(self, words, mark_ids):
+    def GetNetworkSongsQQ_v1(self, words, mark_ids):
         try:
-            data=self.qqApi.search_songs(words,limit=self.search_num)
+            data=self.qqApi.search_songs_v1(words,limit=self.search_num)
+            if data["code"] != 0:
+                return showInfoDialog("获取QQ音乐歌曲列表失败\n"
+                "如果此情况频繁出现，请在应用设置中切换到新版QQ音乐搜歌接口", "搜索出错")
+            if data["subcode"]!=0 and len(self.all_songs)==0:
+                return showInfoDialog("找不到相关歌曲", "提示")
+            self.recommond = None
+            qq_songs=data["data"]["song"]["list"]
+            for qq_song in qq_songs:
+                if "Q%d"%qq_song["songid"] in mark_ids:  continue
+                song={
+                    "id": "%d;%s"%(qq_song["songid"],qq_song["songmid"]), #id;mid
+                    "name": qq_song["songname"],
+                    "artists": [{"name": x["name"]} for x in qq_song["singer"]],
+                    "alias": [],
+                    "album": {"name": qq_song["albumname"]},
+                }
+                self.all_songs.append(song)
+            self.ShowFrame(self.parent)
+        except requests.exceptions.ConnectionError:
+            return showInfoDialog("网络异常，请重试", "搜索出错")
+        except requests.exceptions.ReadTimeout:
+            return showInfoDialog("获取超时，请重试", "搜索出错")
+        except Exception as e:
+            print("GetNetworkSongsQQ:",type(e),e)
+            return showInfoDialog("解析错误，请重试", "搜索出错")
+        return True
+
+    def GetNetworkSongsQQ_v2(self, words, mark_ids):
+        try:
+            data=self.qqApi.search_songs_v2(words,limit=self.search_num)
             if data["code"] != 0 or data["req_1"]["code"] != 0:
-                return showInfoDialog("获取歌曲列表失败", "搜索出错")
+                return showInfoDialog("获取QQ音乐歌曲列表失败", "搜索出错")
             qq_songs=data["req_1"]["data"]["body"]["song"]["list"]
             if len(qq_songs)==0:
                 try:

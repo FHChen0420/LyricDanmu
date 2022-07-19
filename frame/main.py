@@ -163,6 +163,7 @@ class MainFrame(wx.Frame):
         self.account_names=["",""]                                  # B站账号标注名称列表
         self.cookies=["",""]                                        # B站账号Cookie列表
         self.qq_cookie = ""                                         # QQ音乐Cookie
+        self.qq_new_api = False                                     # 是否使用新版QQ音乐搜歌接口
         self.need_update_global_shields = True                      # 是否需要更新屏蔽词库
         self.tl_stat_break_min=10                                   # 同传统计允许的最大中断时长（分钟）
         self.tl_stat_min_count=20                                   # 同传统计要求的最低同传弹幕条数
@@ -1806,6 +1807,8 @@ class MainFrame(wx.Frame):
                         page_limit = int(v)
                         if 5 <= page_limit <= 8:
                             self.page_limit=page_limit
+                    elif k == "新版qq音乐接口":
+                        self.qq_new_api = v.lower()=="true"
                     elif k == "默认展开歌词":
                         self.init_show_lyric = v.lower()=="true"
                     elif k == "忽略系统代理":
@@ -2060,6 +2063,7 @@ class MainFrame(wx.Frame):
                 f.write("默认搜索来源=%s\n" % ("网易云音乐" if self.default_src=="wy" else "QQ音乐"))
                 f.write("歌曲搜索条数=%d\n" % self.search_num)
                 f.write("每页显示条数=%d\n" % self.page_limit)
+                f.write("新版qq音乐接口=%s\n" % self.qq_new_api)
                 f.write(titleLine("弹幕发送配置"))
                 f.write("忽略系统代理=%s\n" % self.no_proxy)
                 f.write("最低发送间隔=%d\n" % self.send_interval_ms)

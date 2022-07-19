@@ -38,8 +38,8 @@ class GeneralConfigFrame(wx.Frame):
         # 搜索歌词
         wx.StaticText(p1,-1,"歌词搜索",pos=(15,70))
         wx.StaticText(p1,-1,"默认来源",pos=(80,70))
-        wx.StaticText(p1,-1,"搜索条数",pos=(80,100))
-        wx.StaticText(p1,-1,"每页条数",pos=(195,100))
+        wx.StaticText(p1,-1,"搜索条数",pos=(80,92))
+        wx.StaticText(p1,-1,"每页条数",pos=(195,92))
         self.rdSrcWY=wx.RadioButton(p1,-1,"网易云",pos=(135,70),style=wx.RB_GROUP)
         self.rdSrcQQ=wx.RadioButton(p1,-1,"QQ音乐",pos=(195,70))
         self.rdSrcWY.SetValue(True) if parent.default_src=="wy" else self.rdSrcQQ.SetValue(True)
@@ -48,25 +48,27 @@ class GeneralConfigFrame(wx.Frame):
             "歌词搜索条数：范围5~30\n每页显示条数：范围5~8\n \n"
             "歌词前后缀更改将在工具重启后生效"
         )
-        self.tcSearchNum=wx.TextCtrl(p1,-1,str(parent.search_num),pos=(135,98),size=(40,22))
-        self.tcPgSize=wx.TextCtrl(p1,-1,str(parent.page_limit),pos=(250,98),size=(40,22))
+        self.tcSearchNum=wx.TextCtrl(p1,-1,str(parent.search_num),pos=(135,90),size=(40,22))
+        self.tcPgSize=wx.TextCtrl(p1,-1,str(parent.page_limit),pos=(250,90),size=(40,22))
+        self.ckbNewQQApi=wx.CheckBox(p1,-1,"使用新版QQ音乐搜歌接口(需登录)", pos=(80,115))
+        self.ckbNewQQApi.SetValue(parent.qq_new_api)
         # 歌词高亮
-        wx.StaticText(p1,-1,"歌词高亮",pos=(15,130))
-        self.rdHlCur=wx.RadioButton(p1,-1,"当前播放行",pos=(80,130),style=wx.RB_GROUP)
-        self.rdHlNext=wx.RadioButton(p1,-1,"待发送歌词",pos=(170,130))
+        wx.StaticText(p1,-1,"歌词高亮",pos=(15,140))
+        self.rdHlCur=wx.RadioButton(p1,-1,"当前播放行",pos=(80,141),style=wx.RB_GROUP)
+        self.rdHlNext=wx.RadioButton(p1,-1,"待发送歌词",pos=(170,141))
         self.rdHlCur.SetValue(True) if parent.lyric_offset==0 else self.rdHlNext.SetValue(True)
         # 歌词处理
-        wx.StaticText(p1,-1,"歌词处理",pos=(15,160))
-        self.ckbLrcMrg = wx.CheckBox(p1,-1,"启用歌词合并", pos=(80,160))
-        self.ckbAddSongName = wx.CheckBox(p1,-1,"曲末显示歌名", pos=(178,160))
-        bindHint(wx.StaticText(p1,-1,"[?]",pos=(272,160)),
+        wx.StaticText(p1,-1,"歌词处理",pos=(15,170))
+        self.ckbLrcMrg = wx.CheckBox(p1,-1,"启用歌词合并", pos=(80,170))
+        self.ckbAddSongName = wx.CheckBox(p1,-1,"曲末显示歌名", pos=(178,170))
+        bindHint(wx.StaticText(p1,-1,"[?]",pos=(272,170)),
             "歌词合并：将短歌词拼接显示并发送，仅对有时轴的歌词生效\n"
             "合并阈值：合并歌词时，最多允许拼接多少秒以内的歌词\n"
             "曲末显示歌名：在歌词末尾添加形如“歌名：XXX”的记录"
         )
-        wx.StaticText(p1,-1,"合并阈值",pos=(15,190))
-        self.lblLrcMrg = wx.StaticText(p1, -1, "%4.1f s" %(parent.lyric_merge_threshold_s), pos=(240, 188))
-        self.sldLrcMrg = wx.Slider(p1, -1, int(10 * parent.lyric_merge_threshold_s), 30, 80, pos=(70, 188), size=(170, 30),style=wx.SL_HORIZONTAL)
+        wx.StaticText(p1,-1,"合并阈值",pos=(15,200))
+        self.lblLrcMrg = wx.StaticText(p1, -1, "%4.1f s" %(parent.lyric_merge_threshold_s), pos=(240, 198))
+        self.sldLrcMrg = wx.Slider(p1, -1, int(10 * parent.lyric_merge_threshold_s), 30, 80, pos=(70, 198), size=(170, 30),style=wx.SL_HORIZONTAL)
         self.ckbLrcMrg.SetValue(parent.enable_lyric_merge)
         self.ckbAddSongName.SetValue(parent.add_song_name)
         self.sldLrcMrg.Bind(wx.EVT_SLIDER, self.OnLrcMergeThChange)
@@ -272,6 +274,7 @@ class GeneralConfigFrame(wx.Frame):
         parent.show_stat_on_close=self.ckbStatShow.GetValue()
         parent.record_fontsize=int(self.cbbFontsize.GetValue())
         parent.cancel_danmu_after_failed=self.ckbCancelSend.GetValue()
+        parent.qq_new_api=self.ckbNewQQApi.GetValue()
         os.environ["NO_PROXY"]="*" if parent.no_proxy else ""
         parent.RefreshLyric()
         if parent.customTextFrame:
