@@ -27,11 +27,6 @@
             console.log(`load url ${url}`)
             var player = document.getElementsByClassName('centeredVideo')[0];
             player.setAttribute("video-url", url)
-            //默认为拉伸窗口，改为标准比例窗口
-            setTimeout(()=>{
-              var stretchButton = document.getElementsByClassName("vjs-stretch-control")[0]
-              stretchButton.click()
-            },3000)
         }
         document.addEventListener('DOMContentLoaded', load);
     </script>
@@ -41,6 +36,7 @@
       class="centeredVideo"
       live="true"
       muted="false"
+      easy-stretch="false"
     ></easy-player>
   </body>
 </html>
