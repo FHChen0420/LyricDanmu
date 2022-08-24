@@ -118,12 +118,13 @@ class MainFrame(wx.Frame):
             or wx.html2.WebView.IsBackendAvailable(wx.html2.WebViewBackendEdge) # 当前系统是否支持自带窗口显示网页内容
         # 弹幕监听与转发
         self.ws_dict={}                                             # websocket字典
-        self.sp_configs=[[[None],False,[]] for _ in range(3)]       # 同传转发配置列表
+        self.sp_configs=[[[None],False,[],[]] for _ in range(3)]    # 同传转发配置列表 每项为[房间号列表,转发开关,限定前缀列表,转发延时列表]
         self.sp_max_len = None                                      # 同传转发时的弹幕长度限制
         self.sp_error_count = 0                                     # 当前未正常运行的websocket连接数
         # 线程池与事件循环
         self.pool = ThreadPoolExecutor(max_workers=8)               # 通用线程池
-        self.pool_ws = ThreadPoolExecutor(max_workers=12,thread_name_prefix="DanmuSpreader") # 转发用线程池
+        self.pool_ws = ThreadPoolExecutor(max_workers=12,thread_name_prefix="Websocket") # Websocket-线程池
+        self.pool_dm = ThreadPoolExecutor(max_workers=30,thread_name_prefix="DelayDanmu") # 转发延迟-线程池
         self.loop = asyncio.new_event_loop()                        # 追帧用事件循环
         # 显示界面与启动线程
         self.ShowFrame(parent)
@@ -702,6 +703,11 @@ class MainFrame(wx.Frame):
         showInfoDialog(content,title)
         wx.MilliSleep(3000)
         self.show_msg_dlg=False
+    
+    def ThreadOfDelayDanmuQueue(self, delay, roomid, msg, src, pre, suf, max_len):
+        """（子线程）延迟指定毫秒数后，将弹幕添加到发送队列"""
+        wx.MilliSleep(delay)
+        self.AddDanmuToQueue(roomid, msg, src, pre, suf, max_len)
 
 
     def OnAutoSendLrcBtn(self,event):
@@ -940,6 +946,7 @@ class MainFrame(wx.Frame):
             self.loop.call_soon_threadsafe(self.loop.stop)
         self.pool.shutdown()
         self.pool_ws.shutdown()
+        self.pool_dm.shutdown()
         self.Destroy()
 
     def ChangeDanmuPosition(self,event):
@@ -1243,22 +1250,30 @@ class MainFrame(wx.Frame):
             if not self.GetCurrentDanmuConfig(roomid):
                 self.sp_max_len=20
         for cfg in self.sp_configs:
-            to_room,from_rooms,spreading,speaker_filters=cfg[0][0],cfg[0][1:],cfg[1],cfg[2]
+            to_room,from_rooms,spreading,speaker_filters,delays=cfg[0][0],cfg[0][1:],cfg[1],cfg[2],cfg[3]
             if not spreading or to_room is None or roomid not in from_rooms: continue
             speaker=self.sp_rooms[roomid][1] if not speaker else speaker
+            sp_delay_ms=0
             # 如果前缀过滤条件不为空，则只转发指定的前缀
             speaker_be_filtered=False
-            for from_roomid,allowed_speakers in zip(from_rooms,speaker_filters):
-                if roomid!=from_roomid or allowed_speakers=="": continue
+            for from_roomid,allowed_speakers,delay in zip(from_rooms,speaker_filters,delays):
+                if roomid==from_roomid:
+                    sp_delay_ms=delay
+                else:
+                    continue
+                if allowed_speakers=="":
+                    continue
                 if speaker not in allowed_speakers.split(";"):
                     speaker_be_filtered=True
                     break
-            if speaker_be_filtered: continue
+            if speaker_be_filtered:
+                continue
             # 弹幕开头添加标识符U+0592避免循环转发（本工具不会转发以U+0592开头的同传弹幕）
             pre="\u0592"+speaker+"【"
             msg=self.AntiShield(pre+content,to_room)
             suf="】" if msg.count("【")>msg.count("】") else ""
-            self.AddDanmuToQueue(to_room,msg,DanmuSrc.SPREAD,pre,suf,self.sp_max_len)
+            # 延迟指定毫秒数后，将弹幕添加到队列
+            self.pool_dm.submit(self.ThreadOfDelayDanmuQueue,sp_delay_ms,to_room,msg,DanmuSrc.SPREAD,pre,suf,self.sp_max_len)
     
     def StartListening(self,roomid):
         """建立与直播间之间的Websocket连接"""

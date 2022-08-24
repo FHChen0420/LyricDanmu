@@ -9,7 +9,7 @@ from utils.util import UIChange
 
 class DanmuSpreadFrame(wx.Frame):
     def __init__(self, parent):
-        self.configs=parent.sp_configs
+        self.configs=parent.sp_configs # 每项为[房间号列表,转发开关,限定前缀列表,转发延时列表]
         self.sp_rooms=parent.sp_rooms
         self.websockets=parent.ws_dict
         self.show_pin=parent.show_pin
@@ -62,7 +62,7 @@ class DanmuSpreadFrame(wx.Frame):
                 lblFilter=wx.StaticText(panel,-1,"⚙",size=(25,25))
                 lblFilter.SetName(f"{i};{j-1}")
                 lblFilter.SetForegroundColour("grey")
-                lblFilter.Bind(wx.EVT_LEFT_DOWN,self.ShowspreadFilter)
+                lblFilter.Bind(wx.EVT_LEFT_DOWN,self.ShowSpreadFilter)
                 self.lblFilterLst[i].append(lblFilter)
                 hbox3.Add(lblFilter,0,wx.LEFT|wx.TOP|wx.RESERVE_SPACE_EVEN_IF_HIDDEN,5)
                 sbs.Add(hbox3,0,wx.RESERVE_SPACE_EVEN_IF_HIDDEN)
@@ -75,7 +75,7 @@ class DanmuSpreadFrame(wx.Frame):
             hbox.Add(sbs,0,wx.ALL|wx.EXPAND,2)
         # 操作提示/转发成功数/转发失败数/待发送弹幕数/最近转发弹幕
         hbox2=wx.BoxSizer()
-        lblHint=wx.StaticText(panel,-1,"左键选择房间，右键清除房间，⚙限定前缀")
+        lblHint=wx.StaticText(panel,-1,"左键选择房间，右键清除房间，⚙转发配置")
         lblHint.SetForegroundColour("grey")
         hbox2.Add(lblHint,0,wx.LEFT,5)
         self.lblSucc=wx.StaticText(panel,-1,"已转:0")
@@ -103,7 +103,7 @@ class DanmuSpreadFrame(wx.Frame):
             self.roomSelector.Destroy()
         self.roomSelector=SpRoomSelectFrame(self,int(slot),int(index))
 
-    def ShowspreadFilter(self,event):
+    def ShowSpreadFilter(self,event):
         lblFilter=event.GetEventObject()
         slot,index=lblFilter.GetName().split(";")
         if self.spreadFilter:
@@ -117,9 +117,11 @@ class DanmuSpreadFrame(wx.Frame):
             self.configs[slot][0][index]=roomid
             if index>0 and old_rid!=roomid:
                 self.configs[slot][2][index-1]=""
+                self.configs[slot][3][index-1]=0
         else:
             self.configs[slot][0].append(roomid)
             self.configs[slot][2].append("")
+            self.configs[slot][3].append(0)
         if index>0 and self.configs[slot][1]:
             if roomid not in self.websockets.keys():
                 self.websockets[roomid]=BiliLiveWebSocket(roomid)
@@ -152,6 +154,7 @@ class DanmuSpreadFrame(wx.Frame):
                 else:
                     cfg[0].pop(index)
                     cfg[2].pop(index-1)
+                    cfg[3].pop(index-1)
                 if index>0 and cfg[1]:
                     count+=1
             if cfg[0][0] is None and len(cfg[0])==1:
@@ -172,6 +175,7 @@ class DanmuSpreadFrame(wx.Frame):
         else:
             roomid=self.configs[slot][0].pop(index)
             self.configs[slot][2].pop(index-1)
+            self.configs[slot][3].pop(index-1)
             if self.configs[slot][1]:
                 self.websockets[roomid].ChangeRefCount(-1)
         if self.configs[slot][0][0] is None and len(self.configs[slot][0])==1:
@@ -220,13 +224,15 @@ class DanmuSpreadFrame(wx.Frame):
             for i in range(idx+1,5):
                 self.btnRoomLst[slot][i].Show(False)
             idx=0
-            for speaker_filters in cfg[2]:
-                self.lblFilterLst[slot][idx].SetForegroundColour("grey" if speaker_filters=="" else "gold")
+            for speaker_filters,spread_delays in zip(cfg[2],cfg[3]):
+                room_setting_color="grey" if speaker_filters=="" and spread_delays==0 else "gold"
+                self.lblFilterLst[slot][idx].SetForegroundColour(room_setting_color)
                 self.lblFilterLst[slot][idx].Show(True)
                 idx+=1
             for i in range(idx,4):
                 self.lblFilterLst[slot][i].Show(False)
         self.Parent.SetSpreadButtonState(roomid=None,count=0,spreading=self.IsSpreading())
+        self.Refresh()
         if self.spreadFilter:
             self.spreadFilter.Destroy()
 
@@ -251,23 +257,35 @@ class SpreadFilterFrame(wx.Frame):
         self.slot=slot
         self.index=index
         pos=parent.GetPosition()
-        x,y=pos[0]+50,pos[1]+90
-        wx.Frame.__init__(self, parent, title=" 仅转发指定的说话人前缀", pos=(x,y), size=(300, 90),
+        x,y=pos[0]+50,pos[1]+60
+        wx.Frame.__init__(self, parent, title="房间转发设置", pos=(x,y), size=(300, 170),
         style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.MINIMIZE_BOX) |wx.FRAME_FLOAT_ON_PARENT)
         if parent.show_pin:
             self.ToggleWindowStyle(wx.STAY_ON_TOP)
         panel=wx.Panel(self,-1,pos=(0,0),size=(300,90))
-        wx.StaticText(panel,-1,"使用分号或逗号进行分隔，留空则不进行限制",pos=(10,5))
+        wx.StaticText(panel,-1,"转发延迟",pos=(10,10))
+        delay_value=int(self.configs[slot][3][index]*0.01)
+        self.lblDelay=wx.StaticText(panel,-1,"",pos=(250,10))
+        self.sldDelay=wx.Slider(panel,-1,pos=(60,6),size=(185,30),value=delay_value,minValue=0,maxValue=80)
+        self.sldDelay.Bind(wx.EVT_SLIDER,self.OnDelayChange)
+        self.OnDelayChange(None)
+        wx.StaticText(panel,-1,"限定前缀",pos=(10,42))
+        wx.StaticText(panel,-1,"仅转发指定的前缀，留空则不进行限制\n如果想指定多个前缀，请使用分号或逗号进行分隔",pos=(10,65)).SetForegroundColour("grey")
         speakers=self.configs[slot][2][index]
-        self.tcFilter=wx.TextCtrl(panel,-1,speakers,pos=(10,28),size=(210,27),style=wx.TE_PROCESS_ENTER)
+        self.tcFilter=wx.TextCtrl(panel,-1,speakers,pos=(68,38),size=(210,27),style=wx.TE_PROCESS_ENTER)
         self.tcFilter.Bind(wx.EVT_TEXT_ENTER,self.Save)
-        self.btnSave=wx.Button(panel,-1,"保 存",pos=(225,28),size=(65,27))
+        self.btnSave=wx.Button(panel,-1,"保　存",pos=(105,105),size=(80,32))
         self.btnSave.Bind(wx.EVT_BUTTON,self.Save)
         self.Show()
+    
+    def OnDelayChange(self,event):
+        delay_s=self.sldDelay.GetValue()*0.1
+        self.lblDelay.SetLabel("%.1f s"%delay_s)
     
     def Save(self,event):
         speakers=self.tcFilter.GetValue().replace(" ","").replace("\u0592","")
         speakers=re.sub("[;；,，]+",";",speakers)
         speakers="" if speakers==";" else speakers
         self.configs[self.slot][2][self.index]=speakers
+        self.configs[self.slot][3][self.index]=self.sldDelay.GetValue()*100
         self.Parent.RefreshUI() #该方法包含销毁本窗体的语句
