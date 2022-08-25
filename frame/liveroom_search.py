@@ -36,8 +36,10 @@ class LiveroomSearchFrame(wx.Frame):
     def Search(self,keyword):
         self.tcKeyword.SetValue(keyword)
         if keyword=="": return self.Show()
+        app=self.Parent.Parent
+        cookie=app.cookies[app.cur_acc]
         try:
-            data=self.blApi.search_live_users(keyword,self.MAX_RESULT)
+            data=self.blApi.search_live_users(keyword,self.MAX_RESULT,cookie=cookie)
             users=data["data"]["result"]
             self.results=[]
             for user in users:

@@ -166,7 +166,7 @@ class BiliLiveAPI(BaseAPI):
         res=self.sessions[number].post(url=url,headers=self.headers,data=data,timeout=timeout)
         return json.loads(res.text)
     
-    def search_live_users(self,keyword,page_size=10,timeout=None) -> dict:
+    def search_live_users(self,keyword,page_size=42,cookie="",timeout=None) -> dict:
         """根据关键字搜索直播用户"""
         url="https://api.bilibili.com/x/web-interface/search/type"
         params={
@@ -174,8 +174,12 @@ class BiliLiveAPI(BaseAPI):
             "search_type": "live_user",
             "page_size": page_size,
         }
+        headers=dict(BaseAPI.headers,
+            Cookie=cookie, # 该请求不带cookie可能会被拦截
+            Origin="https://search.bilibili.com",
+        )
         if timeout is None: timeout=self.timeout
-        res=requests.get(url=url,headers=self.headers,params=params,timeout=timeout)
+        res=requests.get(url=url,params=params,headers=headers,timeout=timeout)
         return json.loads(res.text)
     
     def get_login_url(self,timeout=None):
