@@ -181,6 +181,11 @@ class MainFrame(wx.Frame):
         self.f_resend_deal = True                                   # 弹幕重发时是否对内容进行额外处理
         self.app_bottom_danmu = True                                # 是否将发出的弹幕在APP端置底
         self.cancel_danmu_after_failed = True                       # 长句前半段发送失败后是否取消后半段的发送
+        self.alt_hk_custom_text = ord("C")                          # 热键：预设文本界面(默认Alt+C)
+        self.alt_hk_shield = 0                                      # 热键：屏蔽词调试模式(默认不启用该热键)
+        self.alt_hk_simple = wx.WXK_RIGHT                           # 热键：简版模式(默认Alt+→)
+        self.alt_hk_dec_tp = wx.WXK_DOWN                            # 热键：降低窗口不透明度(默认Alt+↓)
+        self.alt_hk_inc_tp = wx.WXK_UP                              # 热键：增加窗口不透明度(默认Alt+↑)
 
     def ShowFrame(self, parent):
         """布局并显示各类窗体控件"""
@@ -367,11 +372,11 @@ class MainFrame(wx.Frame):
         self.hkSimple=wx.NewIdRef()
         self.hkShield=wx.NewIdRef()
         self.hkCusText=wx.NewIdRef()
-        self.RegisterHotKey(self.hkIncTp,wx.MOD_ALT,wx.WXK_UP)
-        self.RegisterHotKey(self.hkDecTp,wx.MOD_ALT,wx.WXK_DOWN)
-        self.RegisterHotKey(self.hkSimple,wx.MOD_ALT,wx.WXK_RIGHT)
-        self.RegisterHotKey(self.hkShield,wx.MOD_ALT,ord("P"))
-        self.RegisterHotKey(self.hkCusText,wx.MOD_ALT,ord("C"))
+        if self.alt_hk_inc_tp:       self.RegisterHotKey(self.hkIncTp,wx.MOD_ALT,self.alt_hk_inc_tp)
+        if self.alt_hk_dec_tp:       self.RegisterHotKey(self.hkDecTp,wx.MOD_ALT,self.alt_hk_dec_tp)
+        if self.alt_hk_simple:       self.RegisterHotKey(self.hkSimple,wx.MOD_ALT,self.alt_hk_simple)
+        if self.alt_hk_shield:       self.RegisterHotKey(self.hkShield,wx.MOD_ALT,self.alt_hk_shield)
+        if self.alt_hk_custom_text:  self.RegisterHotKey(self.hkCusText,wx.MOD_ALT,self.alt_hk_custom_text)
         self.Bind(wx.EVT_HOTKEY,self.IncreaseTransparent,self.hkIncTp)
         self.Bind(wx.EVT_HOTKEY,self.DecreaseTransparent,self.hkDecTp)
         self.Bind(wx.EVT_HOTKEY,self.ToggleSimpleMode,self.hkSimple)
@@ -1864,6 +1869,16 @@ class MainFrame(wx.Frame):
                         self.app_bottom_danmu = v.lower()=="true"
                     elif k == "截断发送失败弹幕":
                         self.cancel_danmu_after_failed = v.lower()=="true"
+                    elif k == "[热键]预设文本界面":
+                        self.alt_hk_custom_text = key2code(v)
+                    elif k == "[热键]屏蔽词调试模式":
+                        self.alt_hk_shield = key2code(v)
+                    elif k == "[热键]简版模式":
+                        self.alt_hk_simple = key2code(v)
+                    elif k == "[热键]降低不透明度":
+                        self.alt_hk_dec_tp = key2code(v)
+                    elif k == "[热键]提高不透明度":
+                        self.alt_hk_inc_tp = key2code(v)
         except Exception:
             return showInfoDialog("读取config.txt失败", "启动出错")
         try:
@@ -2100,6 +2115,12 @@ class MainFrame(wx.Frame):
                 f.write("默认展开歌词=%s\n" % self.init_show_lyric)
                 f.write("默认打开记录=%s\n" % self.init_show_record)
                 f.write("默认双前缀模式=%s\n" % self.init_two_prefix)
+                f.write(titleLine("热键绑定配置"))
+                f.write("[热键]预设文本界面=%s\n" % code2key(self.alt_hk_custom_text))
+                f.write("[热键]屏蔽词调试模式=%s\n" % code2key(self.alt_hk_shield))
+                f.write("[热键]简版模式=%s\n" % code2key(self.alt_hk_simple))
+                f.write("[热键]降低不透明度=%s\n" % code2key(self.alt_hk_dec_tp))
+                f.write("[热键]提高不透明度=%s\n" % code2key(self.alt_hk_inc_tp))
                 f.write(titleLine("账号信息配置"))
                 f.write("账号标注=%s\n" % self.account_names[0])
                 f.write("cookie=%s\n" % self.cookies[0])

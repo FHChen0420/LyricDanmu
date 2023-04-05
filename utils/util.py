@@ -205,6 +205,26 @@ def getStrWidth(string) -> int:
         else: width+=1
     return width
 
+def key2code(key) -> int:
+    """获取按键对应的KeyCode（暂仅支持26个英文字母键和4个方向键）。对于不支持的按键，返回0"""
+    if len(key) != 1 :
+        return 0
+    keycode = ord(key.upper())
+    if 65 <= keycode <= 90:
+         return keycode
+    if 8592 <= keycode <= 8595:
+        return (wx.WXK_LEFT,wx.WXK_UP,wx.WXK_RIGHT,wx.WXK_DOWN)[keycode-8592]
+    return 0
+
+def code2key(keycode) -> str:
+    """将KeyCode表示为对应的按键（暂仅支持26个英文字母键和4个方向键）"""
+    _d = {wx.WXK_LEFT: "←", wx.WXK_UP: "↑", wx.WXK_RIGHT: "→", wx.WXK_DOWN: "↓"}
+    if keycode in _d.keys():
+        return _d[keycode]
+    if 65 <= keycode <= 90:
+        return chr(keycode)
+    return ""
+
 def isPortUsed(ip:str="127.0.0.1", port:int=8080) -> bool:
     """检查端口是否已被占用"""
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
