@@ -417,7 +417,7 @@ class QQMusicAPI(BaseAPI):
         res=requests.get(url=url,headers=self.headers,params=params,timeout=timeout)
         return json.loads(res.text) if res.status_code==0 else {"code": res.status_code}
 
-    def search_songs_v2(self,keyword,limit=10,timeout=None) -> dict:
+    def search_songs_v2(self,keyword:str,limit=10,timeout=None) -> dict:
         """按关键字搜索歌曲(需登录)"""
         url="https://u.y.qq.com/cgi-bin/musicu.fcg"
         json_data = {
@@ -441,7 +441,14 @@ class QQMusicAPI(BaseAPI):
                     "remoteplace": "txt.yqq.top",
                     "searchid": "",
                     "search_type": 0,
-                    "query": keyword.encode("utf-8").decode('unicode_escape'),
+
+                    # 2023年7月底之前，在不改requests源码的情况下可正常使用。但之后搜索中文会得到乱码结果，故弃用
+                    #"query": keyword.encode("utf-8").decode('unicode_escape'),
+
+                    # 这里需要修改requests库源码，找到models.py中的prepare_body方法，
+                    # 将complexjson.dumps(json)改为complexjson.dumps(json,ensure_ascii=False)
+                    "query": keyword,
+
                     "page_num": 1,
                     "num_per_page": limit
                 }
@@ -449,6 +456,7 @@ class QQMusicAPI(BaseAPI):
         }
         if timeout is None: timeout=self.timeout
         res=self.__session.post(url=url,headers=self.headers,json=json_data,timeout=timeout)
+        print(res)
         return json.loads(res.text)
     
     def get_lyric(self,song_mid,timeout=None) -> dict:
