@@ -25,6 +25,10 @@ B站直播歌词/同传弹幕发送工具
 + 支持设置在当前直播间的弹幕颜色与位置
 
 ### Pyinstaller打包指令
++ 注意：
+
+    本项目对requests库源码进行了修改，将models.py的prepare_body方法中的```complexjson.dumps(json)```改为```complexjson.dumps(json,ensure_ascii=False)```，用于解决json请求中的中文编码问题。请在打包前手动进行修改。
+
 + Windows(64位)：
 
     ```pyinstaller -F -w app.pyw -n LyricDanmu --add-data "./static/*;./static" --add-data "./dll/x64/*;."```
@@ -48,7 +52,7 @@ B站直播歌词/同传弹幕发送工具
 │  │  zh_wiki.py                汉字简繁转化数据
 │          
 ├─frame                         <界面目录>
-│  │  bili_qrcode.py            扫码登录界面
+│  │  bili_qrcode.py            B站扫码登录界面
 │  │  color_select.py           弹幕颜色选择界面
 │  │  custom_text.py            预设文本发送界面
 │  │  danmu_record.py           弹幕发送记录界面
