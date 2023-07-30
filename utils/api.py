@@ -456,7 +456,6 @@ class QQMusicAPI(BaseAPI):
         }
         if timeout is None: timeout=self.timeout
         res=self.__session.post(url=url,headers=self.headers,json=json_data,timeout=timeout)
-        print(res)
         return json.loads(res.text)
     
     def get_lyric(self,song_mid,timeout=None) -> dict:
