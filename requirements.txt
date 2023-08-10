@@ -1,8 +1,8 @@
 aiohttp==3.7.4.post0
+Brotli==1.0.9
 jsonpath==0.82
 pyinstaller==5.1
 Pypubsub==4.0.3
 qrcode==7.3.1
 requests==2.25.1
 wxPython==4.1.1
-websockets==10.2
