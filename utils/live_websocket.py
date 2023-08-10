@@ -1,12 +1,9 @@
 #coding=utf-8
 import asyncio
-import certifi
 import json
 import re
-import ssl
-import websockets
-import zlib
-from socket import gaierror
+import aiohttp
+import brotli
 
 from pubsub import pub
 
@@ -16,18 +13,20 @@ from utils.util import getTime, logDebug
 class BiliLiveWebSocket():
     __TL_PATTERN1=r"^【(?P<speaker>[^:：]{1,5})[:：](?P<content>[^】]+)"
     __TL_PATTERN2=r"^(?P<speaker>[^\u0592✉【][^【]{0,4})?【(?P<content>[^】]+)"
-    __URI="wss://broadcastlv.chat.bilibili.com:2245/sub"
+    __URI="wss://{host}:{wss_port}/sub"
     __HEARTBEAT_PKG="00000010001000010000000200000001"
-    __ENTERROOM_PKG="000000{pkgLen}0010000100000007000000017b22726f6f6d6964223a{roomid}7d"
+    __ENTERROOM_HEADER="{:0>8x}001000010000000700000001"
+    __URL_GETDANMUINFO="https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?id={roomid}&type=0"
+    __UA={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.188"}
+    __TIMEOUT=aiohttp.ClientTimeout(5)
     '''
     :协议头：
-    00 00 00 __: 封包长度（协议头与数据包的长度之和）
+    __ __ __ __: 封包长度（协议头与数据包的长度之和）
     00 10:       协议头长度=16
     00 01:       协议版本=1
-    00 00 00 __: 操作码（2=发送心跳包 7=进入房间）
+    __ __ __ __: 操作码（2=发送心跳包 7=进入房间）
     00 01:       sequence=1
-    :数据包（可选）：
-    7b 22 72 6f 6f 6d 69 64 22 3a ** 7d　　{"roomid":**}
+    :后续接数据包内容
     '''
 
     def __init__(self,roomid):
@@ -37,42 +36,74 @@ class BiliLiveWebSocket():
         self.__listening=False
         self.__closing=False
         self.__error=False
+        self.__hb_task=None
 
     async def __connect_to_room(self):
-        pkg_len=hex(27+len(self.__roomid))[2:]
-        roomid="".join(map(lambda x:hex(ord(x))[2:],list(self.__roomid)))
-        ssl_context = ssl.create_default_context()
-        ssl_context.load_verify_locations(certifi.where())
         self.__error=False
         while self.__listening:
             try:
-                async with websockets.connect(self.__URI, ssl=ssl_context) as websocket:
-                    async def send_heart_beat():
+                # 获取直播间弹幕服务器地址列表以及token
+                token = ""
+                async with aiohttp.ClientSession(timeout=self.__TIMEOUT) as session:
+                    async with session.get(self.__URL_GETDANMUINFO.format(roomid=self.__roomid)) as res:
+                        data = await res.json()
+                        if data["code"]==0:
+                            token = data["data"]["token"]
+                            server = data["data"]["host_list"][0]
+                            uri = self.__URI.format(host=server["host"],wss_port=server["wss_port"])
+                        else:
+                            print("获取弹幕服务器地址失败")
+                param={ # 建立连接时附带的数据包
+                    "uid": 0,
+                    "roomid": int(self.__roomid),
+                    "protover": 3,
+                    "platform": "web",
+                    "type": 2,
+                    "key": token
+                }
+                body = json.dumps(param).encode().hex()
+                async with aiohttp.ClientSession(timeout=self.__TIMEOUT) as session:
+                    async with session.ws_connect(uri, headers=self.__UA) as websocket:
+                        '''定义 心跳包定时发送任务'''
+                        async def send_heart_beat():
+                            count = 0
+                            while self.__listening:
+                                try:
+                                    await websocket.send_bytes(bytes.fromhex(self.__HEARTBEAT_PKG))
+                                    count = 0
+                                    await asyncio.sleep(30)
+                                except asyncio.exceptions.CancelledError:
+                                    break
+                                except ConnectionResetError as e:
+                                    count += 1
+                                    if count <= 5:
+                                        print(f"[DEBUG] [{getTime()}] 向直播间{self.__roomid}的心跳包发送失败。TYPE={type(e)}")
+                                    else:
+                                        print(f"[DEBUG] [{getTime()}] 已中止向直播间{self.__roomid}发送心跳包任务。")
+                                        logDebug(f"[BiliLiveWebSocket.send_heart_beat] ROOMID={self.__roomid} DESC=已中止发送心跳包")
+                                        break
+                                    await asyncio.sleep(5)
+                                except BaseException as e:
+                                    print(f"[DEBUG] [{getTime()}] 向直播间{self.__roomid}的心跳包发送失败。TYPE={type(e)}")
+                                    logDebug(f"[BiliLiveWebSocket.send_heart_beat] ROOMID={self.__roomid} DESC={e}")
+                                    await asyncio.sleep(5)
+                        # 任务定义结束
+                        # 建立连接
+                        enter_room_pkg = self.__ENTERROOM_HEADER.format(16+len(body)//2) + body
+                        await websocket.send_bytes(bytes.fromhex(enter_room_pkg)) # 发送进入房间请求
+                        self.__hb_task=asyncio.create_task(send_heart_beat()) # 执行心跳包定时发送任务
                         while self.__listening:
                             try:
-                                await websocket.send(bytes.fromhex(self.__HEARTBEAT_PKG))
-                                await asyncio.sleep(30)
-                            except asyncio.exceptions.CancelledError:
-                                break
-                            except BaseException as e:
-                                print(f"[DEBUG] [{getTime()}] 向直播间{self.__roomid}的心跳包发送失败。TYPE={type(e)}")
-                                logDebug(f"[BiliLiveWebSocket.send_heart_beat] ROOMID={self.__roomid} DESC={e}")
-                                await asyncio.sleep(5)
-                    enter_room_pkg=self.__ENTERROOM_PKG.format(pkgLen=pkg_len, roomid=roomid)
-                    await websocket.send(bytes.fromhex(enter_room_pkg))
-                    hb_task=asyncio.create_task(send_heart_beat())
-                    while self.__listening:
-                        try:
-                            res = await asyncio.wait_for(websocket.recv(),timeout=1)
-                            self.__analyse_package(res)
-                            if self.__error:
-                                self.__error = False
-                                pub.sendMessage("ws_error",roomid=self.__roomid,count=-1)
-                                print(f"[DEBUG] [{getTime()}] 与直播间{self.__roomid}的连接已恢复。")
-                        except asyncio.exceptions.TimeoutError: pass
-                        except websockets.ConnectionClosed: break
-                    hb_task.cancel()
-            except (gaierror,ConnectionRefusedError,asyncio.exceptions.TimeoutError):
+                                res = await asyncio.wait_for(websocket.receive_bytes(),timeout=1)
+                                self.__analyse_package(res) # 解析接收到的数据
+                                if self.__error:
+                                    self.__error = False
+                                    pub.sendMessage("ws_error",roomid=self.__roomid,count=-1)
+                                    print(f"[DEBUG] [{getTime()}] 与直播间{self.__roomid}的连接已恢复。")
+                            except asyncio.exceptions.TimeoutError: pass
+                            except aiohttp.ClientConnectionError: break
+                        self.__hb_task.cancel()
+            except (aiohttp.ClientConnectorError, asyncio.exceptions.TimeoutError, TypeError):
                 if not self.__error:
                     self.__error = True
                     pub.sendMessage("ws_error",roomid=self.__roomid,count=1)
@@ -89,15 +120,17 @@ class BiliLiveWebSocket():
                 await asyncio.sleep(5)
 
     def __analyse_package(self,raw_data):
-        packetLen = int(raw_data[:4].hex(),16)
-        ver = int(raw_data[6:8].hex(),16)
-        op = int(raw_data[8:12].hex(),16)
-        if len(raw_data)>packetLen:
-            self.__analyse_package(raw_data[:packetLen])
-            self.__analyse_package(raw_data[packetLen:])
+        package_len = int(raw_data[:4].hex(),16)    # 封包长度（协议头+数据包，其中协议头固定长16）
+        ver = int(raw_data[6:8].hex(),16)           # 数据包协议（0正常，1心跳包，2zlib压缩，3brotli压缩）
+        op = int(raw_data[8:12].hex(),16)           # 操作码（3心跳包回应，5业务数据回应，8认证数据回应，等等）
+        if op==3: # 忽略心跳包回应数据
             return
-        if ver==2:
-            raw_data = zlib.decompress(raw_data[16:])
+        if len(raw_data)>package_len: # 对整合过的数据包进行划分
+            self.__analyse_package(raw_data[:package_len])
+            self.__analyse_package(raw_data[package_len:])
+            return
+        if ver==3: # 对压缩过的字节码进行解压
+            raw_data = brotli.decompress(raw_data[16:])
             self.__analyse_package(raw_data)
             return
         if ver==0 and op==5:
@@ -145,3 +178,5 @@ class BiliLiveWebSocket():
     def Stop(self):
         self.__closing=True
         self.__listening=False
+        if self.__hb_task:
+            self.__hb_task.cancel()
