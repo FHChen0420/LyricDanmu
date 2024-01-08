@@ -184,19 +184,23 @@ class BiliLiveAPI(BaseAPI):
     
     def get_login_url(self,timeout=None):
         """获取登录链接"""
-        url="https://passport.bilibili.com/qrcode/getLoginUrl"
-        if timeout is None: timeout=self.timeout
-        res=requests.get(url=url,headers=self.headers,timeout=timeout)
-        return json.loads(res.text)
-    
-    def get_login_info(self,oauthKey,timeout=None):
-        """检查登录链接状态，获取登录信息"""
-        url="https://passport.bilibili.com/qrcode/getLoginInfo"
-        data={
-            "oauthKey": oauthKey,
+        url="https://passport.bilibili.com/x/passport-login/web/qrcode/generate"
+        params={
+            "source": "main-fe-header",
         }
         if timeout is None: timeout=self.timeout
-        res=requests.post(url=url,headers=self.headers,data=data,timeout=timeout)
+        res=requests.get(url=url,params=params,headers=self.headers,timeout=timeout)
+        return json.loads(res.text)
+    
+    def get_login_info(self,qrcode_key,timeout=None):
+        """检查登录链接状态，获取登录信息"""
+        url="https://passport.bilibili.com/x/passport-login/web/qrcode/poll"
+        params={
+            "qrcode_key": qrcode_key,
+            "source": "main-fe-header",
+        }
+        if timeout is None: timeout=self.timeout
+        res=requests.get(url=url,params=params,headers=self.headers,timeout=timeout)
         return json.loads(res.text)
     
     def update_cookie(self,cookie:str,number=0) -> str:

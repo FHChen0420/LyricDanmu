@@ -23,7 +23,7 @@ class BiliQrCodeFrame(wx.Frame):
     def GenerateQrCode(self):
         try:
             data=self.blApi.get_login_url()
-            self.oauthKey=data["data"]["oauthKey"]
+            self.oauthKey=data["data"]["qrcode_key"]
             qrcode.make(data["data"]["url"]).save("qrcode_b.tmp")
             return wx.Image("qrcode_b.tmp",wx.BITMAP_TYPE_PNG).Rescale(300, 300).ConvertToBitmap()
         except requests.exceptions.ConnectionError:
@@ -45,12 +45,13 @@ class BiliQrCodeFrame(wx.Frame):
             wx.MilliSleep(1500)
             try:
                 data=self.blApi.get_login_info(self.oauthKey)
-                if data["data"] in [-4,-5]: # -4=未扫码，-5=已扫码但未确认
+                state_code = data["data"]["code"]
+                if state_code in [86101, 86090]: # 86101=未扫码，86090=已扫码但未确认
                     continue
-                elif data["data"]==-2: # -2=链接已过期
+                elif state_code == 86038: # 86038=链接已过期
                     showInfoDialog("二维码已过期，请重试", "登录失败")
                     break
-                else: # 已扫码并完成确认
+                elif state_code == 0: # 已扫码并完成确认
                     try:
                         session=requests.Session()
                         session.get(url=data["data"]["url"],headers=self.blApi.headers)
@@ -61,6 +62,9 @@ class BiliQrCodeFrame(wx.Frame):
                     except Exception as e:
                         logDebug(f"[QrCode: GetLoginInfo]{e}")
                         showInfoDialog("无法获取登录信息", "登录失败")
+                    break
+                else:
+                    showInfoDialog(f"未知的状态码:{state_code}\n信息:{data['data']['message']}\n\n（请向工具作者反馈）", "获取登录信息出错")
                     break
             except requests.exceptions.ConnectionError:
                 showInfoDialog("网络异常，请重试", "获取登录信息出错")
