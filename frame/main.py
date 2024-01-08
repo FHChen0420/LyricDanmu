@@ -31,7 +31,7 @@ from utils.util import *
 
 class MainFrame(wx.Frame):
 
-    LD_VERSION = "v1.5.3"
+    LD_VERSION = "v1.5.4"
 
     def __init__(self, parent=None):
         """B站直播同传/歌词弹幕发送工具"""
