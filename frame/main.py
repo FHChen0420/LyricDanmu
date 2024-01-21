@@ -117,10 +117,10 @@ class MainFrame(wx.Frame):
         self.playerFrameUseable = self.platform!="win" \
             or wx.html2.WebView.IsBackendAvailable(wx.html2.WebViewBackendEdge) # 当前系统是否支持自带窗口显示网页内容
         # 弹幕监听与转发
-        self.ws_dict={}                                             # websocket字典
-        self.sp_configs=[[[None],False,[],[]] for _ in range(3)]    # 同传转发配置列表 每项为[房间号列表,转发开关,限定前缀列表,转发延时列表]
-        self.sp_max_len = None                                      # 同传转发时的弹幕长度限制
-        self.sp_error_count = 0                                     # 当前未正常运行的websocket连接数
+        self.ws_dict={}                                                                       # websocket字典
+        self.sp_configs=[[[None],False,[],[]] for _ in range(SPREAD_MAXIMUM_SPREAD_ROOMS)]    # 同传转发配置列表 每项为[房间号列表,转发开关,限定前缀列表,转发延时列表]
+        self.sp_max_len = None                                                                # 同传转发时的弹幕长度限制
+        self.sp_error_count = 0                                                               # 当前未正常运行的websocket连接数
         # 线程池与事件循环
         self.pool = ThreadPoolExecutor(max_workers=8)               # 通用线程池
         self.pool_ws = ThreadPoolExecutor(max_workers=12,thread_name_prefix="Websocket") # Websocket-线程池

@@ -5,7 +5,7 @@ import wx
 from frame.spread_room_select import SpRoomSelectFrame
 from utils.live_websocket import BiliLiveWebSocket
 from utils.util import UIChange
-
+from const.constant import SPREAD_MAXIMUM_LISTEN_ROOMS,SPREAD_MAXIMUM_SPREAD_ROOMS
 
 class DanmuSpreadFrame(wx.Frame):
     def __init__(self, parent):
@@ -25,13 +25,17 @@ class DanmuSpreadFrame(wx.Frame):
         if parent.show_pin:
             self.ToggleWindowStyle(wx.STAY_ON_TOP)
         self.panel=panel=wx.Panel(self,-1,pos=(0,0),size=(420,315))
-        self.btnRoomLst=[[],[],[]]
-        self.lblFilterLst=[[],[],[]]
+        self.btnRoomLst=[]
+        self.lblFilterLst=[]
         self.btnCtrlLst=[]
         self.boxLst=[]
         self.sizer=wx.BoxSizer(wx.VERTICAL)
         hbox=wx.BoxSizer()
-        for i in range(3):
+        for i in range(SPREAD_MAXIMUM_SPREAD_ROOMS):
+            # initialize
+            self.btnRoomLst.append([])
+            self.lblFilterLst.append([])
+
             # 静态文本框(转发栏位)
             sbox=wx.StaticBox(panel, -1, f"Slot {i+1}")
             sbox.SetName(str(i+1))
@@ -51,7 +55,7 @@ class DanmuSpreadFrame(wx.Frame):
             lblFrom=wx.StaticText(panel,-1,"监听下列房间:")
             lblFrom.SetForegroundColour("grey")
             sbs.Add(lblFrom)
-            for j in range(1,5):
+            for j in range(1, SPREAD_MAXIMUM_LISTEN_ROOMS+1):
                 btnFrom=wx.Button(panel,-1,size=(90,27))
                 btnFrom.SetName(f"{i};{j}")
                 btnFrom.Bind(wx.EVT_BUTTON,self.ShowSpRoomSelector)
@@ -95,6 +99,10 @@ class DanmuSpreadFrame(wx.Frame):
         panel.SetSizer(self.sizer)
         self.Bind(wx.EVT_CLOSE,self.OnClose)
         self.RefreshUI()
+        # sync size
+        panelBestSize=panel.GetBestSize()
+        panelBestSize.SetHeight(panelBestSize.GetHeight()+39) # FIXME: no clue about why StaticBoxSizer doesn't count start button's size. manually add magic 39 height for it.
+        self.SetSize(panelBestSize)
     
     def ShowSpRoomSelector(self,event):
         btnRoom=event.GetEventObject()
@@ -217,11 +225,11 @@ class DanmuSpreadFrame(wx.Frame):
             self.boxLst[slot].SetForegroundColour("blue" if cfg[1] else "black")
             self.btnCtrlLst[slot].SetLabel("暂停转发" if cfg[1] else "开始转发")
             self.btnCtrlLst[slot].Show(bool(cfg[0][0]) or idx>1)
-            if idx<5:
+            if idx < SPREAD_MAXIMUM_LISTEN_ROOMS+1:
                 self.btnRoomLst[slot][idx].SetLabel("✚")
                 self.btnRoomLst[slot][idx].SetForegroundColour("grey")
                 self.btnRoomLst[slot][idx].Show(bool(cfg[0][0]) or idx>1)
-            for i in range(idx+1,5):
+            for i in range(idx+1,SPREAD_MAXIMUM_LISTEN_ROOMS+1):
                 self.btnRoomLst[slot][i].Show(False)
             idx=0
             for speaker_filters,spread_delays in zip(cfg[2],cfg[3]):
@@ -229,7 +237,7 @@ class DanmuSpreadFrame(wx.Frame):
                 self.lblFilterLst[slot][idx].SetForegroundColour(room_setting_color)
                 self.lblFilterLst[slot][idx].Show(True)
                 idx+=1
-            for i in range(idx,4):
+            for i in range(idx,SPREAD_MAXIMUM_LISTEN_ROOMS):
                 self.lblFilterLst[slot][i].Show(False)
         self.Parent.SetSpreadButtonState(roomid=None,count=0,spreading=self.IsSpreading())
         self.Refresh()
