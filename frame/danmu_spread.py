@@ -101,6 +101,7 @@ class DanmuSpreadFrame(wx.Frame):
         self.RefreshUI()
         # sync size
         panelBestSize=panel.GetBestSize()
+        panelBestSize.SetWidth(panelBestSize.GetWidth()+15)
         panelBestSize.SetHeight(panelBestSize.GetHeight()+39) # FIXME: no clue about why StaticBoxSizer doesn't count start button's size. manually add magic 39 height for it.
         self.SetSize(panelBestSize)
     
