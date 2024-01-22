@@ -45,7 +45,10 @@ class BiliLiveWebSocket():
                 # 获取直播间弹幕服务器地址列表以及token
                 token = ""
                 async with aiohttp.ClientSession(timeout=self.__TIMEOUT) as session:
-                    async with session.get(self.__URL_GETDANMUINFO.format(roomid=self.__roomid)) as res:
+                    async with session.get(self.__URL_GETDANMUINFO.format(roomid=self.__roomid), **{
+                        "headers":{
+                            "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                             "Chrome/118.0.0.0 Safari/537.36 Edg/118.0.2088.61"}}) as res:
                         data = await res.json()
                         if data["code"]==0:
                             token = data["data"]["token"]
