@@ -58,6 +58,7 @@ class MainFrame(wx.Frame):
         pub.subscribe(self.SpreadDanmu,InternalMessage.WEBSOCKET_RECEIVE_TRANSLATED.value)                   # 消息：监听到同传弹幕
         pub.subscribe(self.StartListening,InternalMessage.WEBSOCKET_LISTEN_STARTED.value)                    # 消息：开始监听房间内的弹幕
         pub.subscribe(self.SetSpreadButtonState,InternalMessage.WEBSOCKET_LISTEN_ON_ERROR.value)             # 消息：监听过程中出现错误/恢复
+        pub.subscribe(self.OnMessageCoreConfigUpdated,InternalMessage.CORE_CONFIG_UPDATED.value)             # 消息：应用设置保存时
         # API
         self.blApi = BiliLiveAPI(self.cookies,(self.timeout_s,5))   # B站账号与直播相关接口
         self.wyApi = NetEaseMusicAPI()                              # 网易云音乐接口
@@ -119,10 +120,10 @@ class MainFrame(wx.Frame):
         self.playerFrameUseable = self.platform!="win" \
             or wx.html2.WebView.IsBackendAvailable(wx.html2.WebViewBackendEdge) # 当前系统是否支持自带窗口显示网页内容
         # 弹幕监听与转发
-        self.ws_dict={}                                                                       # websocket字典
-        self.sp_configs=[[[None],False,[],[]] for _ in range(SPREAD_MAXIMUM_SPREAD_ROOMS)]    # 同传转发配置列表 每项为[房间号列表,转发开关,限定前缀列表,转发延时列表]
-        self.sp_max_len = None                                                                # 同传转发时的弹幕长度限制
-        self.sp_error_count = 0                                                               # 当前未正常运行的websocket连接数
+        self.ws_dict={}                                             # websocket字典
+        self.sp_configs=[]                                          # 同传转发配置列表 每项为[房间号列表,转发开关,限定前缀列表,转发延时列表]
+        self.sp_max_len = None                                      # 同传转发时的弹幕长度限制
+        self.sp_error_count = 0                                     # 当前未正常运行的websocket连接数
         # 线程池与事件循环
         self.pool = ThreadPoolExecutor(max_workers=8)               # 通用线程池
         self.pool_ws = ThreadPoolExecutor(max_workers=12,thread_name_prefix="Websocket") # Websocket-线程池
@@ -184,6 +185,10 @@ class MainFrame(wx.Frame):
         self.f_resend_deal = True                                   # 弹幕重发时是否对内容进行额外处理
         self.app_bottom_danmu = True                                # 是否将发出的弹幕在APP端置底
         self.cancel_danmu_after_failed = True                       # 长句前半段发送失败后是否取消后半段的发送
+        self.spread_logviewer_enabled = False                       # 转发：是否启用转发日志
+        self.spread_logviewer_verbose = False                       # 转发：是否详细转发日志
+        self.spread_maximum_spread_rooms = 3                        # 转发：最大转发房间数
+        self.spread_maximum_listen_rooms = 5                        # 转发：最大监听房间数
         self.alt_hk_custom_text = ord("C")                          # 热键：预设文本界面(默认Alt+C)
         self.alt_hk_shield = 0                                      # 热键：屏蔽词调试模式(默认不启用该热键)
         self.alt_hk_simple = wx.WXK_RIGHT                           # 热键：简版模式(默认Alt+→)
@@ -406,7 +411,7 @@ class MainFrame(wx.Frame):
         self.ResizeUI()
         self.Show(True)
         # 子窗体
-        self.danmuSpreadFrame = DanmuSpreadFrame(self)
+        # self.danmuSpreadFrame = DanmuSpreadFrame(self) # already initialized by OnMessageCoreConfigUpdated when config loaded
         self.shieldConfigFrame = ShieldConfigFrame(self)
         self.roomSelectFrame = RoomSelectFrame(self)
         self.danmuRecordFrame = DanmuRecordFrame(self)
@@ -936,6 +941,15 @@ class MainFrame(wx.Frame):
             self.last_song_name=self.cur_song_name
             self.LogSongName("%8s\t%s"%(self.roomid,self.cur_song_name))
 
+    def OnMessageCoreConfigUpdated(self, before, after):
+        if before["spread_maximum_spread_rooms"] != after["spread_maximum_spread_rooms"] or before["spread_maximum_listen_rooms"] != after["spread_maximum_listen_rooms"]:
+            if hasattr(self, "danmuSpreadFrame") and self.danmuSpreadFrame:
+                self.danmuSpreadFrame.StopAll()
+                self.danmuSpreadFrame.Close()
+                self.danmuSpreadFrame.Destroy()
+            self.sp_configs = [[[None],False,[],[]] for _ in range(self.spread_maximum_spread_rooms)] # 同传转发配置列表 每项为[房间号列表,转发开关,限定前缀列表,转发延时列表]
+            self.danmuSpreadFrame = DanmuSpreadFrame(self)
+
 
     def OnClose(self, event):
         self.running = False
@@ -1300,6 +1314,11 @@ class MainFrame(wx.Frame):
                 "sendContent": msg,
                 "rawContent": rawContent,
             }
+            pub.sendMessage(InternalMessage.SPREAD_EVENT.value, eventType = SpreadEventTypes.RECEIVE_TRANSLATED, eventData = {
+                "internalTime": int(time.time()),
+                "internalData": internalData,
+            })
+
             # 延迟指定毫秒数后，将弹幕添加到队列
             self.pool_dm.submit(self.ThreadOfDelayDanmuQueue,sp_delay_ms,to_room,msg,DanmuSrc.SPREAD,pre,suf,self.sp_max_len,internalData)
     
@@ -1439,6 +1458,13 @@ class MainFrame(wx.Frame):
         """在弹幕发送记录界面以及转发界面更新记录，并输出到弹幕日志文件"""
         cur_time=int(time.time())
         if src==DanmuSrc.SPREAD:
+            pub.sendMessage(InternalMessage.SPREAD_EVENT.value, eventType = SpreadEventTypes.SENT, eventData = {
+                "internalTime": cur_time,
+                "internalData": internalData,
+
+                "message": msg,
+                "result": res,
+            })
             if res==DanmuCode.SUCCESS:
                 label=f" {getTime(cur_time)}｜→{self.sp_rooms[roomid][0]}｜{msg[1:]}"
                 self.danmuSpreadFrame.RecordSucc(label)
@@ -1903,6 +1929,14 @@ class MainFrame(wx.Frame):
                         self.alt_hk_dec_tp = key2code(v)
                     elif k == "[热键]提高不透明度":
                         self.alt_hk_inc_tp = key2code(v)
+                    elif k == "最大转发房间数":
+                        self.spread_maximum_spread_rooms = min(10, max(1, int(v)))
+                    elif k == "最大监听房间数":
+                        self.spread_maximum_listen_rooms = min(20, max(1, int(v)))
+                    elif k == "启用转发日志":
+                        self.spread_logviewer_enabled = v.lower()=="true"
+                    elif k == "详细转发日志":
+                        self.spread_logviewer_verbose = v.lower()=="true"
         except Exception:
             return showInfoDialog("读取config.txt失败", "启动出错")
         try:
@@ -2131,6 +2165,11 @@ class MainFrame(wx.Frame):
                 f.write("最低字数要求=%d\n" % self.tl_stat_min_word_num)
                 f.write("最低条数要求=%d\n" % self.tl_stat_min_count)
                 f.write("退出时显示统计=%s\n" % self.show_stat_on_close)
+                f.write(titleLine("转发相关配置"))
+                f.write("最大转发房间数=%d\n" % self.spread_maximum_spread_rooms)
+                f.write("最大监听房间数=%d\n" % self.spread_maximum_listen_rooms)
+                f.write("启用转发日志=%s\n" % self.spread_logviewer_enabled)
+                f.write("详细转发日志=%s\n" % self.spread_logviewer_verbose)
                 f.write(titleLine("弹幕记录配置"))
                 f.write("彩色弹幕记录=%s\n" % self.enable_rich_record)
                 f.write("弹幕记录字号=%d\n" % self.record_fontsize)

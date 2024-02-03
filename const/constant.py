@@ -57,10 +57,6 @@ LYRIC_IGNORE_RULES=r"(?i)^[^\w\u4e00-\u9fff\u3040-\u31ff]{0,3}(终|完|undefined
 # 恋口上默认预设
 DEFAULT_CUSTOM_TEXT="<texts>\n<text title=\"古守恋口上\">\n「我有些话想要对你说」\n「古守实在是太可爱了」\n「喜欢喜欢超喜欢 果然喜欢」\n「好不容易找到的吸血鬼」\n「肉肉来到世上的理由」\n「就是为了和古守相遇」\n「和肉肉一起共度一生」\n「世界上第一的家里蹲」\n</text>\n</texts>"
 
-# 转发
-SPREAD_MAXIMUM_LISTEN_ROOMS=10 # 单个转发配置最大监听数量
-SPREAD_MAXIMUM_SPREAD_ROOMS=5 # 最大转发配置数量
-
 class DanmuCode(Enum):
     """自定义弹幕发送结果状态码"""
     # 对应信息见后续代码中的ERR_INFO
@@ -116,6 +112,13 @@ class DanmuSrc(Enum):
 
 class InternalMessage(Enum):
     CORE_CONFIG_UPDATED          = "1"      # 应用设置保存时
+    SPREAD_EVENT                 = "20"     # 转发相关（详见SpreadEventTypes）
     WEBSOCKET_RECEIVE_TRANSLATED = "100"    # WebSocket - 捕获到同传弹幕
     WEBSOCKET_LISTEN_STARTED     = "101"    # WebSocket - 开始监听
     WEBSOCKET_LISTEN_ON_ERROR    = "102"    # WebSocket - 连接异常
+
+class SpreadEventTypes(Enum):
+    START                  = "0"    # 开始转发
+    STOP                   = "1"    # 停止转发
+    RECEIVE_TRANSLATED     = "2"    # 捕获到同传弹幕
+    SENT                   = "3"    # 已转发处理后的同传弹幕

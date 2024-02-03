@@ -1,14 +1,25 @@
 import re
+import time
 
 import wx
+from pubsub import pub
 
+from const.constant import ERR_INFO, InternalMessage, SpreadEventTypes
 from frame.spread_room_select import SpRoomSelectFrame
 from utils.live_websocket import BiliLiveWebSocket
-from utils.util import UIChange
-from const.constant import SPREAD_MAXIMUM_LISTEN_ROOMS,SPREAD_MAXIMUM_SPREAD_ROOMS
+from utils.util import UIChange, getTime, setFont
+from utils.controls import AutoPanel
+
+UI_ROOT_MARGIN = (8, 8) # Left | Right
+UI_ROOT_SPACING = 4
 
 class DanmuSpreadFrame(wx.Frame):
     def __init__(self, parent):
+        # 消息订阅
+        pub.subscribe(self.OnMessageCoreConfigUpdated, InternalMessage.CORE_CONFIG_UPDATED.value) # 消息：应用设置保存时
+        pub.subscribe(self.OnMessageSpreadEvent, InternalMessage.SPREAD_EVENT.value)              # 消息：应用设置发生变化
+
+        # 基础配置
         self.configs=parent.sp_configs # 每项为[房间号列表,转发开关,限定前缀列表,转发延时列表]
         self.sp_rooms=parent.sp_rooms
         self.websockets=parent.ws_dict
@@ -17,93 +28,113 @@ class DanmuSpreadFrame(wx.Frame):
         self.spreadFilter=None
         self.succ_count=0
         self.fail_count=0
-        self.ShowFrame(parent)
-    
-    def ShowFrame(self,parent):
-        wx.Frame.__init__(self, parent, title="弹幕转发配置",size=(420,315),
-            style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.MINIMIZE_BOX))
-        if parent.show_pin:
-            self.ToggleWindowStyle(wx.STAY_ON_TOP)
-        self.panel=panel=wx.Panel(self,-1,pos=(0,0),size=(420,315))
         self.btnRoomLst=[]
         self.lblFilterLst=[]
         self.btnCtrlLst=[]
         self.boxLst=[]
-        self.sizer=wx.BoxSizer(wx.VERTICAL)
-        hbox=wx.BoxSizer()
-        for i in range(SPREAD_MAXIMUM_SPREAD_ROOMS):
-            # initialize
+        self.logViewerVerboseMode = False
+        self.maximumSpreadRooms = parent.spread_maximum_spread_rooms
+        self.maximumListenRooms = parent.spread_maximum_listen_rooms
+
+        # 初始化窗体
+        super().__init__(
+            parent,
+            title = "弹幕转发配置",
+            style = wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.MINIMIZE_BOX),
+        )
+        if parent.show_pin:
+            self.ToggleWindowStyle(wx.STAY_ON_TOP)
+        self.SetBackgroundColour(wx.NullColour)
+
+        # 根节点
+        self.sizer = wx.BoxSizer()
+        self.SetSizer(self.sizer)
+        panel = AutoPanel(self, wx.VERTICAL, UI_ROOT_SPACING)
+        self.sizer.AddSpacer(UI_ROOT_MARGIN[0])
+        self.sizer.Add(panel)
+        self.sizer.AddSpacer(UI_ROOT_MARGIN[1])
+
+        # 提示信息
+        infoRow = panel.AddToSizer(AutoPanel(panel, spacing = 12), flag = wx.EXPAND)
+        infoRow.AddToSizer(wx.StaticText(infoRow,-1,"左键选择房间，右键清除房间，⚙转发配置")).SetForegroundColour("grey")
+        self.lblSucc = infoRow.AddToSizer(wx.StaticText(infoRow,-1,"已转:0"))
+        self.lblSucc.SetForegroundColour("grey")
+        self.lblFail = infoRow.AddToSizer(wx.StaticText(infoRow,-1,"失败:0"))
+        self.lblFail.SetForegroundColour("grey")
+        self.lblWait = infoRow.AddToSizer(wx.StaticText(infoRow,-1,"待发:0"))
+        self.lblWait.SetForegroundColour("grey")
+
+        # 最近历史
+        self.lblRecent = panel.AddToSizer(wx.StaticText(panel,-1,""))
+        self.lblRecent.SetForegroundColour("dark grey")
+
+        # 房间配置
+        configRow = panel.AddToSizer(AutoPanel(panel, wx.HORIZONTAL, 4))
+        for i in range(self.maximumSpreadRooms):
             self.btnRoomLst.append([])
             self.lblFilterLst.append([])
 
-            # 静态文本框(转发栏位)
-            sbox=wx.StaticBox(panel, -1, f"Slot {i+1}")
-            sbox.SetName(str(i+1))
-            self.boxLst.append(sbox)
-            sbs=wx.StaticBoxSizer(sbox,wx.VERTICAL)
+            box = wx.StaticBox(configRow, -1, f"Slot {i+1}")
+            sizer = configRow.AddToSizer(wx.StaticBoxSizer(box, wx.VERTICAL), flag = wx.ALL, border = 2)
+            self.boxLst.append(box)
+
             # 转发目的房间
-            lblTo=wx.StaticText(panel,-1,"转发到房间:")
+            lblTo=wx.StaticText(box,-1,"转发到房间:")
             lblTo.SetForegroundColour("grey")
-            sbs.Add(lblTo)
-            btnTo=wx.Button(panel,-1,size=(90,27))
+            sizer.Add(lblTo)
+
+            btnTo=wx.Button(box,-1,size=(90,27))
             btnTo.SetName(f"{i};0")
             btnTo.Bind(wx.EVT_BUTTON,self.ShowSpRoomSelector)
             btnTo.Bind(wx.EVT_RIGHT_DOWN,self.UnSelectRoom)
             self.btnRoomLst[i].append(btnTo)
-            sbs.Add(btnTo)
+            sizer.Add(btnTo)
+
             # 转发来源房间 及 房间前缀过滤标识
-            lblFrom=wx.StaticText(panel,-1,"监听下列房间:")
+            lblFrom=wx.StaticText(box,-1,"监听下列房间:")
             lblFrom.SetForegroundColour("grey")
-            sbs.Add(lblFrom)
-            for j in range(1, SPREAD_MAXIMUM_LISTEN_ROOMS+1):
-                btnFrom=wx.Button(panel,-1,size=(90,27))
+            sizer.Add(lblFrom)
+            for j in range(1, self.maximumListenRooms+1):
+                row = AutoPanel(box, spacing = 6)
+                sizer.Add(row, flag = wx.RESERVE_SPACE_EVEN_IF_HIDDEN)
+
+                # 来源按钮
+                btnFrom=row.AddToSizer(wx.Button(row,-1,size=(90,27)), flag = wx.RESERVE_SPACE_EVEN_IF_HIDDEN)
                 btnFrom.SetName(f"{i};{j}")
                 btnFrom.Bind(wx.EVT_BUTTON,self.ShowSpRoomSelector)
                 btnFrom.Bind(wx.EVT_RIGHT_DOWN,self.UnSelectRoom)
                 self.btnRoomLst[i].append(btnFrom)
-                hbox3=wx.BoxSizer()
-                hbox3.Add(btnFrom,0,wx.RESERVE_SPACE_EVEN_IF_HIDDEN)
-                lblFilter=wx.StaticText(panel,-1,"⚙",size=(25,25))
+
+                # 过滤按钮
+                lblFilter=row.AddToSizer(wx.StaticText(row,-1,"⚙", size=(18, -1)), flag = wx.RESERVE_SPACE_EVEN_IF_HIDDEN | wx.ALIGN_CENTER)
                 lblFilter.SetName(f"{i};{j-1}")
                 lblFilter.SetForegroundColour("grey")
                 lblFilter.Bind(wx.EVT_LEFT_DOWN,self.ShowSpreadFilter)
                 self.lblFilterLst[i].append(lblFilter)
-                hbox3.Add(lblFilter,0,wx.LEFT|wx.TOP|wx.RESERVE_SPACE_EVEN_IF_HIDDEN,5)
-                sbs.Add(hbox3,0,wx.RESERVE_SPACE_EVEN_IF_HIDDEN)
+                row.GetSizer().AddSpacer(4)
+
             # 开始/暂停按钮
-            btnCtrl=wx.Button(panel,-1,size=(90,35))
+            btnCtrl=wx.Button(box,-1,size=(90,35))
             btnCtrl.SetName(str(i))
             btnCtrl.Bind(wx.EVT_BUTTON,self.ToggleSpreading)
             self.btnCtrlLst.append(btnCtrl)
-            sbs.Add(btnCtrl,0,wx.UP|wx.RESERVE_SPACE_EVEN_IF_HIDDEN,10)
-            hbox.Add(sbs,0,wx.ALL|wx.EXPAND,2)
-        # 操作提示/转发成功数/转发失败数/待发送弹幕数/最近转发弹幕
-        hbox2=wx.BoxSizer()
-        lblHint=wx.StaticText(panel,-1,"左键选择房间，右键清除房间，⚙转发配置")
-        lblHint.SetForegroundColour("grey")
-        hbox2.Add(lblHint,0,wx.LEFT,5)
-        self.lblSucc=wx.StaticText(panel,-1,"已转:0")
-        self.lblSucc.SetForegroundColour("grey")
-        hbox2.Add(self.lblSucc,0,wx.LEFT,12)
-        self.lblFail=wx.StaticText(panel,-1,"失败:0")
-        self.lblFail.SetForegroundColour("grey")
-        hbox2.Add(self.lblFail,0,wx.LEFT,12)
-        self.lblWait=wx.StaticText(panel,-1,"待发:0")
-        self.lblWait.SetForegroundColour("grey")
-        hbox2.Add(self.lblWait,0,wx.LEFT,12)
-        self.lblRecent=wx.StaticText(panel,-1,"")
-        self.lblRecent.SetForegroundColour("dark grey")
-        self.sizer.Add(hbox2)
-        self.sizer.Add(self.lblRecent)
-        self.sizer.Add(hbox)
-        panel.SetSizer(self.sizer)
+            sizer.Add(btnCtrl,0,wx.UP|wx.RESERVE_SPACE_EVEN_IF_HIDDEN,10)
+
+        # 转发日志
+        self.tcLogViewer = panel.AddToSizer(wx.TextCtrl(panel, style = wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2, size=(-1, 240)), flag = wx.EXPAND)
+        self.tcLogViewer.Show(False)
+        setFont(self.tcLogViewer, 9, name="微软雅黑" if self.Parent.platform=="win" else None)
+
         self.Bind(wx.EVT_CLOSE,self.OnClose)
+        self.SyncConfig()
+        self.FitSizeForContent()
         self.RefreshUI()
-        # sync size
-        panelBestSize=panel.GetBestSize()
-        panelBestSize.SetWidth(panelBestSize.GetWidth()+15)
-        panelBestSize.SetHeight(panelBestSize.GetHeight()+39) # FIXME: no clue about why StaticBoxSizer doesn't count start button's size. manually add magic 39 height for it.
-        self.SetSize(panelBestSize)
+    
+    def FitSizeForContent(self):
+        self.Fit()
+
+    def SyncConfig(self):
+        self.OnMessageCoreConfigUpdated(self.Parent.GenerateConfigSnapshot(schemeOnly = True), self.Parent.GenerateConfigSnapshot())
     
     def ShowSpRoomSelector(self,event):
         btnRoom=event.GetEventObject()
@@ -195,6 +226,12 @@ class DanmuSpreadFrame(wx.Frame):
         if isinstance(event_or_int,int): slot=event_or_int
         else: slot=int(event_or_int.GetEventObject().GetName())
         self.configs[slot][1]=spreading=not self.configs[slot][1]
+        pub.sendMessage(InternalMessage.SPREAD_EVENT.value, eventType = SpreadEventTypes.START if spreading else SpreadEventTypes.STOP , eventData = {
+            "internalTime": int(time.time()),
+            "internalData": {
+                "slot": slot,
+            },
+        })
         for roomid in self.configs[slot][0][1:]:
             if roomid not in self.websockets.keys():
                 self.websockets[roomid]=BiliLiveWebSocket(roomid)
@@ -226,11 +263,11 @@ class DanmuSpreadFrame(wx.Frame):
             self.boxLst[slot].SetForegroundColour("blue" if cfg[1] else "black")
             self.btnCtrlLst[slot].SetLabel("暂停转发" if cfg[1] else "开始转发")
             self.btnCtrlLst[slot].Show(bool(cfg[0][0]) or idx>1)
-            if idx < SPREAD_MAXIMUM_LISTEN_ROOMS+1:
+            if idx < self.maximumListenRooms+1:
                 self.btnRoomLst[slot][idx].SetLabel("✚")
                 self.btnRoomLst[slot][idx].SetForegroundColour("grey")
                 self.btnRoomLst[slot][idx].Show(bool(cfg[0][0]) or idx>1)
-            for i in range(idx+1,SPREAD_MAXIMUM_LISTEN_ROOMS+1):
+            for i in range(idx+1,self.maximumListenRooms+1):
                 self.btnRoomLst[slot][i].Show(False)
             idx=0
             for speaker_filters,spread_delays in zip(cfg[2],cfg[3]):
@@ -238,13 +275,78 @@ class DanmuSpreadFrame(wx.Frame):
                 self.lblFilterLst[slot][idx].SetForegroundColour(room_setting_color)
                 self.lblFilterLst[slot][idx].Show(True)
                 idx+=1
-            for i in range(idx,SPREAD_MAXIMUM_LISTEN_ROOMS):
+            for i in range(idx,self.maximumListenRooms):
                 self.lblFilterLst[slot][i].Show(False)
         self.Parent.SetSpreadButtonState(roomid=None,count=0,spreading=self.IsSpreading())
         self.Refresh()
         if self.spreadFilter:
             self.spreadFilter.Destroy()
 
+    def AppendLogToLogViewer(self, content, color):
+        style = self.tcLogViewer.GetDefaultStyle()
+        style.SetTextColour(color)
+        self.tcLogViewer.SetDefaultStyle(style)
+        self.tcLogViewer.AppendText("{lineWrap}{content}".format(content = content, lineWrap = "\n" if len(self.tcLogViewer.GetValue()) > 0 else ""))
+
+    def OnMessageCoreConfigUpdated(self, before, after):
+        if before["spread_logviewer_enabled"] != after["spread_logviewer_enabled"]:
+            self.tcLogViewer.Show(after["spread_logviewer_enabled"])
+            self.FitSizeForContent()
+        self.logViewerVerboseMode = after["spread_logviewer_verbose"]
+
+    def OnMessageSpreadEvent(self, eventType: SpreadEventTypes, eventData):
+        internalTimeText = getTime(eventData["internalTime"])
+        internalData = eventData["internalData"]
+        slot = internalData["slot"]
+        if slot != None:
+            slot = slot + 1
+
+        if eventType == SpreadEventTypes.START:
+            self.AppendLogToLogViewer(
+                "{internalTimeText} | #{slot} | 开始转发".format(**{
+                    "internalTimeText": internalTimeText,
+                    "slot": slot,
+                }),
+                "medium aquamarine",
+            )
+        elif eventType == SpreadEventTypes.STOP:
+            self.AppendLogToLogViewer(
+                "{internalTimeText} | #{slot} | 停止转发".format(**{
+                    "internalTimeText": internalTimeText,
+                    "slot": slot,
+                }),
+                "tan",
+            )
+        elif eventType == SpreadEventTypes.RECEIVE_TRANSLATED:
+            if self.logViewerVerboseMode:
+                self.AppendLogToLogViewer(
+                    "{internalTimeText} | #{slot}.{fromRoomFull} | 捕获到：{rawContent}".format(**{
+                        "internalTimeText": internalTimeText,
+                        "slot": slot,
+                        "fromRoomFull": internalData["fromRoom"]["full"],
+                        "rawContent": internalData["rawContent"],
+                    }),
+                    "gray",
+                )
+        elif eventType == SpreadEventTypes.SENT:
+            style = ERR_INFO[eventData["result"]]
+            self.AppendLogToLogViewer(
+                "{internalTimeText} | #{slot}.{fromRoomFull}->{toRoomFull} | {stylePrefix}{message}".format(**{
+                    "internalTimeText": internalTimeText,
+                    "slot": slot,
+                    "fromRoomFull": internalData["fromRoom"]["full"],
+                    "toRoomFull": internalData["toRoom"]["full"],
+                    "stylePrefix": style[0],
+                    "message": eventData["message"],
+                }),
+                style[1],
+            )
+
+    def Destroy(self):
+        pub.unsubscribe(self.OnMessageCoreConfigUpdated, InternalMessage.CORE_CONFIG_UPDATED.value)
+        pub.unsubscribe(self.OnMessageSpreadEvent, InternalMessage.SPREAD_EVENT.value)
+        return super().Destroy()
+        
     def OnClose(self,event):
         self.Show(False)
         if self.roomSelector:

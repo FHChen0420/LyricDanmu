@@ -215,6 +215,30 @@ class GeneralConfigFrame(wx.Frame):
 
             row.AddToSizer(wx.StaticText(row,-1,"未达到要求则不纳入同传统计")).SetForegroundColour("grey")
 
+            # 转发设置
+            row = ConfigRow(panel, "转发相关", wx.VERTICAL)
+            sizer.Add(*row.Export())
+
+            innerRow = AutoPanel(row)
+            row.AddToSizer(innerRow, 1, wx.EXPAND)
+            innerRow.AddToSizer(wx.StaticText(innerRow, -1, "最大"))
+            self.tcSpreadMaximumSpreadRooms = innerRow.AddToSizer(wx.TextCtrl(innerRow, -1, str(parent.spread_maximum_spread_rooms), size=(40,22)))
+            innerRow.AddToSizer(wx.StaticText(innerRow, -1, "个转发房间"))
+            
+            innerRow = AutoPanel(row)
+            row.AddToSizer(innerRow, 1, wx.EXPAND)
+            innerRow.AddToSizer(wx.StaticText(innerRow, -1, "最大"))
+            self.tcSpreadMaximumListenRooms = innerRow.AddToSizer(wx.TextCtrl(innerRow, -1, str(parent.spread_maximum_listen_rooms), size=(40,22)))
+            innerRow.AddToSizer(wx.StaticText(innerRow, -1, "个监听房间"))
+
+            row.AddToSizer(wx.StaticText(row,-1,"数量修改后将重置当前转发配置")).SetForegroundColour("grey")
+            
+            self.ckbSpreadLogViewerEnabled = row.AddToSizer(wx.CheckBox(row, -1, "启用转发日志"))
+            self.ckbSpreadLogViewerEnabled.SetValue(parent.spread_logviewer_enabled)
+            
+            self.ckbSpreadLogViewerVerbose = row.AddToSizer(wx.CheckBox(row, -1, "详细转发日志"))
+            self.ckbSpreadLogViewerVerbose.SetValue(parent.spread_logviewer_verbose)
+
             sizer.AddSpacer(UI_CONTENT_MARGIN_BOTTOM)
             return panel
         
@@ -384,6 +408,18 @@ class GeneralConfigFrame(wx.Frame):
         parent.record_fontsize=int(self.cbbFontsize.GetValue())
         parent.cancel_danmu_after_failed=self.ckbCancelSend.GetValue()
         parent.qq_new_api=self.ckbNewQQApi.GetValue()
+
+        # 转发相关
+        parent.spread_logviewer_enabled=self.ckbSpreadLogViewerEnabled.GetValue()
+        parent.spread_logviewer_verbose=self.ckbSpreadLogViewerVerbose.GetValue()
+        try:
+            value=int(self.tcSpreadMaximumSpreadRooms.GetValue().strip())
+            parent.spread_maximum_spread_rooms=min(10, max(1, value))
+        except: pass
+        try:
+            value=int(self.tcSpreadMaximumListenRooms.GetValue().strip())
+            parent.spread_maximum_listen_rooms=min(20, max(1, value))
+        except: pass
 
         os.environ["NO_PROXY"]="*" if parent.no_proxy else ""
         parent.RefreshLyric()
