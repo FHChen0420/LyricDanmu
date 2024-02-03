@@ -247,6 +247,12 @@ class DanmuSpreadFrame(wx.Frame):
 
     def OnClose(self,event):
         self.Show(False)
+        if self.roomSelector:
+            self.roomSelector.Destroy()
+            self.roomSelector = None
+        if self.spreadFilter:
+            self.spreadFilter.Destroy()
+            self.spreadFilter = None
     
     def IsSpreading(self):
         return any([cfg[1] for cfg in self.configs])
