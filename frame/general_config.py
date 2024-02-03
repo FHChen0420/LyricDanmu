@@ -1,165 +1,272 @@
 import os
 
 import wx
+from pubsub import pub
 
+from const.constant import InternalMessage
 from frame.bili_qrcode import BiliQrCodeFrame
 from utils.util import bindHint
+from utils.controls import AutoPanel
+
+UI_FRAME_MINIMUM_WIDTH = 320
+UI_CONTENT_MARGIN_TOP = 12
+UI_CONTENT_MARGIN_BOTTOM = 12
+UI_CONTENT_ROW_SPACING = 8
+UI_CONTENT_ROW_MARGIN = (16, 16) # Left | Right
+UI_CONTENT_ROW_TITLE_SPACING = 20
+UI_CONTENT_ROW_TITLE_SPACING_SLIDER = 10
+UI_CONTENT_ROW_INNER_SPACING = 4
 
 
 class GeneralConfigFrame(wx.Frame):
     def __init__(self,parent):
-        self.qrcodeFrame=None
-        self.ShowFrame(parent)
-    
-    def ShowFrame(self,parent):
-        pos=parent.GetPosition()
-        x,y=pos[0]+70,(pos[1]+40 if parent.show_lyric else max(0,pos[1]-80))
-        wx.Frame.__init__(self, parent, title="应用设置", pos=(x,y), size=(310,295), style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.MINIMIZE_BOX) |wx.FRAME_FLOAT_ON_PARENT)
-        if parent.show_pin:
-            self.ToggleWindowStyle(wx.STAY_ON_TOP)
-        self.Bind(wx.EVT_CLOSE,self.OnClose)
-        self.nb=wx.Notebook(self)
-        p1=wx.Panel(self.nb)
-        p2=wx.Panel(self.nb)
-        p3=wx.Panel(self.nb)
-        p4=wx.Panel(self.nb)
-        ### Tab1 歌词配置
-        # 歌词前后缀
-        wx.StaticText(p1,-1,"歌词前缀",pos=(15,10))
-        wx.StaticText(p1,-1,"歌词后缀",pos=(15,40))
-        wx.StaticText(p1,-1,"默认",pos=(80,10))
-        wx.StaticText(p1,-1,"默认",pos=(80,40))
-        wx.StaticText(p1,-1,"备选",pos=(160,10))
-        wx.StaticText(p1,-1,"备选",pos=(160,40))
-        self.tcDfPre=wx.TextCtrl(p1,-1,parent.prefix,pos=(110,8),size=(40,22))
-        self.tcDfSuf=wx.TextCtrl(p1,-1,parent.suffix,pos=(110,38),size=(40,22))
-        self.tcPreList=wx.TextCtrl(p1,-1,",".join(parent.prefixs),pos=(190,8),size=(100,22))
-        self.tcSufList=wx.TextCtrl(p1,-1,",".join(parent.suffixs),pos=(190,38),size=(100,22))
-        # 搜索歌词
-        wx.StaticText(p1,-1,"歌词搜索",pos=(15,70))
-        wx.StaticText(p1,-1,"默认来源",pos=(80,70))
-        wx.StaticText(p1,-1,"搜索条数",pos=(80,92))
-        wx.StaticText(p1,-1,"每页条数",pos=(195,92))
-        self.rdSrcWY=wx.RadioButton(p1,-1,"网易云",pos=(135,70),style=wx.RB_GROUP)
-        self.rdSrcQQ=wx.RadioButton(p1,-1,"QQ音乐",pos=(195,70))
-        self.rdSrcWY.SetValue(True) if parent.default_src=="wy" else self.rdSrcQQ.SetValue(True)
-        bindHint(wx.StaticText(p1,-1,"[?]",pos=(272,70)),
-            "歌词前后缀备选：使用\",\"分隔各项\n" +
-            "歌词搜索条数：范围5~30\n每页显示条数：范围5~8\n \n"
-            "歌词前后缀更改将在工具重启后生效"
+        parentCurrentPosition = parent.GetPosition()
+        super().__init__(
+            parent,
+            title = "应用设置",
+            pos = (parentCurrentPosition[0] + 70, (parentCurrentPosition[1] + 40 if parent.show_lyric else max(0, parentCurrentPosition[1] - 80))),
+            style = wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.MINIMIZE_BOX) | wx.FRAME_FLOAT_ON_PARENT,
         )
-        self.tcSearchNum=wx.TextCtrl(p1,-1,str(parent.search_num),pos=(135,90),size=(40,22))
-        self.tcPgSize=wx.TextCtrl(p1,-1,str(parent.page_limit),pos=(250,90),size=(40,22))
-        self.ckbNewQQApi=wx.CheckBox(p1,-1,"使用新版QQ音乐搜歌接口(需登录)", pos=(80,115))
-        self.ckbNewQQApi.SetValue(parent.qq_new_api)
-        # 歌词高亮
-        wx.StaticText(p1,-1,"歌词高亮",pos=(15,140))
-        self.rdHlCur=wx.RadioButton(p1,-1,"当前播放行",pos=(80,141),style=wx.RB_GROUP)
-        self.rdHlNext=wx.RadioButton(p1,-1,"待发送歌词",pos=(170,141))
-        self.rdHlCur.SetValue(True) if parent.lyric_offset==0 else self.rdHlNext.SetValue(True)
-        # 歌词处理
-        wx.StaticText(p1,-1,"歌词处理",pos=(15,170))
-        self.ckbLrcMrg = wx.CheckBox(p1,-1,"启用歌词合并", pos=(80,170))
-        self.ckbAddSongName = wx.CheckBox(p1,-1,"曲末显示歌名", pos=(178,170))
-        bindHint(wx.StaticText(p1,-1,"[?]",pos=(272,170)),
-            "歌词合并：将短歌词拼接显示并发送，仅对有时轴的歌词生效\n"
-            "合并阈值：合并歌词时，最多允许拼接多少秒以内的歌词\n"
-            "曲末显示歌名：在歌词末尾添加形如“歌名：XXX”的记录"
-        )
-        wx.StaticText(p1,-1,"合并阈值",pos=(15,200))
-        self.lblLrcMrg = wx.StaticText(p1, -1, "%4.1f s" %(parent.lyric_merge_threshold_s), pos=(240, 198))
-        self.sldLrcMrg = wx.Slider(p1, -1, int(10 * parent.lyric_merge_threshold_s), 30, 80, pos=(70, 198), size=(170, 30),style=wx.SL_HORIZONTAL)
-        self.ckbLrcMrg.SetValue(parent.enable_lyric_merge)
-        self.ckbAddSongName.SetValue(parent.add_song_name)
-        self.sldLrcMrg.Bind(wx.EVT_SLIDER, self.OnLrcMergeThChange)
-        ### Tab2 弹幕配置
-        # 发送间隔
-        wx.StaticText(p2,-1,"发送间隔",pos=(15,10))
-        self.lblItv = wx.StaticText(p2, -1, "%4d ms" % parent.send_interval_ms, pos=(240, 8))
-        self.sldItv = wx.Slider(p2, -1, int(0.1 * parent.send_interval_ms), 50, 150, pos=(70, 8), size=(170, 30),style=wx.SL_HORIZONTAL)
-        self.sldItv.Bind(wx.EVT_SLIDER, self.OnIntervalChange)
-        # 超时阈值
-        wx.StaticText(p2,-1,"超时阈值",pos=(15,40))
-        self.lblTmt = wx.StaticText(p2, -1, "%4.1f s" %(parent.timeout_s), pos=(240, 38))
-        self.sldTmt = wx.Slider(p2, -1, int(10 * parent.timeout_s), 20, 100, pos=(70, 38), size=(170, 30),style=wx.SL_HORIZONTAL)
-        self.sldTmt.Bind(wx.EVT_SLIDER, self.OnTimeoutChange)
-        # 屏蔽句重发
-        wx.StaticText(p2,-1,"屏蔽处理",pos=(15,70))
-        self.ckbFResend = wx.CheckBox(p2,-1,"弹幕被屏蔽时尝试重发", pos=(80,70))
-        self.ckbFResend.SetValue(parent.f_resend)
-        self.ckbFRDeal = wx.CheckBox(p2,-1,"重发时进一步处理内容", pos=(80,92))
-        self.ckbFRDeal.SetValue(parent.f_resend_deal)
-        self.ckbFRMark = wx.CheckBox(p2,-1,"重发时显示标识", pos=(80,114))
-        self.ckbFRMark.SetValue(parent.f_resend_mark)
-        # 其它设置
-        wx.StaticText(p2,-1,"其它设置",pos=(15,140))
-        self.ckbCancelSend = wx.CheckBox(p2,-1,"长句发送失败时撤回后续内容",pos=(80,140))
-        self.ckbCancelSend.SetValue(parent.cancel_danmu_after_failed)
-        self.ckbAppBottom = wx.CheckBox(p2,-1,"APP端弹幕置底显示", pos=(80,162))
-        self.ckbAppBottom.SetValue(parent.app_bottom_danmu)
-        self.ckbNoProxy = wx.CheckBox(p2,-1,"禁用系统代理", pos=(80,184))
-        self.ckbNoProxy.SetValue(parent.no_proxy)
-        wx.StaticText(p2,-1,"若VPN环境下报网络异常，请勾选",pos=(80,200)).SetForegroundColour("grey")
-        ### Tab3 界面配置
-        # 启动设置
-        wx.StaticText(p3,-1,"启动设置",pos=(15,10))
-        self.ckbInitLrc = wx.CheckBox(p3,-1,"启动时展开歌词面板", pos=(80,10))
-        self.ckbInitLrc.SetValue(parent.init_show_lyric)
-        self.ckbInitRcd = wx.CheckBox(p3,-1,"启动时打开弹幕记录窗口", pos=(80,32))
-        self.ckbInitRcd.SetValue(parent.init_show_record)
-        self.ckbTwoPre = wx.CheckBox(p3,-1,"默认在无前缀与【前缀之间切换", pos=(80,54))
-        self.ckbTwoPre.SetValue(parent.init_two_prefix)
-        # 弹幕记录
-        wx.StaticText(p3,-1,"弹幕记录",pos=(15,85))
-        self.ckbRichRcd = wx.CheckBox(p3,-1,"彩色提示信息", pos=(80,85))
-        self.ckbRichRcd.SetValue(parent.enable_rich_record)
-        wx.StaticText(p3,-1,"字号",pos=(190,85))
-        self.cbbFontsize = wx.ComboBox(p3,-1,pos=(220,83),size=(40,22),choices=[str(i) for i in range(9,16)],value=str(parent.record_fontsize),style=wx.CB_READONLY)
-        wx.StaticText(p3,-1,"修改的弹幕记录配置将在重启后生效",pos=(80,105)).SetForegroundColour("grey")
-        # 同传统计
-        wx.StaticText(p3,-1,"同传统计",pos=(15,135))
-        self.ckbStatShow = wx.CheckBox(p3,-1,"退出时显示同传弹幕统计", pos=(80,135))
-        self.ckbStatShow.SetValue(parent.show_stat_on_close)
-        self.tcStatSuspend = wx.TextCtrl(p3,-1,str(parent.tl_stat_break_min),pos=(80,155),size=(40,22))
-        wx.StaticText(p3,-1,"分钟不同传 视为同传结束",pos=(122,157))
-        wx.StaticText(p3,-1,"字数要求",pos=(80,180))
-        self.tcStatWords = wx.TextCtrl(p3,-1,str(parent.tl_stat_min_word_num),pos=(132,178),size=(40,22))
-        wx.StaticText(p3,-1,"弹幕数要求",pos=(182,180))
-        self.tcStatCount = wx.TextCtrl(p3,-1,str(parent.tl_stat_min_count),pos=(247,178),size=(40,22))
-        wx.StaticText(p3,-1,"未达到要求则不纳入同传统计",pos=(80,200)).SetForegroundColour("grey")
-        ### Tab4 账号配置
-        self.btnAccSwitches=[]
-        self.tcAccNames=[]
-        self.tcAccCookies=[]
-        self.btnQrLogins=[]
-        self.btnAccEdits=[]
-        wx.StaticText(p4,-1,"账号切换",pos=(15, 14))
-        for i in range(2):
-            acc_name="账号%d"%(i+1) if parent.account_names[i]=="" else parent.account_names[i]
-            btnAccSwitch=wx.Button(p4,-1,acc_name,pos=(75+i*100, 10),size=(90,25),name=str(i))
-            btnAccSwitch.Bind(wx.EVT_BUTTON,self.SwitchAccount)
-            wx.StaticText(p4,-1,"账号名称",pos=(15,50+80*i))
-            tcAccName=wx.TextCtrl(p4,-1,parent.account_names[i],pos=(75,47+80*i),size=(80,22))
-            tcAccName.Disable()
-            btnQrLogin=wx.Button(p4,-1,"扫码登录",pos=(160,47+80*i),size=(60,22),name=str(i))
-            btnQrLogin.Bind(wx.EVT_BUTTON, self.ShowQrCodeFrame)
-            btnAccEdit=wx.Button(p4,-1,"编辑",pos=(225,47+80*i),size=(40,22),name=str(i))
-            btnAccEdit.Bind(wx.EVT_BUTTON,self.EditOrSaveAccount)
-            wx.StaticText(p4,-1,"Cookie",pos=(20,82+80*i))
-            tcAccCookie=wx.TextCtrl(p4,-1,parent.cookies[i],pos=(75,73+80*i),size=(190,38),style=wx.TE_MULTILINE|wx.TE_PROCESS_ENTER)
-            tcAccCookie.Bind(wx.EVT_TEXT_ENTER, lambda event: None)
-            tcAccCookie.Disable()
-            self.btnAccSwitches.append(btnAccSwitch)
-            self.tcAccNames.append(tcAccName)
-            self.tcAccCookies.append(tcAccCookie)
-            self.btnQrLogins.append(btnQrLogin)
-            self.btnAccEdits.append(btnAccEdit)
-        ### 整合
-        self.nb.AddPage(p2,"弹幕",True)
-        self.nb.AddPage(p1,"歌词")
-        self.nb.AddPage(p3,"界面")
-        self.nb.AddPage(p4,"账号")
+
+        class ConfigRow(AutoPanel):
+            def __init__(self, parent, title, orient, margin = UI_CONTENT_ROW_MARGIN, titleSpacing = UI_CONTENT_ROW_TITLE_SPACING, innerSpacing = UI_CONTENT_ROW_INNER_SPACING):
+                self.__panel = wx.Panel(parent)
+                self.__sizer = wx.BoxSizer()
+                self.__panel.SetSizer(self.__sizer)
+
+                super().__init__(self.__panel, orient = orient, spacing = innerSpacing)
+                self.__sizer.AddSpacer(margin[0])
+                self.__sizer.Add(wx.StaticText(self.__panel, -1, title))
+                self.__sizer.AddSpacer(titleSpacing)
+                self.__sizer.Add(self)
+                self.__sizer.AddSpacer(margin[1])
+
+            def Export(self, isFirst = False):
+                if isFirst:
+                    return (self.__panel, 0)
+                return (self.__panel, 0, wx.TOP, UI_CONTENT_ROW_SPACING)
+        
+        def InitializeDanmuNotebookPage(panel: wx.Panel):
+            sizer = wx.BoxSizer(wx.VERTICAL)
+            panel.SetSizer(sizer)
+            sizer.AddSpacer(UI_CONTENT_MARGIN_TOP)
+
+            # 发送间隔
+            row = ConfigRow(panel, "发送间隔", wx.HORIZONTAL, margin = (UI_CONTENT_ROW_MARGIN[0], 0), titleSpacing = UI_CONTENT_ROW_TITLE_SPACING_SLIDER)
+            sizer.Add(*row.Export(isFirst = True))
+            self.sldItv = row.AddToSizer(wx.Slider(row, -1, int(0.1 * parent.send_interval_ms), 50, 150, size = (170, 26), style = wx.SL_HORIZONTAL))
+            self.sldItv.Bind(wx.EVT_SLIDER, self.OnIntervalChange)
+            self.lblItv = row.AddToSizer(wx.StaticText(row, -1, "%4d ms" % parent.send_interval_ms, size = (60, 26)))
+
+            # 超时阈值
+            row = ConfigRow(panel, "超时阈值", wx.HORIZONTAL, margin = (UI_CONTENT_ROW_MARGIN[0], 0), titleSpacing = UI_CONTENT_ROW_TITLE_SPACING_SLIDER)
+            sizer.Add(*row.Export())
+            self.sldTmt = row.AddToSizer(wx.Slider(row, -1, int(10 * parent.timeout_s), 20, 100, size = (170, 26), style = wx.SL_HORIZONTAL))
+            self.sldTmt.Bind(wx.EVT_SLIDER, self.OnTimeoutChange)
+            self.lblTmt = row.AddToSizer(wx.StaticText(row, -1, "%4.1f s" %(parent.timeout_s), size = (60, 26)))
+
+            # 屏蔽句重发
+            row = ConfigRow(panel, "屏蔽处理", wx.VERTICAL)
+            sizer.Add(*row.Export())
+            self.ckbFResend = row.AddToSizer(wx.CheckBox(row,-1,"弹幕被屏蔽时尝试重发"))
+            self.ckbFResend.SetValue(parent.f_resend)
+            self.ckbFRDeal = row.AddToSizer(wx.CheckBox(row,-1,"重发时进一步处理内容"))
+            self.ckbFRDeal.SetValue(parent.f_resend_deal)
+            self.ckbFRMark = row.AddToSizer(wx.CheckBox(row,-1,"重发时显示标识"))
+            self.ckbFRMark.SetValue(parent.f_resend_mark)
+
+            # 其它设置
+            row = ConfigRow(panel, "其它设置", wx.VERTICAL)
+            sizer.Add(*row.Export())
+            self.ckbCancelSend = row.AddToSizer(wx.CheckBox(row,-1,"长句发送失败时撤回后续内容"))
+            self.ckbCancelSend.SetValue(parent.cancel_danmu_after_failed)
+            self.ckbAppBottom = row.AddToSizer(wx.CheckBox(row,-1,"APP端弹幕置底显示"))
+            self.ckbAppBottom.SetValue(parent.app_bottom_danmu)
+            self.ckbNoProxy = row.AddToSizer(wx.CheckBox(row,-1,"禁用系统代理"))
+            self.ckbNoProxy.SetValue(parent.no_proxy)
+            row.AddToSizerWithoutSpacing(wx.StaticText(row,-1,"若VPN环境下报网络异常，请勾选")).SetForegroundColour("grey")
+
+            sizer.AddSpacer(UI_CONTENT_MARGIN_BOTTOM)
+            return panel
+        
+        def InitializeLyricNotebookPage(panel: wx.Panel):
+            sizer = wx.BoxSizer(wx.VERTICAL)
+            panel.SetSizer(sizer)
+            sizer.AddSpacer(UI_CONTENT_MARGIN_TOP)
+
+            # 歌词前缀
+            row = ConfigRow(panel, "歌词前缀", wx.HORIZONTAL)
+            sizer.Add(*row.Export(isFirst = True))
+            row.AddToSizer(wx.StaticText(row,-1,"默认"))
+            self.tcDfPre = row.AddToSizer(wx.TextCtrl(row,-1,parent.prefix,size=(40,22)))
+            row.AddToSizer(wx.StaticText(row,-1,"备选"))
+            self.tcPreList = row.AddToSizer(wx.TextCtrl(row,-1,",".join(parent.prefixs),size=(100,22)))
+
+            # 歌词后缀
+            row = ConfigRow(panel, "歌词后缀", wx.HORIZONTAL)
+            sizer.Add(*row.Export())
+            row.AddToSizer(wx.StaticText(row,-1,"默认"))
+            self.tcDfSuf = row.AddToSizer(wx.TextCtrl(row,-1,parent.suffix,size=(40,22)))
+            row.AddToSizer(wx.StaticText(row,-1,"备选"))
+            self.tcSufList = row.AddToSizer(wx.TextCtrl(row,-1,",".join(parent.suffixs),size=(100,22)))
+
+            # 搜索歌词
+            row = ConfigRow(panel, "歌词搜索", wx.VERTICAL)
+            sizer.Add(*row.Export())
+
+            innerRow = AutoPanel(row)
+            row.AddToSizer(innerRow, 1, wx.EXPAND)
+            innerRow.AddToSizer(wx.StaticText(innerRow,-1,"默认来源"))
+            self.rdSrcWY = innerRow.AddToSizer(wx.RadioButton(innerRow,-1,"网易云",style=wx.RB_GROUP))
+            self.rdSrcQQ = innerRow.AddToSizer(wx.RadioButton(innerRow,-1,"QQ音乐"))
+            self.rdSrcWY.SetValue(True) if parent.default_src=="wy" else self.rdSrcQQ.SetValue(True)
+            innerRow.AddToSizer(bindHint(wx.StaticText(innerRow,-1,"[?]"),
+                "歌词前后缀备选：使用\",\"分隔各项\n" +
+                "歌词搜索条数：范围5~30\n每页显示条数：范围5~8\n \n"
+                "歌词前后缀更改将在工具重启后生效"
+            ))
+
+            innerRow = AutoPanel(row)
+            row.AddToSizer(innerRow, 1, wx.EXPAND)
+            innerRow.AddToSizer(wx.StaticText(innerRow,-1,"搜索条数"))
+            self.tcSearchNum = innerRow.AddToSizer(wx.TextCtrl(innerRow,-1,str(parent.search_num),size=(40,22)))
+            innerRow.AddToSizer(wx.StaticText(innerRow,-1,"每页条数"))
+            self.tcPgSize = innerRow.AddToSizer(wx.TextCtrl(innerRow,-1,str(parent.page_limit),size=(40,22)))
+
+            self.ckbNewQQApi = row.AddToSizer(wx.CheckBox(row,-1,"使用新版QQ音乐搜歌接口(需登录)"))
+            self.ckbNewQQApi.SetValue(parent.qq_new_api)
+
+            # 歌词高亮
+            row = ConfigRow(panel, "歌词高亮", wx.HORIZONTAL)
+            sizer.Add(*row.Export())
+            self.rdHlCur = row.AddToSizer(wx.RadioButton(row,-1,"当前播放行",style=wx.RB_GROUP))
+            self.rdHlNext = row.AddToSizer(wx.RadioButton(row,-1,"待发送歌词"))
+            self.rdHlCur.SetValue(True) if parent.lyric_offset==0 else self.rdHlNext.SetValue(True)
+
+            # 歌词处理
+            row = ConfigRow(panel, "歌词处理", wx.HORIZONTAL)
+            sizer.Add(*row.Export())
+            self.ckbLrcMrg = row.AddToSizer(wx.CheckBox(row,-1,"启用歌词合并"))
+            self.ckbAddSongName = row.AddToSizer(wx.CheckBox(row,-1,"曲末显示歌名"))
+            row.AddToSizer(bindHint(wx.StaticText(row,-1,"[?]"),
+                "歌词合并：将短歌词拼接显示并发送，仅对有时轴的歌词生效\n"
+                "合并阈值：合并歌词时，最多允许拼接多少秒以内的歌词\n"
+                "曲末显示歌名：在歌词末尾添加形如“歌名：XXX”的记录"
+            ))
+            self.ckbLrcMrg.SetValue(parent.enable_lyric_merge)
+            self.ckbAddSongName.SetValue(parent.add_song_name)
+
+            # 合并阈值
+            row = ConfigRow(panel, "合并阈值", wx.HORIZONTAL, margin = (UI_CONTENT_ROW_MARGIN[0], 0), titleSpacing = UI_CONTENT_ROW_TITLE_SPACING_SLIDER)
+            sizer.Add(*row.Export())
+            self.sldLrcMrg = row.AddToSizer(wx.Slider(row, -1, int(10 * parent.lyric_merge_threshold_s), 30, 80, size=(170, 26),style=wx.SL_HORIZONTAL))
+            self.sldLrcMrg.Bind(wx.EVT_SLIDER, self.OnLrcMergeThChange)
+            self.lblLrcMrg = row.AddToSizer(wx.StaticText(row, -1, "%4.1f s" %(parent.lyric_merge_threshold_s), size = (60, 26)))
+
+            sizer.AddSpacer(UI_CONTENT_MARGIN_BOTTOM)
+            return panel
+        
+        def InitializeUINotebookPage(panel: wx.Panel):
+            sizer = wx.BoxSizer(wx.VERTICAL)
+            panel.SetSizer(sizer)
+            sizer.AddSpacer(UI_CONTENT_MARGIN_TOP)
+
+            # 启动设置
+            row = ConfigRow(panel, "启动设置", wx.VERTICAL)
+            sizer.Add(*row.Export(isFirst = True))
+            self.ckbInitLrc = row.AddToSizer(wx.CheckBox(row,-1,"启动时展开歌词面板"))
+            self.ckbInitLrc.SetValue(parent.init_show_lyric)
+            self.ckbInitRcd = row.AddToSizer(wx.CheckBox(row,-1,"启动时打开弹幕记录窗口"))
+            self.ckbInitRcd.SetValue(parent.init_show_record)
+            self.ckbTwoPre = row.AddToSizer(wx.CheckBox(row,-1,"默认在无前缀与【前缀之间切换"))
+            self.ckbTwoPre.SetValue(parent.init_two_prefix)
+
+            # 弹幕记录
+            row = ConfigRow(panel, "弹幕记录", wx.VERTICAL)
+            sizer.Add(*row.Export())
+
+            innerRow = AutoPanel(row)
+            row.AddToSizer(innerRow, 1, wx.EXPAND)
+            self.ckbRichRcd = innerRow.AddToSizer(wx.CheckBox(innerRow,-1,"彩色提示信息"))
+            self.ckbRichRcd.SetValue(parent.enable_rich_record)
+            innerRow.AddToSizer(wx.StaticText(innerRow,-1,"字号"))
+            self.cbbFontsize = innerRow.AddToSizer(wx.ComboBox(innerRow,-1,size=(40,22),choices=[str(i) for i in range(9,16)],value=str(parent.record_fontsize),style=wx.CB_READONLY))
+
+            row.AddToSizer(wx.StaticText(row,-1,"修改的弹幕记录配置将在重启后生效")).SetForegroundColour("grey")
+
+            # 同传统计
+            row = ConfigRow(panel, "同传统计", wx.VERTICAL)
+            sizer.Add(*row.Export())
+            
+            self.ckbStatShow = row.AddToSizer(wx.CheckBox(row,-1,"退出时显示同传弹幕统计"))
+            self.ckbStatShow.SetValue(parent.show_stat_on_close)
+
+            innerRow = AutoPanel(row)
+            row.AddToSizer(innerRow, 1, wx.EXPAND)
+            self.tcStatSuspend = innerRow.AddToSizer(wx.TextCtrl(innerRow,-1,str(parent.tl_stat_break_min),size=(40,22)))
+            innerRow.AddToSizer(wx.StaticText(innerRow,-1,"分钟不同传 视为同传结束"))
+
+            innerRow = AutoPanel(row)
+            row.AddToSizer(innerRow, 1, wx.EXPAND)
+            innerRow.AddToSizer(wx.StaticText(innerRow,-1,"字数要求"))
+            self.tcStatWords = innerRow.AddToSizer(wx.TextCtrl(innerRow,-1,str(parent.tl_stat_min_word_num),size=(40,22)))
+            innerRow.AddToSizer(wx.StaticText(innerRow,-1,"弹幕数要求"))
+            self.tcStatCount = innerRow.AddToSizer(wx.TextCtrl(innerRow,-1,str(parent.tl_stat_min_count),size=(40,22)))
+
+            row.AddToSizer(wx.StaticText(row,-1,"未达到要求则不纳入同传统计")).SetForegroundColour("grey")
+
+            sizer.AddSpacer(UI_CONTENT_MARGIN_BOTTOM)
+            return panel
+        
+        def InitializeAccountNotebookPage(panel: wx.Panel):
+            self.btnAccSwitches=[]
+            self.tcAccNames=[]
+            self.tcAccCookies=[]
+            self.btnQrLogins=[]
+            self.btnAccEdits=[]
+            wx.StaticText(panel,-1,"账号切换",pos=(15, 14))
+            for i in range(2):
+                acc_name="账号%d"%(i+1) if parent.account_names[i]=="" else parent.account_names[i]
+                btnAccSwitch=wx.Button(panel,-1,acc_name,pos=(75+i*100, 10),size=(90,25),name=str(i))
+                btnAccSwitch.Bind(wx.EVT_BUTTON,self.SwitchAccount)
+                wx.StaticText(panel,-1,"账号名称",pos=(15,50+80*i))
+                tcAccName=wx.TextCtrl(panel,-1,parent.account_names[i],pos=(75,47+80*i),size=(80,22))
+                tcAccName.Disable()
+                btnQrLogin=wx.Button(panel,-1,"扫码登录",pos=(160,47+80*i),size=(60,22),name=str(i))
+                btnQrLogin.Bind(wx.EVT_BUTTON, self.ShowQrCodeFrame)
+                btnAccEdit=wx.Button(panel,-1,"编辑",pos=(225,47+80*i),size=(40,22),name=str(i))
+                btnAccEdit.Bind(wx.EVT_BUTTON,self.EditOrSaveAccount)
+                wx.StaticText(panel,-1,"Cookie",pos=(20,82+80*i))
+                tcAccCookie=wx.TextCtrl(panel,-1,parent.cookies[i],pos=(75,73+80*i),size=(190,38),style=wx.TE_MULTILINE|wx.TE_PROCESS_ENTER)
+                tcAccCookie.Bind(wx.EVT_TEXT_ENTER, lambda event: None)
+                tcAccCookie.Disable()
+                self.btnAccSwitches.append(btnAccSwitch)
+                self.tcAccNames.append(tcAccName)
+                self.tcAccCookies.append(tcAccCookie)
+                self.btnQrLogins.append(btnQrLogin)
+                self.btnAccEdits.append(btnAccEdit)
+            return panel
+        
+        self.notebook = wx.Notebook(self)
+        self.notebook.AddPage(InitializeDanmuNotebookPage(wx.Panel(self.notebook)), "弹幕", True)
+        self.notebook.AddPage(InitializeLyricNotebookPage(wx.Panel(self.notebook)), "歌词")
+        self.notebook.AddPage(InitializeUINotebookPage(wx.Panel(self.notebook)), "界面")
+        self.notebook.AddPage(InitializeAccountNotebookPage(wx.Panel(self.notebook)), "账号")
+
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.notebook, 1, wx.EXPAND)
+        self.SetSizer(self.sizer)
+
+        self.qrcodeFrame = None
+        self.Bind(wx.EVT_CLOSE, self.OnClose)
+        self.FitSizeForContent()
         self.Show()
+    
+    def FitSizeForContent(self):
+        self.Fit()
+        currentSize = self.GetSize()
+        if currentSize[0] < UI_FRAME_MINIMUM_WIDTH:
+            self.SetSize((UI_FRAME_MINIMUM_WIDTH, currentSize[1]))
 
     def OnIntervalChange(self, event):
         itv = self.sldItv.GetValue()
@@ -220,6 +327,8 @@ class GeneralConfigFrame(wx.Frame):
         self.nb.SetSelection(page_index)
 
     def OnClose(self,event):
+        snapshot = self.Parent.GenerateConfigSnapshot()
+
         parent=self.Parent
         parent.prefix=self.tcDfPre.GetValue().strip()
         parent.suffix=self.tcDfSuf.GetValue().strip()
@@ -275,10 +384,12 @@ class GeneralConfigFrame(wx.Frame):
         parent.record_fontsize=int(self.cbbFontsize.GetValue())
         parent.cancel_danmu_after_failed=self.ckbCancelSend.GetValue()
         parent.qq_new_api=self.ckbNewQQApi.GetValue()
+
         os.environ["NO_PROXY"]="*" if parent.no_proxy else ""
         parent.RefreshLyric()
         if parent.customTextFrame:
             parent.customTextFrame.RefreshLyric()
         if self.qrcodeFrame and not self.qrcodeFrame.cancel:
             self.qrcodeFrame.Close()
+        pub.sendMessage(InternalMessage.CORE_CONFIG_UPDATED.value, before = snapshot, after = self.Parent.GenerateConfigSnapshot())
         self.Destroy()

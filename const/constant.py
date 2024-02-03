@@ -115,6 +115,7 @@ class DanmuSrc(Enum):
     SPREAD      = "3"       # 同传转发
 
 class InternalMessage(Enum):
+    CORE_CONFIG_UPDATED          = "1"      # 应用设置保存时
     WEBSOCKET_RECEIVE_TRANSLATED = "100"    # WebSocket - 捕获到同传弹幕
     WEBSOCKET_LISTEN_STARTED     = "101"    # WebSocket - 开始监听
     WEBSOCKET_LISTEN_ON_ERROR    = "102"    # WebSocket - 连接异常

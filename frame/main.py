@@ -131,6 +131,7 @@ class MainFrame(wx.Frame):
         if self.need_update_global_shields:
             self.pool.submit(self.ThreadOfUpdateGlobalShields)
         self.pool.submit(self.ThreadOfSend)
+        pub.sendMessage(InternalMessage.CORE_CONFIG_UPDATED.value, before = self.GenerateConfigSnapshot(schemeOnly = True), after = self.GenerateConfigSnapshot()) # 触发设置变化消息
 
     def DefaultConfig(self):
         """加载默认配置"""
@@ -2167,3 +2168,43 @@ class MainFrame(wx.Frame):
                 f.write("</texts>")
                 f.flush()
         except: pass
+
+    def GenerateConfigSnapshot(self, schemeOnly = False):
+        dict = {}
+        properties = [
+            "prefix",
+            "suffix",
+            "prefixs",
+            "suffixs",
+            "default_src",
+            "search_num",
+            "page_limit",
+            "tl_stat_break_min",
+            "tl_stat_min_word_num",
+            "tl_stat_min_count",
+            "lyric_offset",
+            "enable_lyric_merge",
+            "add_song_name",
+            "init_show_lyric",
+            "init_show_record",
+            "init_two_prefix",
+            "no_proxy",
+            "enable_rich_record",
+            "f_resend",
+            "f_resend_deal",
+            "f_resend_mark",
+            "app_bottom_danmu",
+            "show_stat_on_close",
+            "record_fontsize",
+            "cancel_danmu_after_failed",
+            "qq_new_api",
+            "spread_logviewer_enabled",
+            "spread_logviewer_verbose",
+            "spread_maximum_spread_rooms",
+            "spread_maximum_listen_rooms",
+        ]
+
+        for property in properties:
+            dict[property] = None if schemeOnly else getattr(self, property)
+
+        return dict
