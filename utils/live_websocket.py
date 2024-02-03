@@ -142,15 +142,17 @@ class BiliLiveWebSocket():
                 jd = json.loads(raw_data[16:].decode("utf-8", errors="ignore"))
                 if jd["cmd"]!="DANMU_MSG": return
                 info=jd["info"]
-                mo=re.match(self.__TL_PATTERN1,info[1])
+                rawContent = info[1]
+                mo=re.match(self.__TL_PATTERN1,rawContent)
                 if mo is None:
-                   mo=re.match(self.__TL_PATTERN2,info[1]) 
+                   mo=re.match(self.__TL_PATTERN2,rawContent) 
                 if mo is not None:
                     pub.sendMessage(
                         InternalMessage.WEBSOCKET_RECEIVE_TRANSLATED.value,
                         roomid=self.__roomid,
                         speaker="" if mo.group("speaker") is None else mo.group("speaker"),
                         content=mo.group("content"),
+                        rawContent=rawContent,
                         #uid=info[2][0],
                         #uname=info[2][1],
                         #timestamp=info[0][4]/1000,
