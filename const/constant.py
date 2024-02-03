@@ -113,3 +113,8 @@ class DanmuSrc(Enum):
     LYRIC       = "1"       # 歌词
     CUSTOM_TEXT = "2"       # 预设文本
     SPREAD      = "3"       # 同传转发
+
+class InternalMessage(Enum):
+    WEBSOCKET_RECEIVE_TRANSLATED = "100"    # WebSocket - 捕获到同传弹幕
+    WEBSOCKET_LISTEN_STARTED     = "101"    # WebSocket - 开始监听
+    WEBSOCKET_LISTEN_ON_ERROR    = "102"    # WebSocket - 连接异常

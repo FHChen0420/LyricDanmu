@@ -53,9 +53,9 @@ class MainFrame(wx.Frame):
         self.roomSelectFrame = None                                 # 房间选择界面
         self.danmuRecordFrame = None                                # 弹幕发送记录界面
         # 消息订阅
-        pub.subscribe(self.SpreadDanmu,"ws_recv")                   # 消息：监听到同传弹幕
-        pub.subscribe(self.StartListening,"ws_start")               # 消息：开始监听房间内的弹幕
-        pub.subscribe(self.SetSpreadButtonState,"ws_error")         # 消息：监听过程中出现错误/恢复
+        pub.subscribe(self.SpreadDanmu,InternalMessage.WEBSOCKET_RECEIVE_TRANSLATED.value)                   # 消息：监听到同传弹幕
+        pub.subscribe(self.StartListening,InternalMessage.WEBSOCKET_LISTEN_STARTED.value)                    # 消息：开始监听房间内的弹幕
+        pub.subscribe(self.SetSpreadButtonState,InternalMessage.WEBSOCKET_LISTEN_ON_ERROR.value)             # 消息：监听过程中出现错误/恢复
         # API
         self.blApi = BiliLiveAPI(self.cookies,(self.timeout_s,5))   # B站账号与直播相关接口
         self.wyApi = NetEaseMusicAPI()                              # 网易云音乐接口
