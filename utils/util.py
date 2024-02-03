@@ -148,6 +148,7 @@ def bindHint(obj:wx.Control,hint:str):
     obj.Bind(wx.EVT_LEFT_DOWN, lambda event: showInfoDialog(hint,"帮助"))
     obj.SetForegroundColour("DARK TURQUOISE")
     obj.SetCursor(wx.Cursor(wx.CURSOR_HAND))
+    return obj
 
 def logDebug(msg:str):
     """输出调试日志"""
