@@ -7,6 +7,7 @@ import brotli
 
 from pubsub import pub
 
+from const.constant import InternalMessage
 from utils.util import getTime, logDebug
 
 
@@ -101,7 +102,7 @@ class BiliLiveWebSocket():
                                 self.__analyse_package(res) # 解析接收到的数据
                                 if self.__error:
                                     self.__error = False
-                                    pub.sendMessage("ws_error",roomid=self.__roomid,count=-1)
+                                    pub.sendMessage(InternalMessage.WEBSOCKET_LISTEN_ON_ERROR.value,roomid=self.__roomid,count=-1)
                                     print(f"[DEBUG] [{getTime()}] 与直播间{self.__roomid}的连接已恢复。")
                             except asyncio.exceptions.TimeoutError: pass
                             except aiohttp.ClientConnectionError: break
@@ -109,7 +110,7 @@ class BiliLiveWebSocket():
             except (aiohttp.ClientConnectorError, asyncio.exceptions.TimeoutError, TypeError):
                 if not self.__error:
                     self.__error = True
-                    pub.sendMessage("ws_error",roomid=self.__roomid,count=1)
+                    pub.sendMessage(InternalMessage.WEBSOCKET_LISTEN_ON_ERROR.value,roomid=self.__roomid,count=1)
                     print(f"[DEBUG] [{getTime()}] 与直播间{self.__roomid}的连接已中断。")
                 await asyncio.sleep(2)
             except RuntimeError:
@@ -117,7 +118,7 @@ class BiliLiveWebSocket():
             except BaseException as e:
                 if not self.__error:
                     self.__error = True
-                    pub.sendMessage("ws_error",roomid=self.__roomid,count=1)
+                    pub.sendMessage(InternalMessage.WEBSOCKET_LISTEN_ON_ERROR.value,roomid=self.__roomid,count=1)
                 print(f"[DEBUG] [{getTime()}] 与直播间{self.__roomid}的连接发生未知异常。\n TYPE={type(e)}")
                 logDebug(f"[BiliLiveWebSocket.__connect_to_room] ROOMID={self.__roomid} DESC={e}")
                 await asyncio.sleep(5)
@@ -141,15 +142,17 @@ class BiliLiveWebSocket():
                 jd = json.loads(raw_data[16:].decode("utf-8", errors="ignore"))
                 if jd["cmd"]!="DANMU_MSG": return
                 info=jd["info"]
-                mo=re.match(self.__TL_PATTERN1,info[1])
+                rawContent = info[1]
+                mo=re.match(self.__TL_PATTERN1,rawContent)
                 if mo is None:
-                   mo=re.match(self.__TL_PATTERN2,info[1]) 
+                   mo=re.match(self.__TL_PATTERN2,rawContent) 
                 if mo is not None:
                     pub.sendMessage(
-                        "ws_recv",
+                        InternalMessage.WEBSOCKET_RECEIVE_TRANSLATED.value,
                         roomid=self.__roomid,
                         speaker="" if mo.group("speaker") is None else mo.group("speaker"),
                         content=mo.group("content"),
+                        rawContent=rawContent,
                         #uid=info[2][0],
                         #uname=info[2][1],
                         #timestamp=info[0][4]/1000,
@@ -164,7 +167,7 @@ class BiliLiveWebSocket():
         origin_ref_count=self.__ref_count
         self.__ref_count+=n
         if n>0 and origin_ref_count==0:
-            pub.sendMessage("ws_start",roomid=self.__roomid) #在新的线程中调用self.Start()
+            pub.sendMessage(InternalMessage.WEBSOCKET_LISTEN_STARTED.value,roomid=self.__roomid) #在新的线程中调用self.Start()
         if n<0 and self.__ref_count==0:
             self.Stop()
 
@@ -175,7 +178,7 @@ class BiliLiveWebSocket():
             self.__loop.run_until_complete(self.__connect_to_room())
             self.__closing=False
             if self.__error:
-                pub.sendMessage("ws_error",roomid=self.__roomid,count=-1)
+                pub.sendMessage(InternalMessage.WEBSOCKET_LISTEN_ON_ERROR.value,roomid=self.__roomid,count=-1)
             print(f"[ INFO] [{getTime()}] 已主动断开与直播间{self.__roomid}的连接。")
 
     def Stop(self):

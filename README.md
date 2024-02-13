@@ -27,7 +27,7 @@ B站直播歌词/同传弹幕发送工具
 ### Pyinstaller打包指令
 + Windows(64位)：
 
-    ```pyinstaller -F -w app.pyw -n LyricDanmu --add-data "./static/*;./static" --add-data "./dll/x64/*;."```
+    ```pyinstaller -F -w app.pyw -n LyricDanmu --add-data "./static/*;./static" --add-data "./dll/x64/*;." --collect-data=certifi```
 
 + MacOS(M1芯片可能会存在打包失败的情况，请尝试使用Rosetta运行)：
 
