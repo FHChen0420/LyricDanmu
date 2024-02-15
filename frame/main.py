@@ -186,6 +186,7 @@ class MainFrame(wx.Frame):
         self.app_bottom_danmu = True                                # 是否将发出的弹幕在APP端置底
         self.cancel_danmu_after_failed = True                       # 长句前半段发送失败后是否取消后半段的发送
         self.spread_logviewer_enabled = False                       # 转发：是否启用转发日志
+        self.spread_logviewer_height = 240                          # 转发：转发日志高度
         self.spread_logviewer_verbose = False                       # 转发：是否详细转发日志
         self.spread_maximum_spread_rooms = 3                        # 转发：最大转发房间数
         self.spread_maximum_listen_rooms = 5                        # 转发：最大监听房间数
@@ -1935,6 +1936,8 @@ class MainFrame(wx.Frame):
                         self.spread_maximum_listen_rooms = min(20, max(1, int(v)))
                     elif k == "启用转发日志":
                         self.spread_logviewer_enabled = v.lower()=="true"
+                    elif k == "转发日志高度":
+                        self.spread_logviewer_height = min(3000, max(1, int(v)))
                     elif k == "详细转发日志":
                         self.spread_logviewer_verbose = v.lower()=="true"
         except Exception:
@@ -2169,6 +2172,7 @@ class MainFrame(wx.Frame):
                 f.write("最大转发房间数=%d\n" % self.spread_maximum_spread_rooms)
                 f.write("最大监听房间数=%d\n" % self.spread_maximum_listen_rooms)
                 f.write("启用转发日志=%s\n" % self.spread_logviewer_enabled)
+                f.write("转发日志高度=%d\n" % self.spread_logviewer_height)
                 f.write("详细转发日志=%s\n" % self.spread_logviewer_verbose)
                 f.write(titleLine("弹幕记录配置"))
                 f.write("彩色弹幕记录=%s\n" % self.enable_rich_record)
@@ -2261,6 +2265,7 @@ class MainFrame(wx.Frame):
             "cancel_danmu_after_failed",
             "qq_new_api",
             "spread_logviewer_enabled",
+            "spread_logviewer_height",
             "spread_logviewer_verbose",
             "spread_maximum_spread_rooms",
             "spread_maximum_listen_rooms",

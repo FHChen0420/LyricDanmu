@@ -15,3 +15,6 @@ class AutoPanel(wx.Panel):
         if self.__sizer.GetItemCount() > 0:
             self.__sizer.AddSpacer(self.__spacing)
         return self.AddToSizerWithoutSpacing(control, *args, **kw)
+    
+    def AddSpacing(self, spacing = 0):
+        self.__sizer.AddSpacer(spacing)

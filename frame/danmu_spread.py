@@ -10,7 +10,7 @@ from utils.live_websocket import BiliLiveWebSocket
 from utils.util import UIChange, getTime, setFont
 from utils.controls import AutoPanel
 
-UI_ROOT_MARGIN = (8, 8) # Left | Right
+UI_ROOT_MARGIN = (0, 8, 8, 8) # Top | Right | Bottom | Left
 UI_ROOT_SPACING = 4
 
 class DanmuSpreadFrame(wx.Frame):
@@ -47,12 +47,17 @@ class DanmuSpreadFrame(wx.Frame):
         self.SetBackgroundColour(wx.NullColour)
 
         # 根节点
-        self.sizer = wx.BoxSizer()
-        self.SetSizer(self.sizer)
+        verticalBoxSizer = wx.BoxSizer(wx.VERTICAL)
+        horizontalBoxSizer = wx.BoxSizer()
+        self.sizer = verticalBoxSizer
+        self.SetSizer(verticalBoxSizer)
         panel = AutoPanel(self, wx.VERTICAL, UI_ROOT_SPACING)
-        self.sizer.AddSpacer(UI_ROOT_MARGIN[0])
-        self.sizer.Add(panel)
-        self.sizer.AddSpacer(UI_ROOT_MARGIN[1])
+        verticalBoxSizer.AddSpacer(UI_ROOT_MARGIN[0])
+        verticalBoxSizer.Add(horizontalBoxSizer)
+        verticalBoxSizer.AddSpacer(UI_ROOT_MARGIN[2])
+        horizontalBoxSizer.AddSpacer(UI_ROOT_MARGIN[3])
+        horizontalBoxSizer.Add(panel)
+        horizontalBoxSizer.AddSpacer(UI_ROOT_MARGIN[1])
 
         # 提示信息
         infoRow = panel.AddToSizer(AutoPanel(panel, spacing = 12), flag = wx.EXPAND)
@@ -289,10 +294,20 @@ class DanmuSpreadFrame(wx.Frame):
         self.tcLogViewer.AppendText("{lineWrap}{content}".format(content = content, lineWrap = "\n" if len(self.tcLogViewer.GetValue()) > 0 else ""))
 
     def OnMessageCoreConfigUpdated(self, before, after):
+        shouldResize = False
+
         if before["spread_logviewer_enabled"] != after["spread_logviewer_enabled"]:
             self.tcLogViewer.Show(after["spread_logviewer_enabled"])
-            self.FitSizeForContent()
+            shouldResize = True
+
         self.logViewerVerboseMode = after["spread_logviewer_verbose"]
+
+        if before["spread_logviewer_height"] != after["spread_logviewer_height"]:
+            self.tcLogViewer.SetMinSize((-1, after["spread_logviewer_height"]))
+            shouldResize = True
+
+        if shouldResize:
+            self.FitSizeForContent()
 
     def OnMessageSpreadEvent(self, eventType: SpreadEventTypes, eventData):
         internalTimeText = getTime(eventData["internalTime"])
