@@ -147,7 +147,7 @@ class DanmuSpreadFrame(wx.Frame):
         lblFilter=event.GetEventObject()
         slot,index=lblFilter.GetName().split(";")
         if self.spreadFilter:
-            self.spreadFilter.Destory()
+            self.spreadFilter.Destroy()
         self.spreadFilter=SpreadFilterFrame(self,int(slot),int(index))
     
     def SelectRoom(self,slot,index,roomid):
