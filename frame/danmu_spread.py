@@ -163,10 +163,12 @@ class DanmuSpreadFrame(wx.Frame):
             if index>0 and old_rid!=roomid:
                 self.configs[slot][2][index-1]=""
                 self.configs[slot][3][index-1]=0
+                self.configs[slot][4][index-1]=False
         else:
             self.configs[slot][0].append(roomid)
             self.configs[slot][2].append("")
             self.configs[slot][3].append(0)
+            self.configs[slot][4].append(False)
         if index>0 and self.configs[slot][1]:
             if roomid not in self.websockets.keys():
                 self.websockets[roomid]=BiliLiveWebSocket(roomid)
@@ -332,10 +334,21 @@ class DanmuSpreadFrame(wx.Frame):
                 }),
                 "tan",
             )
-        elif eventType == SpreadEventTypes.RECEIVE_TRANSLATED:
+        elif eventType == SpreadEventTypes.RECEIVE_VALID_TRANSLATED:
             if self.logViewerVerboseMode:
                 self.AppendLogToLogViewer(
                     "{internalTimeText} | #{slot}.{fromRoomFull} | 捕获到：{rawContent}".format(**{
+                        "internalTimeText": internalTimeText,
+                        "slot": slot,
+                        "fromRoomFull": internalData["fromRoom"]["full"],
+                        "rawContent": internalData["rawContent"],
+                    }),
+                    "gray",
+                )
+        elif eventType == SpreadEventTypes.RECEIVE_INVALID_TRANSLATED:
+            if self.logViewerVerboseMode:
+                self.AppendLogToLogViewer(
+                    "{internalTimeText} | #{slot}.{fromRoomFull} | 捕获到前缀不符：{rawContent}".format(**{
                         "internalTimeText": internalTimeText,
                         "slot": slot,
                         "fromRoomFull": internalData["fromRoom"]["full"],
@@ -390,7 +403,7 @@ class SpreadFilterFrame(wx.Frame):
         self.index=index
         pos=parent.GetPosition()
         x,y=pos[0]+50,pos[1]+60
-        wx.Frame.__init__(self, parent, title="房间转发设置", pos=(x,y), size=(300, 170),
+        wx.Frame.__init__(self, parent, title="房间转发设置", pos=(x,y), size=(300, 220),
         style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.MINIMIZE_BOX) |wx.FRAME_FLOAT_ON_PARENT)
         if parent.show_pin:
             self.ToggleWindowStyle(wx.STAY_ON_TOP)
@@ -406,7 +419,10 @@ class SpreadFilterFrame(wx.Frame):
         speakers=self.configs[slot][2][index]
         self.tcFilter=wx.TextCtrl(panel,-1,speakers,pos=(68,38),size=(210,27),style=wx.TE_PROCESS_ENTER)
         self.tcFilter.Bind(wx.EVT_TEXT_ENTER,self.Save)
-        self.btnSave=wx.Button(panel,-1,"保　存",pos=(105,105),size=(80,32))
+        wx.StaticText(panel,-1,"覆盖前缀",pos=(10,110))
+        self.ckbOverride=wx.CheckBox(panel, -1, "使用主播简称覆盖原本前缀",pos=(68,110))
+        self.ckbOverride.SetValue(self.configs[slot][4][index])
+        self.btnSave=wx.Button(panel,-1,"保　存",pos=(105,145),size=(80,32))
         self.btnSave.Bind(wx.EVT_BUTTON,self.Save)
         self.Show()
     
@@ -420,4 +436,5 @@ class SpreadFilterFrame(wx.Frame):
         speakers="" if speakers==";" else speakers
         self.configs[self.slot][2][self.index]=speakers
         self.configs[self.slot][3][self.index]=self.sldDelay.GetValue()*100
+        self.configs[self.slot][4][self.index]=self.ckbOverride.GetValue()
         self.Parent.RefreshUI() #该方法包含销毁本窗体的语句

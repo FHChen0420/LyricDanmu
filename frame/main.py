@@ -948,7 +948,7 @@ class MainFrame(wx.Frame):
                 self.danmuSpreadFrame.StopAll()
                 self.danmuSpreadFrame.Close()
                 self.danmuSpreadFrame.Destroy()
-            self.sp_configs = [[[None],False,[],[]] for _ in range(self.spread_maximum_spread_rooms)] # 同传转发配置列表 每项为[房间号列表,转发开关,限定前缀列表,转发延时列表]
+            self.sp_configs = [[[None],False,[],[],[]] for _ in range(self.spread_maximum_spread_rooms)] # 同传转发配置列表 每项为[房间号列表,转发开关,限定前缀列表,转发延时列表,覆盖前缀开关列表]
             self.danmuSpreadFrame = DanmuSpreadFrame(self)
 
 
@@ -1274,28 +1274,24 @@ class MainFrame(wx.Frame):
             if not self.GetCurrentDanmuConfig(roomid):
                 self.sp_max_len=20
         for slot, cfg in enumerate(self.sp_configs):
-            to_room,from_rooms,spreading,speaker_filters,delays=cfg[0][0],cfg[0][1:],cfg[1],cfg[2],cfg[3]
+            to_room,from_rooms,spreading,speaker_filters,delays,override_toggles=cfg[0][0],cfg[0][1:],cfg[1],cfg[2],cfg[3],cfg[4]
             if not spreading or to_room is None or roomid not in from_rooms: continue
             speaker=self.sp_rooms[roomid][1] if not speaker else speaker
-            sp_delay_ms=0
-            # 如果前缀过滤条件不为空，则只转发指定的前缀
-            speaker_be_filtered=False
-            for from_roomid,allowed_speakers,delay in zip(from_rooms,speaker_filters,delays):
-                if roomid==from_roomid:
-                    sp_delay_ms=delay
-                else:
+
+            spreadConfigs = {
+                "delay": 0,                 # 转发延迟
+                "speakerNotMatch": False,   # 限定前缀是否不匹配
+                "speakerOverride": False,   # 是否覆盖前缀
+            }
+
+            for from_roomid,allowed_speakers,delay,override in zip(from_rooms,speaker_filters,delays,override_toggles):
+                if roomid != from_roomid: # room not match
                     continue
-                if allowed_speakers=="":
-                    continue
-                if speaker not in allowed_speakers.split(";"):
-                    speaker_be_filtered=True
+                if allowed_speakers != "" and speaker not in allowed_speakers.split(";"): # 如果前缀过滤条件不为空，则只转发指定的前缀
+                    spreadConfigs["speakerNotMatch"] = True
                     break
-            if speaker_be_filtered:
-                continue
-            # 弹幕开头添加标识符U+0592避免循环转发（本工具不会转发以U+0592开头的同传弹幕）
-            pre="\u0592"+speaker+"【"
-            msg=self.AntiShield(pre+content,to_room)
-            suf="】" if msg.count("【")>msg.count("】") else ""
+                spreadConfigs["delay"] = delay
+                spreadConfigs["speakerOverride"] = override
 
             # 准备数据
             internalData = {                
@@ -1312,16 +1308,33 @@ class MainFrame(wx.Frame):
                     "short": self.sp_rooms[to_room][1],
                 },
                 "content": content,
-                "sendContent": msg,
                 "rawContent": rawContent,
             }
-            pub.sendMessage(InternalMessage.SPREAD_EVENT.value, eventType = SpreadEventTypes.RECEIVE_TRANSLATED, eventData = {
+
+            if spreadConfigs["speakerNotMatch"]:
+                pub.sendMessage(InternalMessage.SPREAD_EVENT.value, eventType = SpreadEventTypes.RECEIVE_INVALID_TRANSLATED, eventData = {
+                    "internalTime": int(time.time()),
+                    "internalData": internalData,
+                })
+                continue
+
+            # 构成实际发送弹幕
+            # 弹幕开头添加标识符U+0592避免循环转发（本工具不会转发以U+0592开头的同传弹幕）
+            actualSpeaker = internalData["fromRoom"]["short"] if spreadConfigs["speakerOverride"] else speaker
+            pre="\u0592"+actualSpeaker+"【"
+            msg=self.AntiShield(pre+content,to_room)
+            suf="】" if msg.count("【")>msg.count("】") else ""
+
+            pub.sendMessage(InternalMessage.SPREAD_EVENT.value, eventType = SpreadEventTypes.RECEIVE_VALID_TRANSLATED, eventData = {
                 "internalTime": int(time.time()),
-                "internalData": internalData,
+                "internalData": {
+                    **internalData,
+                    "sendContent": msg,
+                },
             })
 
             # 延迟指定毫秒数后，将弹幕添加到队列
-            self.pool_dm.submit(self.ThreadOfDelayDanmuQueue,sp_delay_ms,to_room,msg,DanmuSrc.SPREAD,pre,suf,self.sp_max_len,internalData)
+            self.pool_dm.submit(self.ThreadOfDelayDanmuQueue,spreadConfigs["delay"],to_room,msg,DanmuSrc.SPREAD,pre,suf,self.sp_max_len,internalData)
     
     def StartListening(self,roomid):
         """建立与直播间之间的Websocket连接"""
