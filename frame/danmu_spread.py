@@ -10,7 +10,7 @@ from utils.live_websocket import BiliLiveWebSocket
 from utils.util import UIChange, getTime, setFont
 from utils.controls import AutoPanel
 
-UI_ROOT_MARGIN = (8, 8) # Left | Right
+UI_ROOT_MARGIN = (0, 8, 8, 8) # Top | Right | Bottom | Left
 UI_ROOT_SPACING = 4
 
 class DanmuSpreadFrame(wx.Frame):
@@ -47,12 +47,17 @@ class DanmuSpreadFrame(wx.Frame):
         self.SetBackgroundColour(wx.NullColour)
 
         # 根节点
-        self.sizer = wx.BoxSizer()
-        self.SetSizer(self.sizer)
+        verticalBoxSizer = wx.BoxSizer(wx.VERTICAL)
+        horizontalBoxSizer = wx.BoxSizer()
+        self.sizer = verticalBoxSizer
+        self.SetSizer(verticalBoxSizer)
         panel = AutoPanel(self, wx.VERTICAL, UI_ROOT_SPACING)
-        self.sizer.AddSpacer(UI_ROOT_MARGIN[0])
-        self.sizer.Add(panel)
-        self.sizer.AddSpacer(UI_ROOT_MARGIN[1])
+        verticalBoxSizer.AddSpacer(UI_ROOT_MARGIN[0])
+        verticalBoxSizer.Add(horizontalBoxSizer)
+        verticalBoxSizer.AddSpacer(UI_ROOT_MARGIN[2])
+        horizontalBoxSizer.AddSpacer(UI_ROOT_MARGIN[3])
+        horizontalBoxSizer.Add(panel)
+        horizontalBoxSizer.AddSpacer(UI_ROOT_MARGIN[1])
 
         # 提示信息
         infoRow = panel.AddToSizer(AutoPanel(panel, spacing = 12), flag = wx.EXPAND)
@@ -147,7 +152,7 @@ class DanmuSpreadFrame(wx.Frame):
         lblFilter=event.GetEventObject()
         slot,index=lblFilter.GetName().split(";")
         if self.spreadFilter:
-            self.spreadFilter.Destory()
+            self.spreadFilter.Destroy()
         self.spreadFilter=SpreadFilterFrame(self,int(slot),int(index))
     
     def SelectRoom(self,slot,index,roomid):
@@ -158,10 +163,12 @@ class DanmuSpreadFrame(wx.Frame):
             if index>0 and old_rid!=roomid:
                 self.configs[slot][2][index-1]=""
                 self.configs[slot][3][index-1]=0
+                self.configs[slot][4][index-1]=False
         else:
             self.configs[slot][0].append(roomid)
             self.configs[slot][2].append("")
             self.configs[slot][3].append(0)
+            self.configs[slot][4].append(False)
         if index>0 and self.configs[slot][1]:
             if roomid not in self.websockets.keys():
                 self.websockets[roomid]=BiliLiveWebSocket(roomid)
@@ -289,10 +296,20 @@ class DanmuSpreadFrame(wx.Frame):
         self.tcLogViewer.AppendText("{lineWrap}{content}".format(content = content, lineWrap = "\n" if len(self.tcLogViewer.GetValue()) > 0 else ""))
 
     def OnMessageCoreConfigUpdated(self, before, after):
+        shouldResize = False
+
         if before["spread_logviewer_enabled"] != after["spread_logviewer_enabled"]:
             self.tcLogViewer.Show(after["spread_logviewer_enabled"])
-            self.FitSizeForContent()
+            shouldResize = True
+
         self.logViewerVerboseMode = after["spread_logviewer_verbose"]
+
+        if before["spread_logviewer_height"] != after["spread_logviewer_height"]:
+            self.tcLogViewer.SetMinSize((-1, after["spread_logviewer_height"]))
+            shouldResize = True
+
+        if shouldResize:
+            self.FitSizeForContent()
 
     def OnMessageSpreadEvent(self, eventType: SpreadEventTypes, eventData):
         internalTimeText = getTime(eventData["internalTime"])
@@ -317,10 +334,21 @@ class DanmuSpreadFrame(wx.Frame):
                 }),
                 "tan",
             )
-        elif eventType == SpreadEventTypes.RECEIVE_TRANSLATED:
+        elif eventType == SpreadEventTypes.RECEIVE_VALID_TRANSLATED:
             if self.logViewerVerboseMode:
                 self.AppendLogToLogViewer(
                     "{internalTimeText} | #{slot}.{fromRoomFull} | 捕获到：{rawContent}".format(**{
+                        "internalTimeText": internalTimeText,
+                        "slot": slot,
+                        "fromRoomFull": internalData["fromRoom"]["full"],
+                        "rawContent": internalData["rawContent"],
+                    }),
+                    "gray",
+                )
+        elif eventType == SpreadEventTypes.RECEIVE_INVALID_TRANSLATED:
+            if self.logViewerVerboseMode:
+                self.AppendLogToLogViewer(
+                    "{internalTimeText} | #{slot}.{fromRoomFull} | 捕获到前缀不符：{rawContent}".format(**{
                         "internalTimeText": internalTimeText,
                         "slot": slot,
                         "fromRoomFull": internalData["fromRoom"]["full"],
@@ -375,7 +403,7 @@ class SpreadFilterFrame(wx.Frame):
         self.index=index
         pos=parent.GetPosition()
         x,y=pos[0]+50,pos[1]+60
-        wx.Frame.__init__(self, parent, title="房间转发设置", pos=(x,y), size=(300, 170),
+        wx.Frame.__init__(self, parent, title="房间转发设置", pos=(x,y), size=(300, 220),
         style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.MINIMIZE_BOX) |wx.FRAME_FLOAT_ON_PARENT)
         if parent.show_pin:
             self.ToggleWindowStyle(wx.STAY_ON_TOP)
@@ -391,7 +419,10 @@ class SpreadFilterFrame(wx.Frame):
         speakers=self.configs[slot][2][index]
         self.tcFilter=wx.TextCtrl(panel,-1,speakers,pos=(68,38),size=(210,27),style=wx.TE_PROCESS_ENTER)
         self.tcFilter.Bind(wx.EVT_TEXT_ENTER,self.Save)
-        self.btnSave=wx.Button(panel,-1,"保　存",pos=(105,105),size=(80,32))
+        wx.StaticText(panel,-1,"覆盖前缀",pos=(10,110))
+        self.ckbOverride=wx.CheckBox(panel, -1, "使用主播简称覆盖原本前缀",pos=(68,110))
+        self.ckbOverride.SetValue(self.configs[slot][4][index])
+        self.btnSave=wx.Button(panel,-1,"保　存",pos=(105,145),size=(80,32))
         self.btnSave.Bind(wx.EVT_BUTTON,self.Save)
         self.Show()
     
@@ -405,4 +436,5 @@ class SpreadFilterFrame(wx.Frame):
         speakers="" if speakers==";" else speakers
         self.configs[self.slot][2][self.index]=speakers
         self.configs[self.slot][3][self.index]=self.sldDelay.GetValue()*100
+        self.configs[self.slot][4][self.index]=self.ckbOverride.GetValue()
         self.Parent.RefreshUI() #该方法包含销毁本窗体的语句

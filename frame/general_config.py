@@ -210,6 +210,7 @@ class GeneralConfigFrame(wx.Frame):
             row.AddToSizer(innerRow, 1, wx.EXPAND)
             innerRow.AddToSizer(wx.StaticText(innerRow,-1,"字数要求"))
             self.tcStatWords = innerRow.AddToSizer(wx.TextCtrl(innerRow,-1,str(parent.tl_stat_min_word_num),size=(40,22)))
+            innerRow.AddSpacing(8)
             innerRow.AddToSizer(wx.StaticText(innerRow,-1,"弹幕数要求"))
             self.tcStatCount = innerRow.AddToSizer(wx.TextCtrl(innerRow,-1,str(parent.tl_stat_min_count),size=(40,22)))
 
@@ -233,8 +234,12 @@ class GeneralConfigFrame(wx.Frame):
 
             row.AddToSizer(wx.StaticText(row,-1,"数量修改后将重置当前转发配置")).SetForegroundColour("grey")
             
-            self.ckbSpreadLogViewerEnabled = row.AddToSizer(wx.CheckBox(row, -1, "启用转发日志"))
+            innerRow = AutoPanel(row)
+            row.AddToSizer(innerRow, 1, wx.EXPAND)
+            self.ckbSpreadLogViewerEnabled = innerRow.AddToSizer(wx.CheckBox(innerRow, -1, "启用转发日志"))
             self.ckbSpreadLogViewerEnabled.SetValue(parent.spread_logviewer_enabled)
+            innerRow.AddToSizer(wx.StaticText(innerRow, -1, "高度"))
+            self.tcSpreadLogViewerHeight = innerRow.AddToSizer(wx.TextCtrl(innerRow, -1, str(parent.spread_logviewer_height), size=(40,22)))
             
             self.ckbSpreadLogViewerVerbose = row.AddToSizer(wx.CheckBox(row, -1, "详细转发日志"))
             self.ckbSpreadLogViewerVerbose.SetValue(parent.spread_logviewer_verbose)
@@ -411,6 +416,10 @@ class GeneralConfigFrame(wx.Frame):
 
         # 转发相关
         parent.spread_logviewer_enabled=self.ckbSpreadLogViewerEnabled.GetValue()
+        try:
+            value=int(self.tcSpreadLogViewerHeight.GetValue().strip())
+            parent.spread_logviewer_height=min(3000, max(1, value))
+        except: pass
         parent.spread_logviewer_verbose=self.ckbSpreadLogViewerVerbose.GetValue()
         try:
             value=int(self.tcSpreadMaximumSpreadRooms.GetValue().strip())

@@ -118,7 +118,8 @@ class InternalMessage(Enum):
     WEBSOCKET_LISTEN_ON_ERROR    = "102"    # WebSocket - 连接异常
 
 class SpreadEventTypes(Enum):
-    START                  = "0"    # 开始转发
-    STOP                   = "1"    # 停止转发
-    RECEIVE_TRANSLATED     = "2"    # 捕获到同传弹幕
-    SENT                   = "3"    # 已转发处理后的同传弹幕
+    START                        = "0"    # 开始转发
+    STOP                         = "1"    # 停止转发
+    RECEIVE_VALID_TRANSLATED     = "2"    # 捕获到有效的同传弹幕
+    RECEIVE_INVALID_TRANSLATED   = "3"    # 捕获到无效（被过滤）的同传弹幕
+    SENT                         = "4"    # 已转发处理后的同传弹幕
