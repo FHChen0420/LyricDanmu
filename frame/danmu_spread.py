@@ -404,7 +404,7 @@ class SpreadFilterFrame(wx.Frame):
         self.index=index
         pos=parent.GetPosition()
         x,y=pos[0]+50,pos[1]+60
-        wx.Frame.__init__(self, parent, title="房间转发设置", pos=(x,y), size=(300, 220),
+        wx.Frame.__init__(self, parent, title="房间转发设置", pos=(x,y), size=(300, 235),
         style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX | wx.MINIMIZE_BOX) |wx.FRAME_FLOAT_ON_PARENT)
         if parent.show_pin:
             self.ToggleWindowStyle(wx.STAY_ON_TOP)
@@ -416,17 +416,17 @@ class SpreadFilterFrame(wx.Frame):
         self.sldDelay.Bind(wx.EVT_SLIDER,self.OnDelayChange)
         self.OnDelayChange(None)
         wx.StaticText(panel,-1,"限定前缀",pos=(10,42))
-
-        
-
-        wx.StaticText(panel,-1,"仅转发指定的前缀，留空则不进行限制\n如果想指定多个前缀，请使用分号或逗号进行分隔",pos=(10,65)).SetForegroundColour("grey")
         speakers=self.configs[slot][2][index]
         self.tcFilter=wx.TextCtrl(panel,-1,speakers,pos=(68,38),size=(210,27),style=wx.TE_PROCESS_ENTER)
         self.tcFilter.Bind(wx.EVT_TEXT_ENTER,self.Save)
-        wx.StaticText(panel,-1,"覆盖前缀",pos=(10,110))
-        self.ckbOverride=wx.CheckBox(panel, -1, "使用主播简称覆盖原本前缀",pos=(68,110))
+        wx.StaticText(panel,-1,"仅转发指定的前缀，留空则不进行限制\n"
+                      "如果想指定多个前缀，请使用分号或逗号进行分隔\n"
+                      "如果想转发无前缀的弹幕，请填入该房间的主播简称",
+                      pos=(10,65)).SetForegroundColour("grey")
+        wx.StaticText(panel,-1,"覆盖前缀",pos=(10,125))
+        self.ckbOverride=wx.CheckBox(panel, -1, "使用主播简称覆盖原本前缀",pos=(68,125))
         self.ckbOverride.SetValue(self.configs[slot][4][index])
-        self.btnSave=wx.Button(panel,-1,"保　存",pos=(105,145),size=(80,32))
+        self.btnSave=wx.Button(panel,-1,"保　存",pos=(105,160),size=(80,32))
         self.btnSave.Bind(wx.EVT_BUTTON,self.Save)
         self.Show()
     
