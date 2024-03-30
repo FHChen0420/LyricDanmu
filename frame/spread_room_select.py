@@ -69,21 +69,24 @@ class SpRoomSelectFrame(wx.Frame):
         self.Show()
     
     def GetDisableList(self):
-        cur_rid=None
-        room_lst=self.configs[self.slot][0]
-        if self.index==0:
-            cur_rid=room_lst[0]
-            for cfg in self.configs:
-                if cur_rid!=cfg[0][0]:
+        # 1.不能将一个房间的弹幕转发给它自己
+        # 2.如果两个转发槽具有相同的转发目标房间，则它们的监听房间列表不能存在相同的元素
+        cur_rid = None
+        cur_room_lst:list = self.configs[self.slot][0]
+        if self.index == 0: # 限制转发到的房间
+            cur_rid = cur_room_lst[0]
+            self.disable_rids += cur_room_lst[1:] #1
+            for slot,cfg in enumerate(self.configs):
+                if slot == self.slot: continue
+                if set(cfg[0][1:]) & set(cur_room_lst[1:]): #2
                     self.disable_rids.append(cfg[0][0])
-            for rid in room_lst[1:]:
-                self.disable_rids.append(rid)
-        else:
-            cur_rid=room_lst[self.index] if self.index<len(room_lst) else None
-            for rid in room_lst:
-                if cur_rid!=rid:
-                    self.disable_rids.append(rid)
-        self.select="" if cur_rid is None else cur_rid
+        else: # 限制监听房间
+            cur_rid = cur_room_lst[self.index] if self.index < len(cur_room_lst) else None
+            self.disable_rids.append(cur_room_lst[0]) #1
+            for cfg in self.configs:
+                if cfg[0][0] == cur_room_lst[0]: #2
+                    self.disable_rids += cfg[0][1:]
+        self.select = "" if cur_rid is None else cur_rid
     
     def NewRoom(self,event):
         if self.select=="": return
