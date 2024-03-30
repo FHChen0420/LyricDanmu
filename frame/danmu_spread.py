@@ -223,6 +223,7 @@ class DanmuSpreadFrame(wx.Frame):
             roomid=self.configs[slot][0].pop(index)
             self.configs[slot][2].pop(index-1)
             self.configs[slot][3].pop(index-1)
+            self.configs[slot][4].pop(index-1)
             if self.configs[slot][1]:
                 self.websockets[roomid].ChangeRefCount(-1)
         if self.configs[slot][0][0] is None and len(self.configs[slot][0])==1:
@@ -415,6 +416,9 @@ class SpreadFilterFrame(wx.Frame):
         self.sldDelay.Bind(wx.EVT_SLIDER,self.OnDelayChange)
         self.OnDelayChange(None)
         wx.StaticText(panel,-1,"限定前缀",pos=(10,42))
+
+        
+
         wx.StaticText(panel,-1,"仅转发指定的前缀，留空则不进行限制\n如果想指定多个前缀，请使用分号或逗号进行分隔",pos=(10,65)).SetForegroundColour("grey")
         speakers=self.configs[slot][2][index]
         self.tcFilter=wx.TextCtrl(panel,-1,speakers,pos=(68,38),size=(210,27),style=wx.TE_PROCESS_ENTER)
