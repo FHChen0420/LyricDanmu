@@ -86,6 +86,8 @@ class SpRoomSelectFrame(wx.Frame):
             for cfg in self.configs:
                 if cfg[0][0] == cur_room_lst[0]: #2
                     self.disable_rids += cfg[0][1:]
+                    if cur_rid in self.disable_rids:
+                        self.disable_rids.remove(cur_rid)
         self.select = "" if cur_rid is None else cur_rid
     
     def NewRoom(self,event):
