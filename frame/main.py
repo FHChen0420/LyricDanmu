@@ -180,6 +180,7 @@ class MainFrame(wx.Frame):
         self.init_two_prefix=False                                  # 是否将空前缀与【前缀作为默认的评论框前缀备选
         self.enable_rich_record=False                               # 是否启用富文本弹幕记录窗口
         self.record_fontsize=9 if self.platform=="win" else 13      # 弹幕记录窗口文字大小
+        self.f_enable = True                                        # 弹幕开启屏蔽词自动处理
         self.f_resend = True                                        # 弹幕触发全局屏蔽时是否自动重发
         self.f_resend_mark = True                                   # 弹幕重发时是否显示标识
         self.f_resend_deal = True                                   # 弹幕重发时是否对内容进行额外处理
@@ -1218,7 +1219,7 @@ class MainFrame(wx.Frame):
                 self.UpdateRecord(msg,roomid,src,DanmuCode.SUCCESS,internalData=internalData)
                 succ_send=True
             elif errmsg in ("f","fire"): #弹幕含有B站通用屏蔽词或特殊房间屏蔽词，或因B站偶尔抽风导致无法发送
-                if self.f_resend and try_times>0 and not self.shield_debug_mode: # 注：屏蔽词调试模式下禁用屏蔽句重发
+                if self.f_resend and try_times>0 and self.f_enable and not self.shield_debug_mode: # 注：屏蔽词调试模式下禁用屏蔽句重发
                     if self.f_resend_mark:
                         self.UpdateRecord("",roomid,src,DanmuCode.SHIELDED_RE,False,internalData=internalData)
                     new_msg=self.anti_shield_ex.deal(origin_msg) if self.f_resend_deal else origin_msg
@@ -1454,7 +1455,7 @@ class MainFrame(wx.Frame):
 
     def AntiShield(self,text,roomid=None):
         """对文本进行B站直播弹幕屏蔽词处理"""
-        if not self.shield_debug_mode:
+        if self.f_enable and not self.shield_debug_mode:
             if roomid is None:
                 roomid=self.roomid
             text=self.GetRoomShields(roomid).deal(text)
@@ -1923,6 +1924,8 @@ class MainFrame(wx.Frame):
                         self.enable_rich_record = v.lower()=="true"
                     elif k == "弹幕记录字号":
                         self.record_fontsize = min(max(int(v),9),16)
+                    elif k == "开启屏蔽词自动处理": 
+                        self.f_enable = v.lower()=="true"
                     elif k == "屏蔽句自动重发": 
                         self.f_resend = v.lower()=="true"
                     elif k == "屏蔽句重发标识":
@@ -2172,6 +2175,7 @@ class MainFrame(wx.Frame):
                 f.write("忽略系统代理=%s\n" % self.no_proxy)
                 f.write("最低发送间隔=%d\n" % self.send_interval_ms)
                 f.write("请求超时阈值=%d\n" % int(1000*self.timeout_s))
+                f.write("开启屏蔽词自动处理=%s\n" % self.f_enable)
                 f.write("屏蔽句自动重发=%s\n" % self.f_resend)
                 f.write("进一步处理屏蔽句=%s\n" % self.f_resend_deal)
                 f.write("截断发送失败弹幕=%s\n" % self.cancel_danmu_after_failed)
@@ -2269,6 +2273,7 @@ class MainFrame(wx.Frame):
             "init_two_prefix",
             "no_proxy",
             "enable_rich_record",
+            "f_enable",
             "f_resend",
             "f_resend_deal",
             "f_resend_mark",
