@@ -361,7 +361,7 @@ class GeneralConfigFrame(wx.Frame):
         self.Parent.SwitchAccount(acc_no)
     
     def SelectPage(self,page_index):
-        self.nb.SetSelection(page_index)
+        self.notebook.SetSelection(page_index)
 
     def OnClose(self,event):
         snapshot = self.Parent.GenerateConfigSnapshot()
