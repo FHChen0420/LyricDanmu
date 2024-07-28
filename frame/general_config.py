@@ -255,23 +255,31 @@ class GeneralConfigFrame(wx.Frame):
             self.tcAccCookies=[]
             self.btnQrLogins=[]
             self.btnAccEdits=[]
+
+            verticalOffset = 0
             wx.StaticText(panel,-1,"账号切换",pos=(15, 14))
-            for i in range(2):
+            for i in range(5):
+                if i % 2 == 0 and i > 0 :
+                    verticalOffset += 30
+                posIndex = i % 2
                 acc_name="账号%d"%(i+1) if parent.account_names[i]=="" else parent.account_names[i]
-                btnAccSwitch=wx.Button(panel,-1,acc_name,pos=(75+i*100, 10),size=(90,25),name=str(i))
+                btnAccSwitch=wx.Button(panel,-1,acc_name,pos=(75+posIndex*100, 10+verticalOffset),size=(90,25),name=str(i))
                 btnAccSwitch.Bind(wx.EVT_BUTTON,self.SwitchAccount)
-                wx.StaticText(panel,-1,"账号名称",pos=(15,50+80*i))
-                tcAccName=wx.TextCtrl(panel,-1,parent.account_names[i],pos=(75,47+80*i),size=(80,22))
+                self.btnAccSwitches.append(btnAccSwitch)
+
+            for i in range(5):
+                rowOffset = 80 * i + verticalOffset
+                wx.StaticText(panel,-1,"账号名称",pos=(15,50+rowOffset))
+                tcAccName=wx.TextCtrl(panel,-1,parent.account_names[i],pos=(75,47+rowOffset),size=(80,22))
                 tcAccName.Disable()
-                btnQrLogin=wx.Button(panel,-1,"扫码登录",pos=(160,47+80*i),size=(60,22),name=str(i))
+                btnQrLogin=wx.Button(panel,-1,"扫码登录",pos=(160,47+rowOffset),size=(60,22),name=str(i))
                 btnQrLogin.Bind(wx.EVT_BUTTON, self.ShowQrCodeFrame)
-                btnAccEdit=wx.Button(panel,-1,"编辑",pos=(225,47+80*i),size=(40,22),name=str(i))
+                btnAccEdit=wx.Button(panel,-1,"编辑",pos=(225,47+rowOffset),size=(40,22),name=str(i))
                 btnAccEdit.Bind(wx.EVT_BUTTON,self.EditOrSaveAccount)
-                wx.StaticText(panel,-1,"Cookie",pos=(20,82+80*i))
-                tcAccCookie=wx.TextCtrl(panel,-1,parent.cookies[i],pos=(75,73+80*i),size=(190,38),style=wx.TE_MULTILINE|wx.TE_PROCESS_ENTER)
+                wx.StaticText(panel,-1,"Cookie",pos=(20,82+rowOffset))
+                tcAccCookie=wx.TextCtrl(panel,-1,parent.cookies[i],pos=(75,73+rowOffset),size=(190,38),style=wx.TE_MULTILINE|wx.TE_PROCESS_ENTER)
                 tcAccCookie.Bind(wx.EVT_TEXT_ENTER, lambda event: None)
                 tcAccCookie.Disable()
-                self.btnAccSwitches.append(btnAccSwitch)
                 self.tcAccNames.append(tcAccName)
                 self.tcAccCookies.append(tcAccCookie)
                 self.btnQrLogins.append(btnQrLogin)
@@ -355,7 +363,7 @@ class GeneralConfigFrame(wx.Frame):
         self.Parent.SwitchAccount(acc_no)
     
     def SelectPage(self,page_index):
-        self.nb.SetSelection(page_index)
+        self.notebook.SetSelection(page_index)
 
     def OnClose(self,event):
         snapshot = self.Parent.GenerateConfigSnapshot()

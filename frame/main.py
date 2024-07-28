@@ -73,7 +73,7 @@ class MainFrame(wx.Frame):
         self.show_simple = False                                    # 是否启用简版模式
         self.init_lock = True                                       # 是否锁定歌词面板部分按钮
         # B站配置参数
-        self.cur_acc = 0                                            # 账号编号（0或1）
+        self.cur_acc = None                                         # 账号编号
         self.roomid = None                                          # 直播间号
         self.room_name = None                                       # 直播间名称
         self.colors = {}                                            # 用户可用的弹幕颜色
@@ -165,8 +165,8 @@ class MainFrame(wx.Frame):
         self.init_show_lyric = True                                 # 是否在启动时展开歌词面板
         self.init_show_record = False                               # 是否在启动时打开弹幕记录窗口
         self.no_proxy = True                                        # 是否禁用系统代理
-        self.account_names=["",""]                                  # B站账号标注名称列表
-        self.cookies=["",""]                                        # B站账号Cookie列表
+        self.account_names=["","","","",""]                         # B站账号标注名称列表
+        self.cookies=["","","","",""]                               # B站账号Cookie列表
         self.qq_cookie = ""                                         # QQ音乐Cookie
         self.qq_new_api = False                                     # 是否使用新版QQ音乐搜歌接口
         self.need_update_global_shields = True                      # 是否需要更新屏蔽词库
@@ -200,7 +200,7 @@ class MainFrame(wx.Frame):
     def ShowFrame(self, parent):
         """布局并显示各类窗体控件"""
         # 窗体
-        wx.Frame.__init__(self, parent, title="LyricDanmu %s - %s"%(self.LD_VERSION,self.account_names[0]),
+        wx.Frame.__init__(self, parent, title="LyricDanmu %s"%(self.LD_VERSION),
             style=wx.DEFAULT_FRAME_STYLE ^ (wx.RESIZE_BORDER | wx.MAXIMIZE_BOX) | wx.STAY_ON_TOP)
         self.Bind(wx.EVT_CLOSE, self.OnClose)
         self.Bind(wx.EVT_MOVE, self.OnMove)
@@ -1615,6 +1615,9 @@ class MainFrame(wx.Frame):
             self.SetTitle("LyricDanmu %s - %s"%(self.LD_VERSION,acc_name))
     
     def SwitchAccount(self,acc_no):
+        if acc_no >= len(self.account_names):
+            acc_no = 0
+
         """切换要使用的B站账号"""
         acc_name=self.account_names[acc_no]
         if acc_no==self.cur_acc:    return
@@ -1902,10 +1905,22 @@ class MainFrame(wx.Frame):
                         self.account_names[0] = "账号1" if v=="" else v
                     elif k == "账号标注2":
                         self.account_names[1] = "账号2" if v=="" else v
+                    elif k == "账号标注3":
+                        self.account_names[2] = "账号3" if v=="" else v
+                    elif k == "账号标注4":
+                        self.account_names[3] = "账号4" if v=="" else v
+                    elif k == "账号标注5":
+                        self.account_names[4] = "账号5" if v=="" else v
                     elif k == "cookie":
                         self.cookies[0] = v
                     elif k == "cookie2":
                         self.cookies[1] = v
+                    elif k == "cookie3":
+                        self.cookies[2] = v
+                    elif k == "cookie4":
+                        self.cookies[3] = v
+                    elif k == "cookie5":
+                        self.cookies[4] = v
                     elif k == "qq音乐cookie":
                         self.qq_cookie = v
                     elif k == "同传中断阈值":
@@ -2210,6 +2225,12 @@ class MainFrame(wx.Frame):
                 f.write("cookie=%s\n" % self.cookies[0])
                 f.write("账号标注2=%s\n" % self.account_names[1])
                 f.write("cookie2=%s\n" % self.cookies[1])
+                f.write("账号标注3=%s\n" % self.account_names[2])
+                f.write("cookie3=%s\n" % self.cookies[2])
+                f.write("账号标注4=%s\n" % self.account_names[3])
+                f.write("cookie4=%s\n" % self.cookies[3])
+                f.write("账号标注5=%s\n" % self.account_names[4])
+                f.write("cookie5=%s\n" % self.cookies[4])
                 f.write("qq音乐cookie=%s\n" % self.qqApi.get_cookie())
         except Exception as e:
             logDebug(f"[SaveConfig] {e}")
