@@ -68,6 +68,8 @@ class GeneralConfigFrame(wx.Frame):
             # 屏蔽句重发
             row = ConfigRow(panel, "屏蔽处理", wx.VERTICAL)
             sizer.Add(*row.Export())
+            self.ckbFEnable = row.AddToSizer(wx.CheckBox(row,-1,"开启屏蔽词自动处理"))
+            self.ckbFEnable.SetValue(parent.f_enable)
             self.ckbFResend = row.AddToSizer(wx.CheckBox(row,-1,"弹幕被屏蔽时尝试重发"))
             self.ckbFResend.SetValue(parent.f_resend)
             self.ckbFRDeal = row.AddToSizer(wx.CheckBox(row,-1,"重发时进一步处理内容"))
@@ -405,6 +407,7 @@ class GeneralConfigFrame(wx.Frame):
         parent.init_two_prefix=self.ckbTwoPre.GetValue()
         parent.no_proxy=self.ckbNoProxy.GetValue()
         parent.enable_rich_record=self.ckbRichRcd.GetValue()
+        parent.f_enable=self.ckbFEnable.GetValue()
         parent.f_resend=self.ckbFResend.GetValue()
         parent.f_resend_deal=self.ckbFRDeal.GetValue()
         parent.f_resend_mark=self.ckbFRMark.GetValue()
