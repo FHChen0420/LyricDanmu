@@ -100,6 +100,11 @@ class MainFrame(wx.Frame):
         self.cur_t=0                                                # 歌词自动播放的当前进度    
         self.pause_t=0                                              # 歌词自动播放过程中暂停时的进度
         self.timeline_base=0                                        # 歌词自动播放的起始进度
+        self.lyric_auto_playback_speed_default=1                    # 歌词自动播放默认速率
+        self.lyric_auto_playback_speed_current=1                    # 歌词自动播放当前速率
+        self.lyric_auto_playback_speed_min=0.1                      # 歌词自动播放速率最小值
+        self.lyric_auto_playback_speed_max=2                        # 歌词自动播放速率最大值
+        self.lyric_auto_playback_speed_step=0.1                     # 歌词自动播放速率调整步长
         self.qq_lock=False                                          # 是否暂时禁用QQ音乐搜歌交互
         # 其他参数
         self.tmp_clipboard=""                                       # 临时剪贴板内容
@@ -283,6 +288,8 @@ class MainFrame(wx.Frame):
         self.btnPrev.Bind(wx.EVT_BUTTON, self.PrevLyric)
         self.btnNext.Bind(wx.EVT_BUTTON, self.NextLyric)
         self.btnSend.Bind(wx.EVT_BUTTON, self.OnSendLrcBtn)
+        self.btnSend.Bind(wx.EVT_RIGHT_UP, self.OnSendLrcBtnRightClick)
+        self.btnSend.Bind(wx.EVT_MIDDLE_UP, self.OnSendLrcBtnMiddleClick)
         self.btnCustomText.Bind(wx.EVT_BUTTON, self.ShowCustomTextFrame)
         self.btnAutoSend.Bind(wx.EVT_BUTTON, self.OnAutoSendLrcBtn)
         self.btnStopAuto.Bind(wx.EVT_BUTTON, self.OnStopBtn)
@@ -655,11 +662,19 @@ class MainFrame(wx.Frame):
             except Exception as e:
                 return showInfoDialog("弹幕发送线程出错，请重启并将问题反馈给作者\n" + str(e), "发生错误")
 
+    def SetAutoSendCurT(self, referenceTime):
+        diff = referenceTime - self.timeline_base
+        self.cur_t = self.cur_t + diff * self.lyric_auto_playback_speed_current
+        self.timeline_base = referenceTime
+
+    def UpdateSendBtnUI(self):
+        UIChange(self.btnSend,label=getTimeLineStr(self.cur_t) + "\n" + "x{:.1f}".format(self.lyric_auto_playback_speed_current))
+
     def ThreadOfAutoSend(self):
         """（子线程）自动发送带时轴的歌词"""
         self.cur_t=self.timelines[self.oid]
         next_t=self.timelines[self.oid+1]
-        self.timeline_base=time.time()-self.cur_t
+        self.timeline_base = time.time()
         while self.auto_sending and next_t>=0:
             if self.auto_pausing:
                 wx.MilliSleep(48)
@@ -670,8 +685,9 @@ class MainFrame(wx.Frame):
                     self.SendLyric(3)
                 self.SendLyric(4)
                 next_t=self.timelines[self.oid+1]
-            UIChange(self.btnSend,label=getTimeLineStr(self.cur_t))
-            self.cur_t = time.time()-self.timeline_base
+            
+            self.SetAutoSendCurT(time.time())
+            self.UpdateSendBtnUI()
             wx.MilliSleep(48)
         self.OnStopBtn(None)
 
@@ -730,12 +746,11 @@ class MainFrame(wx.Frame):
             return
         if self.auto_sending:
             if self.auto_pausing:
-                resume_t=time.time()
-                self.timeline_base+=resume_t-self.pause_t
+                self.timeline_base = time.time()
                 self.auto_pausing=False
                 self.btnAutoSend.SetLabel("暂停 ⏸")
             else:
-                self.pause_t=time.time()
+                self.SetAutoSendCurT(time.time())
                 self.auto_pausing=True
                 self.btnAutoSend.SetLabel("继续 ▶")
             return
@@ -905,9 +920,8 @@ class MainFrame(wx.Frame):
         if self.init_lock:  return
         # 自动模式下，延缓进度
         if self.auto_sending and event is not None:
-            self.timeline_base+=0.5
             self.cur_t-=0.5
-            UIChange(self.btnSend,label=getTimeLineStr(self.cur_t))
+            self.UpdateSendBtnUI()
             return
         # 手动模式下，上一句
         if self.oid <= 0:
@@ -920,9 +934,8 @@ class MainFrame(wx.Frame):
         if self.init_lock:  return
         # 自动模式下，提早进度
         if self.auto_sending and event is not None:
-            self.timeline_base-=0.5
             self.cur_t+=0.5
-            UIChange(self.btnSend,label=getTimeLineStr(self.cur_t))
+            self.UpdateSendBtnUI()
             return
         # 手动模式下，下一句
         if self.oid + 2 >= self.omax:
@@ -931,8 +944,31 @@ class MainFrame(wx.Frame):
         self.OnLyricLineChange(None)
         return True
 
+    def SendLrcBtnPreCheck(self, source):
+        if self.init_lock:
+            return True
+        if self.auto_sending:
+            target = self.lyric_auto_playback_speed_current
+
+            if source == "middleClick":
+                target = self.lyric_auto_playback_speed_default
+            else:
+                step = self.lyric_auto_playback_speed_step
+                if source == "rightClick":
+                    step = 0 - step
+
+                target = round(target + step, 1)
+                if target > self.lyric_auto_playback_speed_max:
+                    target = self.lyric_auto_playback_speed_min
+                if target < self.lyric_auto_playback_speed_min:
+                    target = self.lyric_auto_playback_speed_max
+
+            self.lyric_auto_playback_speed_current = target
+            self.UpdateSendBtnUI()
+            return True
+
     def OnSendLrcBtn(self, event):
-        if self.init_lock or self.auto_sending: return
+        if self.SendLrcBtnPreCheck("leftClick"): return
         if self.roomid is None:
             return showInfoDialog("未指定直播间", "提示")
         if not self.NextLyric(None):    return
@@ -942,6 +978,12 @@ class MainFrame(wx.Frame):
         if self.cur_song_name!=self.last_song_name:
             self.last_song_name=self.cur_song_name
             self.LogSongName("%8s\t%s"%(self.roomid,self.cur_song_name))
+
+    def OnSendLrcBtnRightClick(self, event):
+        if self.SendLrcBtnPreCheck("rightClick"): return
+
+    def OnSendLrcBtnMiddleClick(self, event):
+        if self.SendLrcBtnPreCheck("middleClick"): return
 
     def OnMessageCoreConfigUpdated(self, before, after):
         if before["spread_maximum_spread_rooms"] != after["spread_maximum_spread_rooms"] or before["spread_maximum_listen_rooms"] != after["spread_maximum_listen_rooms"]:
