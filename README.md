@@ -71,6 +71,7 @@ B站直播歌词/同传弹幕发送工具
 │  │  live_chaser.py            B站直播追帧工具
 │  │  live_websocket.py         B站直播websocket工具
 │  │  util.py                   自定义工具类
+│  │  w_rid.py                  B站校验字段的生成算法
 ```
 
 引用项目：
