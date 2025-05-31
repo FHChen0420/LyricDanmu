@@ -9,6 +9,7 @@ from pubsub import pub
 
 from const.constant import InternalMessage
 from utils.util import getTime, logDebug
+from utils.w_rid import get_UA, fill_wrid_wts
 
 
 class BiliLiveWebSocket():
@@ -17,8 +18,7 @@ class BiliLiveWebSocket():
     __URI="wss://{host}:{wss_port}/sub"
     __HEARTBEAT_PKG="00000010001000010000000200000001"
     __ENTERROOM_HEADER="{:0>8x}001000010000000700000001"
-    __URL_GETDANMUINFO="https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?id={roomid}&type=0"
-    __UA={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.188"}
+    __URL_GETDANMUINFO="https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo"
     __TIMEOUT=aiohttp.ClientTimeout(5)
     '''
     :协议头：
@@ -46,10 +46,13 @@ class BiliLiveWebSocket():
                 # 获取直播间弹幕服务器地址列表以及token
                 token = ""
                 async with aiohttp.ClientSession(timeout=self.__TIMEOUT) as session:
-                    async with session.get(self.__URL_GETDANMUINFO.format(roomid=self.__roomid), **{
-                        "headers":{
-                            "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                             "Chrome/118.0.0.0 Safari/537.36 Edg/118.0.2088.61"}}) as res:
+                    params = {
+                        "id": self.__roomid,
+                        "type": 0,
+                    }
+                    await fill_wrid_wts(params)
+                    async with session.get(self.__URL_GETDANMUINFO, params=params, **{
+                        "headers": get_UA()}) as res:
                         data = await res.json()
                         if data["code"]==0:
                             token = data["data"]["token"]
@@ -67,7 +70,7 @@ class BiliLiveWebSocket():
                 }
                 body = json.dumps(param).encode().hex()
                 async with aiohttp.ClientSession(timeout=self.__TIMEOUT) as session:
-                    async with session.ws_connect(uri, headers=self.__UA) as websocket:
+                    async with session.ws_connect(uri, headers=get_UA()) as websocket:
                         '''定义 心跳包定时发送任务'''
                         async def send_heart_beat():
                             count = 0
