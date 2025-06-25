@@ -685,11 +685,11 @@ class MainFrame(wx.Frame):
                     self.SendLyric(3)
                 self.SendLyric(4)
                 next_t=self.timelines[self.oid+1]
-            
             self.SetAutoSendCurT(time.time())
             self.UpdateSendBtnUI()
             wx.MilliSleep(48)
-        self.OnStopBtn(None)
+        if self.running:
+            self.OnStopBtn(None)
 
     def ThreadOfUpdateGlobalShields(self):
         """（子线程）从云端更新B站直播间全局屏蔽词库"""
