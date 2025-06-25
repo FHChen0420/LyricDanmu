@@ -1035,7 +1035,7 @@ class MainFrame(wx.Frame):
         text=wxPaste()
         if text is None:  return
         if "\n" in text or "\r" in text:
-            wxCopy(re.sub("\s+"," ",text))
+            wxCopy(re.sub(r"\s+"," ",text))
             self.tmp_clipboard=text
         else:
             self.tmp_clipboard=""
@@ -1209,7 +1209,7 @@ class MainFrame(wx.Frame):
         :param try_times: 大于0表示弹幕发送失败后允许重发
         :param internalData: 附加数据（应用内部标记用）
         """
-        if re.match("^…?[\s)）」』】’”\"\'\]][\s\U000E0020-\U000E0029】]*$",msg[len(pre):]):  return True
+        if re.match(r"^…?[\s)）」』】’”\"\'\]][\s\U000E0020-\U000E0029】]*$",msg[len(pre):]):  return True
         origin_msg,remain_msg,succ_send=msg,"",False
         if len(origin_msg)>max_len:
             cut_idx=self.GetCutIndex(origin_msg,max_len,len(pre))
@@ -1555,8 +1555,8 @@ class MainFrame(wx.Frame):
         liver_name=dir_name.split("_",1)[1]
         start_date_ts=strToTs(getTime(start_time,fmt="%y-%m-%d 00:00:00"))
         records,start_ts,last_ts,word_num,danmu_count={},start_time,start_time,0,0
-        tl_danmu_pattern=re.compile("\["+DanmuSrc.COMMENT.value+DanmuCode.SUCCESS.value+"\]\[(\d{2}:\d{2}:\d{2})\](.*?【.*)")
-        char_filter_pattern=re.compile("^.*?【|[\[\]【】\u0592\u0594\U000e0020-\U000e0029]")
+        tl_danmu_pattern=re.compile(r"\["+DanmuSrc.COMMENT.value+DanmuCode.SUCCESS.value+r"\]\[(\d{2}:\d{2}:\d{2})\](.*?【.*)")
+        char_filter_pattern=re.compile(r"^.*?【|[\[\]【】\u0592\u0594\U000e0020-\U000e0029]")
         for ts in range(start_date_ts,end_time+1,86400):
             date=getTime(ts,fmt="%y-%m-%d")
             try:

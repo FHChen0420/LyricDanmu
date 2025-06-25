@@ -45,9 +45,9 @@ class BiliLiveAntiShield:
             else:
                 if parts[0][0]=="[":    exclude_chars=parts[0][1:-1]
                 else: exclude_chars=parts[0] if len(parts[0])==1 else ""
-                regex1="(?: ?[^\s%s]){0,%d}? ?"%(exclude_chars,distance[0]-1)
+                regex1=r"(?: ?[^\s%s]){0,%d}? ?"%(exclude_chars,distance[0]-1)
             for i in range(1,n):
-                regex=" ?" if distance[i]==1 else "(?: ?\S){0,%d} ?"%(distance[i]-1)
+                regex=" ?" if distance[i]==1 else r"(?: ?\S){0,%d} ?"%(distance[i]-1)
                 regex2+=regex+parts[i+1]
             pat="(?i)(%s)(%s)(?=%s)"%(parts[0],regex1,parts[1]+regex2)
             self.__deal_list.append((re.compile(pat),self.__multi_fill[distance[0]]))

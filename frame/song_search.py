@@ -229,7 +229,7 @@ class SongSearchFrame(wx.Frame):
             j = 0
             for song in self.all_songs[i * self.page_limit:(i + 1) * self.page_limit]:
                 song_id=str(song["id"])
-                short_name=re.sub("\(.*?\)|（.*?）","",song["name"])
+                short_name=re.sub(r"\(.*?\)|（.*?）","",song["name"])
                 txtName = wx.StaticText(p, -1, song["name"].strip(), pos=(15, 50 * j), size=(360, 30),style=wx.ST_NO_AUTORESIZE)
                 txtType = wx.StaticText(self.panels[i], -1, "", pos=(15, 50 * j + 25), size=(35, -1),style=wx.ST_NO_AUTORESIZE)
                 txtArtist = wx.StaticText(p, -1, song["artists"][0]["name"].strip(), pos=(50, 50 * j + 25),size=(100, -1), style=wx.ST_NO_AUTORESIZE)
@@ -357,7 +357,7 @@ class SongSearchFrame(wx.Frame):
                 "src": "local",
                 "has_trans": has_trans,
                 "lyric": getNodeValue(localSong,"lyric"),
-                "name": re.sub("\(.*?\)|（.*?）","",getNodeValue(localSong,"name")),
+                "name": re.sub(r"\(.*?\)|（.*?）","",getNodeValue(localSong,"name")),
             }
             self.parent.RecvLyric(data)
             if has_trans:

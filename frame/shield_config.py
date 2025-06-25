@@ -70,7 +70,7 @@ class ShieldConfigFrame(wx.Frame):
             return showInfoDialog("屏蔽词不能为空", "添加屏蔽规则出错")
         if before==after:
             return showInfoDialog("屏蔽前后无变化", "添加屏蔽规则出错")
-        if not re.match("^[\d,]*$",rooms):
+        if not re.match(r"^[\d,]*$",rooms):
             return showInfoDialog("房间号格式有误", "添加屏蔽规则出错")
         index=0
         for k in self.parent.custom_shields.keys():
