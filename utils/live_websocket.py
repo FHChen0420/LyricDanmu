@@ -30,7 +30,7 @@ class BiliLiveWebSocket():
     :后续接数据包内容
     '''
 
-    def __init__(self,roomid):
+    def __init__(self,roomid, buvid3):
         self.__roomid=str(roomid)
         self.__ref_count=0
         self.__loop=asyncio.new_event_loop()
@@ -38,6 +38,7 @@ class BiliLiveWebSocket():
         self.__closing=False
         self.__error=False
         self.__hb_task=None
+        self.__buvid3=buvid3
 
     async def __connect_to_room(self):
         self.__error=False
@@ -49,10 +50,14 @@ class BiliLiveWebSocket():
                     params = {
                         "id": self.__roomid,
                         "type": 0,
+                        "web_location": 444.8,
                     }
                     await fill_wrid_wts(params)
                     async with session.get(self.__URL_GETDANMUINFO, params=params, **{
-                        "headers": get_UA()}) as res:
+                        "headers": get_UA(),
+                        "cookies": {
+                            "buvid3": self.__buvid3
+                        }}) as res:
                         data = await res.json()
                         if data["code"]==0:
                             token = data["data"]["token"]
