@@ -242,7 +242,10 @@ class DanmuSpreadFrame(wx.Frame):
         })
         for roomid in self.configs[slot][0][1:]:
             if roomid not in self.websockets.keys():
-                self.websockets[roomid]=BiliLiveWebSocket(roomid)
+                # 需要传入一个"已经激活的buvid3"才能正常获取直播间的地址
+                match = re.search(r'buvid3=([^;]+)', self.Parent.cookies[0])
+                buvid3_value = match.group(1)
+                self.websockets[roomid]=BiliLiveWebSocket(roomid, buvid3_value)
             self.websockets[roomid].ChangeRefCount(+1 if spreading else -1)
         self.RefreshUI()
     
