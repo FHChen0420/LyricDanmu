@@ -12,10 +12,10 @@ from utils.util import getTime, logDebug
 from utils.w_rid import get_UA, fill_wrid_wts
 
 
-class BiliLiveWebSocket():
+class BiliLiveWebSocket:
     __TL_PATTERN1=r"^【(?P<speaker>[^:：]{1,5})[:：](?P<content>[^】]+)"
     __TL_PATTERN2=r"^(?P<speaker>[^\u0592✉【][^【]{0,4})?【(?P<content>[^】]+)"
-    __URI="wss://{host}:{wss_port}/sub"
+    __URI="wss://{host}/sub"
     __HEARTBEAT_PKG="00000010001000010000000200000001"
     __ENTERROOM_HEADER="{:0>8x}001000010000000700000001"
     __URL_GETDANMUINFO="https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo"
@@ -30,7 +30,7 @@ class BiliLiveWebSocket():
     :后续接数据包内容
     '''
 
-    def __init__(self,roomid, buvid3):
+    def __init__(self,roomid, session):
         self.__roomid=str(roomid)
         self.__ref_count=0
         self.__loop=asyncio.new_event_loop()
@@ -38,7 +38,7 @@ class BiliLiveWebSocket():
         self.__closing=False
         self.__error=False
         self.__hb_task=None
-        self.__buvid3=buvid3
+        self.__session=session
 
     async def __connect_to_room(self):
         self.__error=False
@@ -56,7 +56,9 @@ class BiliLiveWebSocket():
                     async with session.get(self.__URL_GETDANMUINFO, params=params, **{
                         "headers": get_UA(),
                         "cookies": {
-                            "buvid3": self.__buvid3
+                            "buvid3": self.__session["buvid3"],
+                            "SESSDATA": self.__session["SESSDATA"],
+                            "bili_jct": self.__session["bili_jct"],
                         }}) as res:
                         data = await res.json()
                         if data["code"]==0:
@@ -66,10 +68,11 @@ class BiliLiveWebSocket():
                         else:
                             print("获取弹幕服务器地址失败")
                 param={ # 建立连接时附带的数据包
-                    "uid": 0,
+                    "uid": int(self.__session["DedeUserId"]),
                     "roomid": int(self.__roomid),
                     "protover": 3,
                     "platform": "web",
+                    "buvid": self.__session["buvid3"],
                     "type": 2,
                     "key": token
                 }

@@ -171,7 +171,7 @@ class DanmuSpreadFrame(wx.Frame):
             self.configs[slot][4].append(False)
         if index>0 and self.configs[slot][1]:
             if roomid not in self.websockets.keys():
-                self.websockets[roomid]=BiliLiveWebSocket(roomid)
+                self.websockets[roomid]=BiliLiveWebSocket(roomid, self.GetCookies())
             self.websockets[roomid].ChangeRefCount(+1)
             if old_rid is not None:
                 self.websockets[old_rid].ChangeRefCount(-1)
@@ -185,7 +185,7 @@ class DanmuSpreadFrame(wx.Frame):
                 cfg[0][index]=new
                 if index>0 and cfg[1]: count+=1
         if new not in self.websockets.keys():
-            self.websockets[new]=BiliLiveWebSocket(new)
+            self.websockets[new]=BiliLiveWebSocket(new, self.GetCookies())
         self.websockets[new].ChangeRefCount(+count)
         if old in self.websockets.keys():
             self.websockets[old].ChangeRefCount(-count)
@@ -242,10 +242,7 @@ class DanmuSpreadFrame(wx.Frame):
         })
         for roomid in self.configs[slot][0][1:]:
             if roomid not in self.websockets.keys():
-                # 需要传入一个"已经激活的buvid3"才能正常获取直播间的地址
-                match = re.search(r'buvid3=([^;]+)', self.Parent.cookies[0])
-                buvid3_value = match.group(1)
-                self.websockets[roomid]=BiliLiveWebSocket(roomid, buvid3_value)
+                self.websockets[roomid]=BiliLiveWebSocket(roomid, self.GetCookies())
             self.websockets[roomid].ChangeRefCount(+1 if spreading else -1)
         self.RefreshUI()
     
@@ -399,6 +396,17 @@ class DanmuSpreadFrame(wx.Frame):
     def RecordFail(self):
         self.fail_count+=1
         UIChange(self.lblFail,label=f"失败:{self.fail_count}")
+
+    def GetCookies(self):
+        # 现在必须传入完整session才能拿到全部的弹幕信息
+        # 写死拿账号1的
+        match = re.search(r'buvid3=([^;]*);SESSDATA=([^;]*);bili_jct=([^;]*);DedeUserId=([^;]*)', self.Parent.cookies[0])
+        return {
+            "buvid3": match and match.group(1),
+            "SESSDATA": match and match.group(2),
+            "bili_jct": match and match.group(3),
+            "DedeUserId": match and match.group(4),
+        }
 
 class SpreadFilterFrame(wx.Frame):
     def __init__(self, parent, slot, index):

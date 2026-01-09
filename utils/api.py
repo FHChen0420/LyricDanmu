@@ -210,8 +210,9 @@ class BiliLiveAPI(BaseAPI):
         mo1 = re.search(r"buvid3=([^;]+)", cookie)
         mo2 = re.search(r"SESSDATA=([^;]+)", cookie)
         mo3 = re.search(r"bili_jct=([^;]+)", cookie)
-        buvid3,sessdata,bili_jct=mo1.group(1) if mo1 else "",mo2.group(1) if mo2 else "",mo3.group(1) if mo3 else ""
-        cookie="buvid3=%s;SESSDATA=%s;bili_jct=%s"%(buvid3,sessdata,bili_jct)
+        mo4 = re.search(r"DedeUserId=([^;]+)", cookie)
+        buvid3,sessdata,bili_jct,deceuserid=mo1.group(1) if mo1 else "",mo2.group(1) if mo2 else "",mo3.group(1) if mo3 else "",mo4.group(1) if mo4 else ""
+        cookie="buvid3=%s;SESSDATA=%s;bili_jct=%s;DedeUserId=%s"%(buvid3,sessdata,bili_jct,deceuserid)
         requests.utils.add_dict_to_cookiejar(self.sessions[number].cookies,{"Cookie": cookie})
         self.csrfs[number]=bili_jct
         return cookie

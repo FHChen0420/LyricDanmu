@@ -56,7 +56,7 @@ class BiliQrCodeFrame(wx.Frame):
                         session=requests.Session()
                         session.get(url=data["data"]["url"],headers=self.blApi.headers)
                         _dict=session.cookies.get_dict()
-                        cookie=f"buvid3={_dict['buvid3']};SESSDATA={_dict['SESSDATA']};bili_jct={_dict['bili_jct']}"
+                        cookie=f"buvid3={_dict['buvid3']};SESSDATA={_dict['SESSDATA']};bili_jct={_dict['bili_jct']};DedeUserId={_dict['DedeUserID']}"
                         self.Parent.SetLoginInfo(cookie,self.acc_no)
                         showInfoDialog("登录成功","提示")
                     except Exception as e:
